@@ -1,4 +1,5 @@
 export const DATA_RELATIONSHIP_SCHEMA_VERSION = 1 as const;
+export const DATA_RELATIONSHIP_EXPORT_SCHEMA_VERSION = 2 as const;
 
 export const RELATIONSHIP_NODE_TYPES = ["page", "element", "table"] as const;
 export const RELATIONSHIP_BINDING_TYPES = [
@@ -50,7 +51,38 @@ export interface RelationshipNodeDto {
   readonly y: number;
   readonly width: number;
   readonly height: number;
+  readonly pinned: boolean;
+  readonly positionRevision: number;
   readonly ports: readonly RelationshipPortDto[];
+}
+
+export interface RelationshipNodePositionDto {
+  readonly nodeId: string;
+  readonly nodeType: RelationshipNodeType;
+  readonly objectId: string;
+  readonly x: number;
+  readonly y: number;
+  readonly pinned: boolean;
+  readonly revision: number;
+}
+
+export interface RelationshipViewportDto {
+  readonly x: number;
+  readonly y: number;
+  readonly zoom: number;
+  readonly revision: number;
+}
+
+export interface RelationshipRoutePointDto {
+  readonly x: number;
+  readonly y: number;
+}
+
+export interface RelationshipEdgeRouteDto {
+  readonly bindingId: string;
+  readonly points: readonly RelationshipRoutePointDto[];
+  readonly bendCount: number;
+  readonly crossesNode: false;
 }
 
 export interface BindingEndpointDto {
@@ -86,6 +118,116 @@ export interface DataRelationshipGraphDto {
   readonly nodes: readonly RelationshipNodeDto[];
   /** Visual edges are the canonical Binding records, not a second model. */
   readonly edges: readonly RelationshipBindingDto[];
+  /** Routes are derived geometry keyed by the canonical Binding ID. */
+  readonly routes: readonly RelationshipEdgeRouteDto[];
+  readonly viewport: RelationshipViewportDto;
+}
+
+export interface UpdateRelationshipNodePositionRequest {
+  readonly x: number;
+  readonly y: number;
+  readonly pinned: boolean;
+  readonly expectedPositionRevision: number;
+  readonly expectedGraphRevision: number;
+  readonly expectedProjectRevision: number;
+  readonly idempotencyKey: string;
+}
+
+export interface RelationshipNodePositionMutationDto {
+  readonly position: RelationshipNodePositionDto;
+  readonly routes: readonly RelationshipEdgeRouteDto[];
+  readonly graphRevision: number;
+  readonly projectRevision: number;
+  readonly commandId: string;
+}
+
+export interface UpdateRelationshipViewportRequest {
+  readonly x: number;
+  readonly y: number;
+  readonly zoom: number;
+  readonly expectedRevision: number;
+}
+
+export interface RelationshipRoutePreviewRequest {
+  readonly positions: readonly RelationshipNodePositionDto[];
+  readonly expectedGraphRevision: number;
+  readonly expectedProjectRevision: number;
+}
+
+export interface RelationshipRoutePreviewDto {
+  readonly projectId: string;
+  readonly routes: readonly RelationshipEdgeRouteDto[];
+  readonly graphRevision: number;
+  readonly projectRevision: number;
+}
+
+export interface PreviewRelationshipAutoLayoutRequest {
+  readonly action: "PREVIEW";
+  readonly expectedGraphRevision: number;
+  readonly expectedProjectRevision: number;
+}
+
+export interface ApplyRelationshipAutoLayoutRequest {
+  readonly action: "APPLY";
+  readonly previewId: string;
+  readonly expectedGraphRevision: number;
+  readonly expectedProjectRevision: number;
+  readonly idempotencyKey: string;
+}
+
+export interface RelationshipAutoLayoutPreviewDto {
+  readonly action: "PREVIEW";
+  readonly previewId: string;
+  readonly projectId: string;
+  readonly positions: readonly RelationshipNodePositionDto[];
+  readonly routes: readonly RelationshipEdgeRouteDto[];
+  readonly crossingCountBefore: number;
+  readonly crossingCountAfter: number;
+  readonly graphRevision: number;
+  readonly projectRevision: number;
+  readonly expiresAt: string;
+}
+
+export interface RelationshipAutoLayoutApplyDto {
+  readonly action: "APPLY";
+  readonly projectId: string;
+  readonly positions: readonly RelationshipNodePositionDto[];
+  readonly routes: readonly RelationshipEdgeRouteDto[];
+  readonly graphRevision: number;
+  readonly projectRevision: number;
+  readonly commandId: string;
+}
+
+export interface RelationshipLayoutCommandDto {
+  readonly id: string;
+  readonly commandType: "MOVE_NODE" | "AUTO_LAYOUT";
+  readonly state: RelationshipHistoryState;
+  readonly createdAt: string;
+}
+
+export interface RelationshipLayoutHistoryDto {
+  readonly projectId: string;
+  readonly graphRevision: number;
+  readonly projectRevision: number;
+  readonly undo: RelationshipLayoutCommandDto | null;
+  readonly redo: RelationshipLayoutCommandDto | null;
+}
+
+export interface RelationshipLayoutHistoryMutationRequest {
+  readonly expectedGraphRevision: number;
+  readonly expectedProjectRevision: number;
+  readonly expectedCommandId: string;
+  readonly idempotencyKey: string;
+}
+
+export interface RelationshipLayoutHistoryMutationDto {
+  readonly projectId: string;
+  readonly operation: "UNDO" | "REDO";
+  readonly commandId: string;
+  readonly positions: readonly RelationshipNodePositionDto[];
+  readonly routes: readonly RelationshipEdgeRouteDto[];
+  readonly graphRevision: number;
+  readonly projectRevision: number;
 }
 
 export interface PreviewRelationshipConnectionRequest {
@@ -180,7 +322,9 @@ export interface RelationshipHistoryMutationDto {
 }
 
 export interface RelationshipBindingsExportDto {
-  readonly schemaVersion: typeof DATA_RELATIONSHIP_SCHEMA_VERSION;
+  readonly schemaVersion: 1 | typeof DATA_RELATIONSHIP_EXPORT_SCHEMA_VERSION;
   readonly graphRevision: number;
   readonly bindings: readonly RelationshipBindingDto[];
+  readonly nodePositions?: readonly RelationshipNodePositionDto[];
+  readonly viewport?: RelationshipViewportDto;
 }

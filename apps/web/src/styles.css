@@ -4412,7 +4412,7 @@ svg {
   }
 }
 
-/* Phase 9: Data Relationship Canvas */
+/* Data Relationship Canvas */
 .data-view-toggle {
   display: grid;
   width: 12rem;
@@ -4430,7 +4430,7 @@ svg {
   min-width: 0;
   min-height: 0;
   height: 100%;
-  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
   gap: 0.75rem;
   padding: 1rem;
   overflow: hidden;
@@ -4455,7 +4455,8 @@ svg {
   font-size: 0.75rem;
 }
 
-.relationship-toolbar-actions {
+.relationship-toolbar-actions,
+.relationship-layout-actions {
   display: grid;
   width: min(100%, 31rem);
   grid-template-columns: repeat(4, minmax(0, 1fr));
@@ -4463,10 +4464,15 @@ svg {
 }
 
 .relationship-toolbar-actions > *,
+.relationship-layout-actions > *,
 .relationship-dialog-actions > * {
   width: 100%;
   min-height: var(--control-height);
   border-radius: var(--control-radius);
+}
+
+.relationship-layout-actions {
+  justify-self: end;
 }
 
 .relationship-loading {
@@ -4488,7 +4494,7 @@ svg {
   position: relative;
   min-width: 0;
   min-height: 0;
-  overflow: auto;
+  overflow: hidden;
   border: 1px solid var(--border);
   border-radius: var(--radius-lg);
   background:
@@ -4499,74 +4505,97 @@ svg {
   overscroll-behavior: contain;
 }
 
-.relationship-canvas {
-  position: relative;
-  isolation: isolate;
+.relationship-viewport .react-flow {
+  width: 100%;
+  height: 100%;
+  min-height: 24rem;
+  color: var(--foreground);
+  background: var(--canvas);
 }
 
-.relationship-edges {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  overflow: visible;
-  pointer-events: none;
+.relationship-viewport .react-flow__pane {
+  cursor: grab;
 }
 
-.relationship-edges marker path {
-  fill: var(--edge);
+.relationship-viewport .react-flow__pane:active {
+  cursor: grabbing;
 }
 
-.relationship-edge {
+.relationship-edge-visual {
   outline: none;
-  pointer-events: auto;
   cursor: pointer;
 }
 
-.relationship-edge-hit {
-  fill: none;
-  stroke: transparent;
-  stroke-width: 14;
-}
-
-.relationship-edge-line,
-.relationship-edge-preview {
+.relationship-edge-line {
   fill: none;
   stroke: var(--edge);
   stroke-width: 2;
+  stroke-linecap: round;
   stroke-linejoin: round;
 }
 
-.relationship-edge-preview {
-  stroke: var(--edge-selected);
-  stroke-dasharray: 7 5;
+.relationship-edge-label {
+  position: absolute;
+  z-index: 5;
+  display: inline-flex;
+  min-height: 1.4rem;
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 0.1rem 0.4rem;
+  color: var(--foreground);
+  background: var(--canvas);
+  font-size: 0.68rem;
+  font-weight: 700;
   pointer-events: none;
 }
 
-.relationship-edge text {
-  fill: var(--foreground);
-  stroke: var(--canvas);
-  stroke-width: 4px;
-  paint-order: stroke;
-  font-size: 11px;
-  font-weight: 700;
-  text-anchor: middle;
-}
-
-.relationship-edge:hover .relationship-edge-line,
-.relationship-edge:focus-visible .relationship-edge-line,
-.relationship-edge.is-selected .relationship-edge-line {
+.relationship-edge-visual:hover .relationship-edge-line,
+.relationship-edge-visual:focus-visible .relationship-edge-line,
+.relationship-edge-visual.is-selected .relationship-edge-line {
   stroke: var(--edge-selected);
   stroke-width: 3;
 }
 
-.relationship-node {
+.relationship-edge-visual.is-selected .relationship-edge-line {
+  stroke-dasharray: 8 5;
+  animation: relationship-flow 0.8s linear infinite;
+}
+
+.relationship-edge-accessibility {
   position: absolute;
-  z-index: 1;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@keyframes relationship-flow {
+  to {
+    stroke-dashoffset: -13;
+  }
+}
+
+.relationship-node {
+  position: relative;
+  width: 100%;
+  height: 100%;
   overflow: visible;
   border-color: var(--node-border);
   background: var(--node);
   color: var(--node-foreground);
   box-shadow: var(--shadow-sm);
+}
+
+.react-flow__node-relationship {
+  border-radius: var(--radius-lg);
+}
+
+.react-flow__node-relationship.selected .relationship-node {
+  outline: 2px solid var(--selection);
+  outline-offset: 2px;
 }
 
 .relationship-node [data-slot="card-header"] {
@@ -4576,6 +4605,13 @@ svg {
   grid-template-rows: auto auto;
   align-items: center;
   gap: 0.1rem 0.5rem;
+}
+
+.relationship-pin {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  z-index: 3;
 }
 
 .relationship-node [data-slot="card-title"],
@@ -4668,6 +4704,61 @@ svg {
   content: "";
 }
 
+.relationship-flow-handle {
+  width: 0.7rem !important;
+  height: 0.7rem !important;
+  border: 2px solid var(--node) !important;
+  background: var(--primary) !important;
+}
+
+.relationship-flow-handle.is-input {
+  left: 0.3rem !important;
+}
+
+.relationship-flow-handle.is-output {
+  right: 0.3rem !important;
+}
+
+.relationship-auto-dialog {
+  width: min(46rem, calc(100vw - 2rem));
+}
+
+.relationship-auto-preview {
+  position: relative;
+  min-height: 11rem;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(var(--canvas-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--canvas-grid) 1px, transparent 1px),
+    var(--canvas);
+  background-size: 16px 16px;
+}
+
+.relationship-auto-preview-node {
+  position: absolute;
+  display: flex;
+  min-width: 4.75rem;
+  min-height: 2.4rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.35rem;
+  overflow: hidden;
+  border: 1px solid var(--node-border);
+  border-radius: var(--radius-md);
+  padding: 0.35rem;
+  color: var(--node-foreground);
+  background: var(--node);
+  font-size: 0.7rem;
+}
+
+.relationship-auto-preview-node svg {
+  width: 0.8rem;
+  height: 0.8rem;
+  flex: 0 0 auto;
+}
+
 .relationship-port.is-input .relationship-port-marker::before {
   border-right: 0.42rem solid currentcolor;
 }
@@ -4732,6 +4823,11 @@ svg {
     width: 100%;
   }
 
+  .relationship-layout-actions {
+    width: 100%;
+    justify-self: stretch;
+  }
+
   .relationship-viewport {
     min-height: 30rem;
   }
@@ -4746,11 +4842,13 @@ svg {
     padding: 0.75rem;
   }
 
-  .relationship-toolbar-actions {
+  .relationship-toolbar-actions,
+  .relationship-layout-actions {
     grid-template-columns: 1fr;
   }
 
-  .relationship-toolbar-actions > * {
+  .relationship-toolbar-actions > *,
+  .relationship-layout-actions > * {
     width: 100%;
   }
 
@@ -4765,7 +4863,7 @@ svg {
 
 @media (prefers-reduced-motion: reduce) {
   .relationship-loading svg,
-  .relationship-edge-preview {
+  .relationship-edge-visual.is-selected .relationship-edge-line {
     animation: none;
   }
 }

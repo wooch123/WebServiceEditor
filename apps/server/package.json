@@ -20,6 +20,7 @@
   "dependencies": {
     "@webeditor/domain": "workspace:*",
     "better-sqlite3": "13.0.3",
+    "elkjs": "0.12.0",
     "fastify": "5.12.0"
   },
   "devDependencies": {

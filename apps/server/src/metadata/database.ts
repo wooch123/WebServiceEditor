@@ -6,7 +6,7 @@ import { PROJECT_LIFECYCLE_STATUSES } from "@webeditor/domain";
 import Database from "better-sqlite3";
 
 const METADATA_APPLICATION_ID = 0x57454245;
-export const LATEST_METADATA_SCHEMA_VERSION = 8;
+export const LATEST_METADATA_SCHEMA_VERSION = 9;
 
 const lifecycleSqlValues = PROJECT_LIFECYCLE_STATUSES.map(
   (status) => `'${status}'`,
@@ -1059,6 +1059,123 @@ export const DATA_RELATIONSHIP_CANVAS_SCHEMA_CHECKSUM = createHash("sha256")
   .update(dataRelationshipCanvasSchemaSql)
   .digest("hex");
 
+const relationshipLayoutRoutingSchemaSql = `
+  CREATE TABLE relationship_node_positions (
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    node_id TEXT NOT NULL,
+    node_type TEXT NOT NULL CHECK (node_type IN ('page', 'element', 'table')),
+    object_id TEXT NOT NULL,
+    x REAL NOT NULL CHECK (
+      typeof(x) IN ('integer', 'real') AND abs(x) <= 1000000
+    ),
+    y REAL NOT NULL CHECK (
+      typeof(y) IN ('integer', 'real') AND abs(y) <= 1000000
+    ),
+    pinned INTEGER NOT NULL DEFAULT 0 CHECK (pinned IN (0, 1)),
+    revision INTEGER NOT NULL DEFAULT 1 CHECK (
+      revision >= 1 AND typeof(revision) = 'integer'
+    ),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    PRIMARY KEY (project_id, node_id)
+  );
+  CREATE INDEX relationship_node_positions_object_idx
+    ON relationship_node_positions(project_id, node_type, object_id);
+
+  CREATE TABLE project_relationship_viewports (
+    project_id TEXT PRIMARY KEY NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    x REAL NOT NULL DEFAULT 0 CHECK (
+      typeof(x) IN ('integer', 'real') AND abs(x) <= 1000000
+    ),
+    y REAL NOT NULL DEFAULT 0 CHECK (
+      typeof(y) IN ('integer', 'real') AND abs(y) <= 1000000
+    ),
+    zoom REAL NOT NULL DEFAULT 1 CHECK (
+      typeof(zoom) IN ('integer', 'real') AND zoom BETWEEN 0.25 AND 2
+    ),
+    revision INTEGER NOT NULL DEFAULT 0 CHECK (
+      revision >= 0 AND typeof(revision) = 'integer'
+    ),
+    updated_at TEXT NOT NULL
+  );
+  INSERT INTO project_relationship_viewports (project_id, updated_at)
+    SELECT id, updated_at FROM projects;
+  CREATE TRIGGER projects_initialize_relationship_viewport
+    AFTER INSERT ON projects
+    BEGIN
+      INSERT INTO project_relationship_viewports (project_id, updated_at)
+      VALUES (NEW.id, NEW.updated_at);
+    END;
+
+  CREATE TABLE relationship_layout_commands (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    command_type TEXT NOT NULL CHECK (
+      command_type IN ('MOVE_NODE', 'AUTO_LAYOUT')
+    ),
+    idempotency_key TEXT NOT NULL,
+    request_hash TEXT NOT NULL CHECK (
+      length(request_hash) = 64 AND request_hash = lower(request_hash) AND
+      request_hash NOT GLOB '*[^0-9a-f]*'
+    ),
+    before_json TEXT NOT NULL CHECK (
+      json_valid(before_json) AND json_type(before_json) = 'array'
+    ),
+    after_json TEXT NOT NULL CHECK (
+      json_valid(after_json) AND json_type(after_json) = 'array'
+    ),
+    response_status INTEGER NOT NULL CHECK (
+      response_status BETWEEN 200 AND 499 AND typeof(response_status) = 'integer'
+    ),
+    response_json TEXT NOT NULL CHECK (json_valid(response_json)),
+    before_graph_revision INTEGER NOT NULL CHECK (
+      before_graph_revision >= 0 AND typeof(before_graph_revision) = 'integer'
+    ),
+    after_graph_revision INTEGER NOT NULL CHECK (
+      after_graph_revision >= 0 AND typeof(after_graph_revision) = 'integer'
+    ),
+    history_state TEXT NOT NULL CHECK (
+      history_state IN ('APPLIED', 'UNDONE', 'DISCARDED')
+    ),
+    history_sequence INTEGER NOT NULL CHECK (
+      history_sequence >= 1 AND typeof(history_sequence) = 'integer'
+    ),
+    history_updated_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(project_id, idempotency_key),
+    UNIQUE(project_id, history_sequence)
+  );
+  CREATE INDEX relationship_layout_commands_history_idx
+    ON relationship_layout_commands(
+      project_id, history_state, history_sequence, id
+    );
+
+  CREATE TABLE relationship_layout_history_operations (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    command_id TEXT REFERENCES relationship_layout_commands(id) ON DELETE SET NULL,
+    requested_command_id TEXT NOT NULL,
+    operation_type TEXT NOT NULL CHECK (operation_type IN ('UNDO', 'REDO')),
+    idempotency_key TEXT NOT NULL,
+    request_hash TEXT NOT NULL CHECK (
+      length(request_hash) = 64 AND request_hash = lower(request_hash) AND
+      request_hash NOT GLOB '*[^0-9a-f]*'
+    ),
+    response_status INTEGER NOT NULL CHECK (
+      response_status BETWEEN 200 AND 499 AND typeof(response_status) = 'integer'
+    ),
+    response_json TEXT NOT NULL CHECK (json_valid(response_json)),
+    created_at TEXT NOT NULL,
+    UNIQUE(project_id, idempotency_key)
+  );
+  CREATE INDEX relationship_layout_history_operations_project_idx
+    ON relationship_layout_history_operations(project_id, created_at, id);
+`;
+
+export const RELATIONSHIP_LAYOUT_ROUTING_SCHEMA_CHECKSUM = createHash("sha256")
+  .update(relationshipLayoutRoutingSchemaSql)
+  .digest("hex");
+
 const metadataMigrations = [
   {
     checksum: INITIAL_METADATA_SCHEMA_CHECKSUM,
@@ -1107,6 +1224,12 @@ const metadataMigrations = [
     name: "data-relationship-canvas",
     sql: dataRelationshipCanvasSchemaSql,
     version: 8,
+  },
+  {
+    checksum: RELATIONSHIP_LAYOUT_ROUTING_SCHEMA_CHECKSUM,
+    name: "relationship-layout-routing",
+    sql: relationshipLayoutRoutingSchemaSql,
+    version: 9,
   },
 ] as const;
 

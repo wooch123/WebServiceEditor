@@ -1,14 +1,27 @@
 import type {
+  ApplyRelationshipAutoLayoutRequest,
   CreateRelationshipBindingRequest,
   DataRelationshipGraphDto,
   DeleteRelationshipBindingDto,
   DeleteRelationshipBindingRequest,
+  PreviewRelationshipAutoLayoutRequest,
   PreviewRelationshipConnectionRequest,
+  RelationshipAutoLayoutApplyDto,
+  RelationshipAutoLayoutPreviewDto,
   RelationshipBindingMutationDto,
   RelationshipConnectionPreviewDto,
   RelationshipHistoryDto,
   RelationshipHistoryMutationDto,
   RelationshipHistoryMutationRequest,
+  RelationshipLayoutHistoryDto,
+  RelationshipLayoutHistoryMutationDto,
+  RelationshipLayoutHistoryMutationRequest,
+  RelationshipNodePositionMutationDto,
+  RelationshipRoutePreviewDto,
+  RelationshipRoutePreviewRequest,
+  RelationshipViewportDto,
+  UpdateRelationshipNodePositionRequest,
+  UpdateRelationshipViewportRequest,
 } from "@webeditor/domain";
 
 export class RelationshipApiError extends Error {
@@ -65,6 +78,72 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export const dataRelationshipApi = {
   graph(projectId: string): Promise<DataRelationshipGraphDto> {
     return request(`/api/v1/projects/${projectId}/relationship-graph`);
+  },
+
+  moveNode(
+    projectId: string,
+    nodeId: string,
+    payload: UpdateRelationshipNodePositionRequest,
+  ): Promise<RelationshipNodePositionMutationDto> {
+    return request(
+      `/api/v1/projects/${projectId}/relationship-nodes/${encodeURIComponent(nodeId)}`,
+      { method: "PATCH", body: JSON.stringify(payload) },
+    );
+  },
+
+  updateViewport(
+    projectId: string,
+    payload: UpdateRelationshipViewportRequest,
+  ): Promise<RelationshipViewportDto> {
+    return request(`/api/v1/projects/${projectId}/relationship-viewport`, {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  routePreview(
+    projectId: string,
+    payload: RelationshipRoutePreviewRequest,
+  ): Promise<RelationshipRoutePreviewDto> {
+    return request(`/api/v1/projects/${projectId}/edges/route-preview`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  previewAutoLayout(
+    projectId: string,
+    payload: PreviewRelationshipAutoLayoutRequest,
+  ): Promise<RelationshipAutoLayoutPreviewDto> {
+    return request(`/api/v1/projects/${projectId}/auto-layout`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  applyAutoLayout(
+    projectId: string,
+    payload: ApplyRelationshipAutoLayoutRequest,
+  ): Promise<RelationshipAutoLayoutApplyDto> {
+    return request(`/api/v1/projects/${projectId}/auto-layout`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  layoutHistory(projectId: string): Promise<RelationshipLayoutHistoryDto> {
+    return request(`/api/v1/projects/${projectId}/relationship-layout-history`);
+  },
+
+  layoutHistoryMutation(
+    projectId: string,
+    operation: "undo" | "redo",
+    payload: RelationshipLayoutHistoryMutationRequest,
+  ): Promise<RelationshipLayoutHistoryMutationDto> {
+    return request(
+      `/api/v1/projects/${projectId}/relationship-layout-history/${operation}`,
+      { method: "POST", body: JSON.stringify(payload) },
+    );
   },
 
   history(projectId: string): Promise<RelationshipHistoryDto> {

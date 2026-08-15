@@ -293,10 +293,28 @@
       "id": "REQ-017",
       "title": "Movable graph nodes and auto layout",
       "phase": 10,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "docs/adr/0011-orthogonal-routing-and-auto-layout.md",
+        "packages/domain/src/data-relationship.ts",
+        "apps/server/src/metadata/database.ts",
+        "apps/server/src/data-relationship/relationship-layout-repository.ts",
+        "apps/server/src/data-relationship/relationship-auto-layout.ts",
+        "apps/server/src/data-relationship/relationship-service.ts",
+        "apps/server/src/routes/data-relationship.ts",
+        "apps/web/src/features/data-relationship/RelationshipCanvas.tsx",
+        "apps/web/src/services/data-relationship-api.ts"
+      ],
+      "tests": [
+        "apps/server/test/unit/relationship-router.test.ts",
+        "apps/server/test/integration/data-relationship-canvas.test.ts",
+        "apps/web/src/features/data-relationship/RelationshipCanvas.test.tsx",
+        "scripts/verify-phase10.mjs"
+      ],
+      "evidence": [
+        "artifacts/phase10/orthogonal-auto-layout-validation.json",
+        "artifacts/phase10/browser-orthogonal-auto-layout-validation.json"
+      ]
     },
     {
       "id": "REQ-018",
@@ -373,28 +391,68 @@
       "id": "REQ-023",
       "title": "Left input/right output ports",
       "phase": 9,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "docs/adr/0010-data-relationship-canvas.md",
+        "packages/domain/src/data-relationship.ts",
+        "apps/server/src/data-relationship/relationship-service.ts",
+        "apps/web/src/features/data-relationship/RelationshipCanvas.tsx"
+      ],
+      "tests": [
+        "apps/server/test/integration/data-relationship-canvas.test.ts",
+        "apps/web/src/features/data-relationship/RelationshipCanvas.test.tsx",
+        "scripts/verify-phase9.mjs"
+      ],
+      "evidence": [
+        "artifacts/phase9/data-relationship-canvas-validation.json",
+        "artifacts/phase9/browser-data-relationship-validation.json"
+      ]
     },
     {
       "id": "REQ-024",
       "title": "Directional edge visualization",
       "phase": 9,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "docs/adr/0010-data-relationship-canvas.md",
+        "packages/domain/src/data-relationship.ts",
+        "apps/web/src/features/data-relationship/RelationshipCanvas.tsx"
+      ],
+      "tests": [
+        "apps/server/test/integration/data-relationship-canvas.test.ts",
+        "apps/web/src/features/data-relationship/RelationshipCanvas.test.tsx",
+        "scripts/verify-phase9.mjs"
+      ],
+      "evidence": [
+        "artifacts/phase9/data-relationship-canvas-validation.json",
+        "artifacts/phase9/browser-data-relationship-validation.json"
+      ]
     },
     {
       "id": "REQ-025",
       "title": "Orthogonal rounded edges",
       "phase": 10,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "docs/adr/0011-orthogonal-routing-and-auto-layout.md",
+        "packages/domain/src/data-relationship.ts",
+        "apps/server/src/data-relationship/relationship-router.ts",
+        "apps/server/src/data-relationship/relationship-auto-layout.ts",
+        "apps/server/src/data-relationship/relationship-service.ts",
+        "apps/server/src/routes/data-relationship.ts",
+        "apps/web/src/features/data-relationship/RelationshipCanvas.tsx",
+        "apps/web/src/styles.css"
+      ],
+      "tests": [
+        "apps/server/test/unit/relationship-router.test.ts",
+        "apps/server/test/integration/data-relationship-canvas.test.ts",
+        "apps/web/src/features/data-relationship/RelationshipCanvas.test.tsx",
+        "scripts/verify-phase10.mjs"
+      ],
+      "evidence": [
+        "artifacts/phase10/orthogonal-auto-layout-validation.json",
+        "artifacts/phase10/browser-orthogonal-auto-layout-validation.json"
+      ]
     },
     {
       "id": "REQ-026",

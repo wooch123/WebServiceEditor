@@ -2,6 +2,7 @@ import type {
   DataRelationshipGraphDto,
   RelationshipBindingDto,
   RelationshipHistoryDto,
+  RelationshipLayoutHistoryDto,
   RelationshipNodeDto,
   RelationshipPortDto,
 } from "@webeditor/domain";
@@ -9,7 +10,10 @@ import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { RelationshipCanvas } from "./RelationshipCanvas";
+import {
+  RelationshipCanvas,
+  roundedOrthogonalPath,
+} from "./RelationshipCanvas";
 
 const projectId = "00000000-0000-4000-8000-000000000901";
 const pageId = "00000000-0000-4000-8000-000000000902";
@@ -54,6 +58,8 @@ const pageNode: RelationshipNodeDto = {
   y: 40,
   width: 240,
   height: 128,
+  pinned: false,
+  positionRevision: 0,
   ports: [
     port(
       `page:${pageId}`,
@@ -87,6 +93,8 @@ const elementNode: RelationshipNodeDto = {
   y: 40,
   width: 260,
   height: 146,
+  pinned: false,
+  positionRevision: 0,
   ports: [
     port(
       `element:${elementId}`,
@@ -120,6 +128,8 @@ const tableNode: RelationshipNodeDto = {
   y: 40,
   width: 300,
   height: 146,
+  pinned: false,
+  positionRevision: 0,
   ports: [
     port(
       `table:${tableId}`,
@@ -188,6 +198,31 @@ function graph(
     projectRevision: 4 + edges.length,
     nodes: [pageNode, elementNode, tableNode],
     edges,
+    routes: edges.map((edge) => ({
+      bindingId: edge.id,
+      points: [
+        { x: 1060, y: 116 },
+        { x: 1076, y: 116 },
+        { x: 1076, y: 146 },
+        { x: 364, y: 146 },
+        { x: 380, y: 146 },
+      ],
+      bendCount: 2,
+      crossesNode: false,
+    })),
+    viewport: { x: 0, y: 0, zoom: 1, revision: 0 },
+  };
+}
+
+function layoutHistory(
+  currentGraph: DataRelationshipGraphDto,
+): RelationshipLayoutHistoryDto {
+  return {
+    projectId,
+    graphRevision: currentGraph.graphRevision,
+    projectRevision: currentGraph.projectRevision,
+    undo: null,
+    redo: null,
   };
 }
 
@@ -226,6 +261,13 @@ afterEach(() => {
 
 beforeEach(() => {
   vi.stubGlobal(
+    "DOMMatrixReadOnly",
+    class {
+      readonly m22 = 1;
+      constructor(_transform?: string) {}
+    },
+  );
+  vi.stubGlobal(
     "ResizeObserver",
     class {
       observe(target: Element) {
@@ -256,6 +298,19 @@ beforeEach(() => {
 });
 
 describe("RelationshipCanvas", () => {
+  it("renders server-owned orthogonal points with rounded corners and no Bezier segment", () => {
+    const path = roundedOrthogonalPath([
+      { x: 0, y: 20 },
+      { x: 32, y: 20 },
+      { x: 32, y: 80 },
+      { x: 96, y: 80 },
+    ]);
+    expect(path).toBe(
+      "M 0 20 L 24 20 Q 32 20 32 28 L 32 72 Q 32 80 40 80 L 96 80",
+    );
+    expect(path).not.toMatch(/\bC\b/u);
+  });
+
   it("renders Page, Element, and Table nodes with strict side/direction ports and equal sibling controls", async () => {
     const current = graph();
     vi.stubGlobal(
@@ -263,6 +318,8 @@ describe("RelationshipCanvas", () => {
       vi.fn(async (input: RequestInfo | URL) => {
         const url = String(input);
         if (url.endsWith("/relationship-graph")) return response(current);
+        if (url.endsWith("/relationship-layout-history"))
+          return response(layoutHistory(current));
         if (url.endsWith("/binding-history")) return response(history(current));
         return response({ error: { code: "NOT_FOUND", message: "없음" } }, 404);
       }),
@@ -314,6 +371,8 @@ describe("RelationshipCanvas", () => {
         const body = init?.body ? JSON.parse(String(init.body)) : undefined;
         calls.push({ url, method, body });
         if (url.endsWith("/relationship-graph")) return response(current);
+        if (url.endsWith("/relationship-layout-history"))
+          return response(layoutHistory(current));
         if (url.endsWith("/binding-history")) {
           return response(history(current, current.edges.length > 0));
         }
@@ -400,6 +459,8 @@ describe("RelationshipCanvas", () => {
         const method = init?.method ?? "GET";
         methods.push(`${method} ${url}`);
         if (url.endsWith("/relationship-graph")) return response(current);
+        if (url.endsWith("/relationship-layout-history"))
+          return response(layoutHistory(current));
         if (url.endsWith("/binding-history")) return response(currentHistory);
         if (url.includes(`/bindings/${bindingId}`) && method === "DELETE") {
           current = { ...graph(), graphRevision: 2, projectRevision: 6 };
@@ -465,12 +526,234 @@ describe("RelationshipCanvas", () => {
     await waitFor(() =>
       expect(screen.queryByRole("button", { name: "조회 Binding" })).toBeNull(),
     );
-    await user.click(screen.getByRole("button", { name: "실행 취소" }));
+    await user.click(screen.getByRole("button", { name: "연결 취소" }));
     expect(
       await screen.findByRole("button", { name: "조회 Binding" }),
     ).toBeInTheDocument();
     expect(
       methods.some((entry) => entry.endsWith("/binding-history/undo")),
     ).toBe(true);
+  });
+
+  it("previews and applies one server-owned Auto Layout snapshot, then exposes one durable Undo command", async () => {
+    const previewPositions = [
+      { ...pageNode, x: 40, y: 40, pinned: true, positionRevision: 1 },
+      { ...elementNode, x: 420, y: 40, positionRevision: 1 },
+      { ...tableNode, x: 820, y: 40, positionRevision: 1 },
+    ].map((node) => ({
+      nodeId: node.id,
+      nodeType: node.type,
+      objectId: node.objectId,
+      x: node.x,
+      y: node.y,
+      pinned: node.pinned,
+      revision: node.positionRevision,
+    }));
+    let current: DataRelationshipGraphDto = graph([binding()]);
+    let currentLayoutHistory = layoutHistory(current);
+    const calls: Array<{ url: string; method: string; body: unknown }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = init?.method ?? "GET";
+        const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+        calls.push({ url, method, body });
+        if (url.endsWith("/relationship-graph")) return response(current);
+        if (url.endsWith("/relationship-layout-history"))
+          return response(currentLayoutHistory);
+        if (url.endsWith("/binding-history"))
+          return response(history(current, true));
+        if (url.endsWith("/auto-layout") && method === "POST") {
+          const action = (body as { action?: string }).action;
+          if (action === "PREVIEW") {
+            return response({
+              action: "PREVIEW",
+              previewId,
+              projectId,
+              positions: previewPositions,
+              routes: current.routes,
+              crossingCountBefore: 1,
+              crossingCountAfter: 0,
+              graphRevision: 1,
+              projectRevision: 5,
+              expiresAt: "2026-08-16T00:00:15.000Z",
+            });
+          }
+          current = {
+            ...current,
+            graphRevision: 2,
+            projectRevision: 6,
+            nodes: current.nodes.map((node) => {
+              const position = previewPositions.find(
+                ({ nodeId }) => nodeId === node.id,
+              );
+              return position === undefined
+                ? node
+                : {
+                    ...node,
+                    x: position.x,
+                    y: position.y,
+                    pinned: position.pinned,
+                    positionRevision: position.revision,
+                  };
+            }),
+          };
+          currentLayoutHistory = {
+            projectId,
+            graphRevision: 2,
+            projectRevision: 6,
+            undo: {
+              id: commandId,
+              commandType: "AUTO_LAYOUT",
+              state: "APPLIED",
+              createdAt: "2026-08-16T00:00:00.000Z",
+            },
+            redo: null,
+          };
+          return response({
+            action: "APPLY",
+            projectId,
+            positions: previewPositions,
+            routes: current.routes,
+            graphRevision: 2,
+            projectRevision: 6,
+            commandId,
+          });
+        }
+        return response({ error: { code: "NOT_FOUND", message: "없음" } }, 404);
+      }),
+    );
+    const onProjectRevisionChange = vi.fn();
+    const user = userEvent.setup();
+    render(
+      <RelationshipCanvas
+        projectId={projectId}
+        projectRevision={5}
+        onProjectRevisionChange={onProjectRevisionChange}
+      />,
+    );
+    await screen.findByText("측정값");
+    const layoutToolbar = screen.getByRole("group", { name: "위치 도구" });
+    const layoutControls = within(layoutToolbar).getAllByRole("button");
+    expect(layoutControls).toHaveLength(4);
+    expect(
+      layoutControls.every(
+        (control) => control.className === layoutControls[0]?.className,
+      ),
+    ).toBe(true);
+
+    await user.click(
+      within(layoutToolbar).getByRole("button", { name: "자동 배치" }),
+    );
+    const dialog = await screen.findByRole("dialog", { name: "자동 배치" });
+    expect(within(dialog).getByText("교차 1 → 0")).toBeInTheDocument();
+    expect(within(dialog).getAllByText(/분석|표|측정값/u)).toHaveLength(3);
+    const dialogActions = within(dialog).getAllByRole("button", {
+      name: /취소|적용/u,
+    });
+    expect(dialogActions).toHaveLength(2);
+    expect(dialogActions[0]).toHaveAttribute("data-size", "default");
+    expect(dialogActions[1]).toHaveAttribute("data-size", "default");
+    await user.click(within(dialog).getByRole("button", { name: "적용" }));
+    await waitFor(() =>
+      expect(
+        within(layoutToolbar).getByRole("button", { name: "위치 취소" }),
+      ).toBeEnabled(),
+    );
+    const applyCall = calls.find(
+      ({ url, body }) =>
+        url.endsWith("/auto-layout") &&
+        (body as { action?: string }).action === "APPLY",
+    );
+    expect(applyCall?.body).toMatchObject({
+      action: "APPLY",
+      previewId,
+      expectedGraphRevision: 1,
+      expectedProjectRevision: 5,
+    });
+    expect(applyCall?.body).not.toHaveProperty("positions");
+    expect(onProjectRevisionChange).toHaveBeenCalledWith(6);
+  });
+
+  it("persists pin state through the node-position command without changing coordinates", async () => {
+    let current = graph();
+    const calls: Array<{ url: string; method: string; body: unknown }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = init?.method ?? "GET";
+        const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+        calls.push({ url, method, body });
+        if (url.endsWith("/relationship-graph")) return response(current);
+        if (url.endsWith("/relationship-layout-history"))
+          return response(layoutHistory(current));
+        if (url.endsWith("/binding-history")) return response(history(current));
+        if (
+          url.endsWith(
+            `/relationship-nodes/${encodeURIComponent(pageNode.id)}`,
+          ) &&
+          method === "PATCH"
+        ) {
+          const nextPage = {
+            ...pageNode,
+            pinned: true,
+            positionRevision: 1,
+          };
+          current = {
+            ...current,
+            graphRevision: 1,
+            projectRevision: 5,
+            nodes: [nextPage, elementNode, tableNode],
+          };
+          return response({
+            position: {
+              nodeId: nextPage.id,
+              nodeType: nextPage.type,
+              objectId: nextPage.objectId,
+              x: nextPage.x,
+              y: nextPage.y,
+              pinned: true,
+              revision: 1,
+            },
+            routes: [],
+            graphRevision: 1,
+            projectRevision: 5,
+            commandId,
+          });
+        }
+        return response({ error: { code: "NOT_FOUND", message: "없음" } }, 404);
+      }),
+    );
+    const user = userEvent.setup();
+    render(
+      <RelationshipCanvas
+        projectId={projectId}
+        projectRevision={4}
+        onProjectRevisionChange={vi.fn()}
+      />,
+    );
+    const pin = (
+      await screen.findAllByRole("button", { name: "고정" })
+    )[0] as HTMLElement;
+    await user.click(pin);
+    expect(
+      await screen.findByRole("button", { name: "고정 해제" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    const moveCall = calls.find(
+      ({ url, method }) =>
+        url.endsWith(
+          `/relationship-nodes/${encodeURIComponent(pageNode.id)}`,
+        ) && method === "PATCH",
+    );
+    expect(moveCall?.body).toMatchObject({
+      x: pageNode.x,
+      y: pageNode.y,
+      pinned: true,
+      expectedPositionRevision: 0,
+      expectedGraphRevision: 0,
+      expectedProjectRevision: 4,
+    });
   });
 });

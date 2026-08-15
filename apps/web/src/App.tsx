@@ -21,7 +21,6 @@ import { BrowserRouter, Route, Routes } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DatabaseDesigner } from "@/features/data-schema/DatabaseDesigner";
-import { RelationshipCanvas } from "@/features/data-relationship/RelationshipCanvas";
 import {
   CanvasControls,
   ElementCanvas,
@@ -50,6 +49,12 @@ const DesignSystemGallery = lazy(async () => {
 const ProjectHome = lazy(async () => {
   const projects = await import("@/features/projects/ProjectHome");
   return { default: projects.ProjectHome };
+});
+
+const RelationshipCanvas = lazy(async () => {
+  const relationship =
+    await import("@/features/data-relationship/RelationshipCanvas");
+  return { default: relationship.RelationshipCanvas };
 });
 
 type EditorStep = "page" | "data" | "validation";
@@ -311,11 +316,13 @@ function EditorSurface({
               />
             )}
             {step === "data" && dataView === "relationship" && (
-              <RelationshipCanvas
-                projectId={project.id}
-                projectRevision={project.revision}
-                onProjectRevisionChange={onProjectRevisionChange}
-              />
+              <Suspense fallback={<div role="status">관계 불러오는 중</div>}>
+                <RelationshipCanvas
+                  projectId={project.id}
+                  projectRevision={project.revision}
+                  onProjectRevisionChange={onProjectRevisionChange}
+                />
+              </Suspense>
             )}
             {step === "validation" && (
               <ValidationPreview pageExists={selectedPage !== null} />

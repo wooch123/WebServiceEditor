@@ -84,7 +84,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(8);
+      expect(migrated.assertReady().schemaVersion).toBe(9);
       expect(
         migrated.connection
           .prepare(
@@ -111,6 +111,7 @@ describe("metadata migration", () => {
         { version: 6 },
         { version: 7 },
         { version: 8 },
+        { version: 9 },
       ]);
       expect(
         migrated.connection
@@ -153,11 +154,11 @@ describe("metadata migration", () => {
     const path = join(directory, "metadata.sqlite");
     const future = new Database(path);
     future.pragma("application_id = 1464156741");
-    future.pragma("user_version = 9");
+    future.pragma("user_version = 10");
     future.close();
 
     expect(() => new MetadataDatabase(path)).toThrow(
-      "Refusing unknown future metadata schema version 9",
+      "Refusing unknown future metadata schema version 10",
     );
   });
 
@@ -200,6 +201,11 @@ describe("metadata migration", () => {
     const version3 = new Database(path);
     version3.pragma("foreign_keys = OFF");
     version3.exec(`
+      DROP TABLE relationship_layout_history_operations;
+      DROP TABLE relationship_layout_commands;
+      DROP TABLE relationship_node_positions;
+      DROP TRIGGER projects_initialize_relationship_viewport;
+      DROP TABLE project_relationship_viewports;
       DROP TABLE binding_history_operations;
       DROP TABLE binding_commands;
       DROP TABLE bindings;
@@ -230,7 +236,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(8);
+      expect(migrated.assertReady().schemaVersion).toBe(9);
       expect(
         migrated.connection
           .prepare(
@@ -365,6 +371,11 @@ describe("metadata migration", () => {
     const version5 = new Database(path);
     version5.pragma("foreign_keys = OFF");
     version5.exec(`
+      DROP TABLE relationship_layout_history_operations;
+      DROP TABLE relationship_layout_commands;
+      DROP TABLE relationship_node_positions;
+      DROP TRIGGER projects_initialize_relationship_viewport;
+      DROP TABLE project_relationship_viewports;
       DROP TABLE binding_history_operations;
       DROP TABLE binding_commands;
       DROP TABLE bindings;
@@ -480,7 +491,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(8);
+      expect(migrated.assertReady().schemaVersion).toBe(9);
       expect(
         migrated.connection
           .prepare(
@@ -641,6 +652,11 @@ describe("metadata migration", () => {
     const version4 = new Database(path);
     version4.pragma("foreign_keys = OFF");
     version4.exec(`
+      DROP TABLE relationship_layout_history_operations;
+      DROP TABLE relationship_layout_commands;
+      DROP TABLE relationship_node_positions;
+      DROP TRIGGER projects_initialize_relationship_viewport;
+      DROP TABLE project_relationship_viewports;
       DROP TABLE binding_history_operations;
       DROP TABLE binding_commands;
       DROP TABLE bindings;

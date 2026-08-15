@@ -146,7 +146,7 @@ export function inspectPhase9Contract(sources) {
     ),
     visualEdgeIsBinding:
       /Visual edges are the canonical Binding records/u.test(sources.domain) &&
-      /edges:\s*renderableBindings\.map\(\(binding\)\s*=>[\s\S]{0,80}this\.repository\.toDto\(binding\)/u.test(
+      /(?:const\s+edges\s*=|edges:)\s*renderableBindings\.map\(\(binding\)\s*=>[\s\S]{0,160}this\.repository\.toDto\(binding\)/u.test(
         sources.service,
       ),
     routesExact: CANONICAL_PHASE9_ROUTES.every(([method, path]) =>
@@ -214,8 +214,10 @@ export function inspectPhase9Contract(sources) {
       /<RelationshipCanvas/u.test(sources.app),
     frontendGraphProjection:
       /graph\.nodes\.map/u.test(sources.frontend) &&
-      /graph\.edges\.map/u.test(sources.frontend) &&
-      /markerEnd="url\(#relationship-arrow\)"/u.test(sources.frontend) &&
+      /graph\.edges\.(?:map|flatMap)/u.test(sources.frontend) &&
+      /markerEnd(?::|=)[\s\S]{0,100}(?:ArrowClosed|relationship-arrow)/u.test(
+        sources.frontend,
+      ) &&
       /binding\.bindingType/u.test(sources.frontend),
     frontendPortInteraction:
       /onPointerDown/u.test(sources.frontend) &&
@@ -226,8 +228,8 @@ export function inspectPhase9Contract(sources) {
     frontendHistory:
       /dataRelationshipApi\.delete/u.test(sources.frontend) &&
       /dataRelationshipApi\.historyMutation/u.test(sources.frontend) &&
-      /실행 취소/u.test(sources.frontend) &&
-      /다시 실행/u.test(sources.frontend),
+      /(?:실행|연결) 취소/u.test(sources.frontend) &&
+      /(?:다시 실행|연결 다시)/u.test(sources.frontend),
     siblingGeometry:
       /relationship-toolbar-actions/u.test(sources.frontend) &&
       /relationship-dialog-actions/u.test(sources.frontend) &&

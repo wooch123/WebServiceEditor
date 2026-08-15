@@ -10,6 +10,7 @@ import type {
 import type Database from "better-sqlite3";
 
 import type { MetadataDatabase } from "../metadata/database.js";
+import { RelationshipLayoutRepository } from "./relationship-layout-repository.js";
 
 export interface BindingStateRow {
   readonly project_id: string;
@@ -95,7 +96,11 @@ const commandColumns = `
 `;
 
 export class RelationshipRepository {
-  constructor(readonly metadataDatabase: MetadataDatabase) {}
+  readonly layoutRepository: RelationshipLayoutRepository;
+
+  constructor(readonly metadataDatabase: MetadataDatabase) {
+    this.layoutRepository = new RelationshipLayoutRepository(metadataDatabase);
+  }
 
   get connection(): Database.Database {
     return this.metadataDatabase.connection;
@@ -180,10 +185,12 @@ export class RelationshipRepository {
            WHERE project_id = ? ORDER BY created_at, id`,
         )
         .all(projectId),
+      layout: this.layoutRepository.definitionState(projectId),
     };
   }
 
   deleteOwnedDefinitions(projectId: string): void {
+    this.layoutRepository.deleteOwnedDefinitions(projectId);
     this.connection
       .prepare("DELETE FROM binding_history_operations WHERE project_id = ?")
       .run(projectId);
@@ -199,10 +206,17 @@ export class RelationshipRepository {
   }
 
   exportDefinition(projectId: string): RelationshipBindingsExportDto {
+    const viewport = this.layoutRepository.viewport(projectId);
     return {
-      schemaVersion: 1,
+      schemaVersion: 2,
       graphRevision: this.state(projectId)?.graph_revision ?? 0,
       bindings: this.listActive(projectId).map((row) => this.toDto(row)),
+      nodePositions: this.layoutRepository
+        .positions(projectId)
+        .map((row) => this.layoutRepository.positionDto(row)),
+      ...(viewport === undefined
+        ? {}
+        : { viewport: this.layoutRepository.viewportDto(viewport) }),
     };
   }
 
@@ -274,6 +288,25 @@ export class RelationshipRepository {
         status: binding.status,
         now: input.now,
       });
+    }
+    for (const position of input.source.nodePositions ?? []) {
+      const objectId = remapObjectId(position.objectId);
+      const nodeObjectId = position.nodeId.slice(
+        position.nodeId.indexOf(":") + 1,
+      );
+      const nodeId = `${position.nodeType}:${remapObjectId(nodeObjectId)}`;
+      this.layoutRepository.insertImportedPosition(
+        input.projectId,
+        { ...position, nodeId, objectId },
+        input.now,
+      );
+    }
+    if (input.source.viewport !== undefined) {
+      this.layoutRepository.insertImportedViewport(
+        input.projectId,
+        input.source.viewport,
+        input.now,
+      );
     }
     this.connection
       .prepare(

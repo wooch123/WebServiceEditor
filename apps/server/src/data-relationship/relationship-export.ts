@@ -11,6 +11,8 @@ import {
   type RelationshipBindingStatus,
   type RelationshipBindingType,
   type RelationshipNodeType,
+  type RelationshipNodePositionDto,
+  type RelationshipViewportDto,
 } from "@webeditor/domain";
 
 import { assertApi } from "../errors.js";
@@ -60,6 +62,24 @@ function integer(value: unknown, label: string, minimum = 0): number {
     `${label} is invalid`,
   );
   return value as number;
+}
+
+function finiteNumber(
+  value: unknown,
+  label: string,
+  minimum: number,
+  maximum: number,
+): number {
+  assertApi(
+    typeof value === "number" &&
+      Number.isFinite(value) &&
+      value >= minimum &&
+      value <= maximum,
+    400,
+    "INVALID_RELATIONSHIP_EXPORT",
+    `${label} is invalid`,
+  );
+  return value;
 }
 
 function configuration(value: unknown, label: string): Record<string, unknown> {
@@ -128,7 +148,7 @@ export function parseRelationshipBindingsExport(
 ): RelationshipBindingsExportDto {
   const exportRecord = record(value, "Relationship export");
   assertApi(
-    exportRecord.schemaVersion === 1,
+    exportRecord.schemaVersion === 1 || exportRecord.schemaVersion === 2,
     400,
     "UNSUPPORTED_RELATIONSHIP_EXPORT_VERSION",
     "Relationship export version is not supported",
@@ -143,15 +163,21 @@ export function parseRelationshipBindingsExport(
   );
   const validNodeIds = new Set<string>();
   const validObjectsByNode = new Map<string, Set<string>>();
+  const nodeObjects = new Map<
+    string,
+    { type: RelationshipNodeType; objectId: string }
+  >();
   for (const page of pages) {
     const nodeId = `page:${page.id}`;
     validNodeIds.add(nodeId);
     validObjectsByNode.set(nodeId, new Set([page.id]));
+    nodeObjects.set(nodeId, { type: "page", objectId: page.id });
   }
   for (const entry of elements) {
     const nodeId = `element:${entry.element.id}`;
     validNodeIds.add(nodeId);
     validObjectsByNode.set(nodeId, new Set([entry.element.id]));
+    nodeObjects.set(nodeId, { type: "element", objectId: entry.element.id });
   }
   for (const table of dataSchema.tables) {
     const nodeId = `table:${table.id}`;
@@ -160,6 +186,7 @@ export function parseRelationshipBindingsExport(
       nodeId,
       new Set([table.id, ...table.fields.map(({ id }) => id)]),
     );
+    nodeObjects.set(nodeId, { type: "table", objectId: table.id });
   }
   const seenIds = new Set<string>();
   const seenEndpoints = new Set<string>();
@@ -225,5 +252,91 @@ export function parseRelationshipBindingsExport(
       };
     },
   );
-  return { schemaVersion: 1, graphRevision, bindings };
+  const nodePositions: RelationshipNodePositionDto[] = [];
+  if (exportRecord.schemaVersion === 2) {
+    assertApi(
+      Array.isArray(exportRecord.nodePositions) &&
+        exportRecord.nodePositions.length <= validNodeIds.size,
+      400,
+      "INVALID_RELATIONSHIP_EXPORT",
+      "Relationship Node positions are invalid",
+    );
+    const seenNodes = new Set<string>();
+    for (const [index, value] of exportRecord.nodePositions.entries()) {
+      const position = record(value, `Node position ${index}`);
+      const nodeId = string(position.nodeId, `Node position ${index} ID`, 200);
+      const expected = nodeObjects.get(nodeId);
+      assertApi(
+        expected !== undefined &&
+          position.nodeType === expected.type &&
+          position.objectId === expected.objectId,
+        400,
+        "INVALID_RELATIONSHIP_POSITION_OWNERSHIP",
+        "Relationship Node position references an unknown object",
+      );
+      assertApi(
+        !seenNodes.has(nodeId),
+        400,
+        "DUPLICATE_RELATIONSHIP_NODE_POSITION",
+        "Relationship export contains duplicate Node positions",
+      );
+      seenNodes.add(nodeId);
+      assertApi(
+        typeof position.pinned === "boolean",
+        400,
+        "INVALID_RELATIONSHIP_EXPORT",
+        "Relationship Node pin state is invalid",
+      );
+      nodePositions.push({
+        nodeId,
+        nodeType: expected.type,
+        objectId: expected.objectId,
+        x: finiteNumber(
+          position.x,
+          `Node position ${index} x`,
+          -1_000_000,
+          1_000_000,
+        ),
+        y: finiteNumber(
+          position.y,
+          `Node position ${index} y`,
+          -1_000_000,
+          1_000_000,
+        ),
+        pinned: position.pinned,
+        revision: integer(
+          position.revision,
+          `Node position ${index} revision`,
+          1,
+        ),
+      });
+    }
+  }
+  let viewport: RelationshipViewportDto | undefined;
+  if (exportRecord.schemaVersion === 2) {
+    const source = record(exportRecord.viewport, "Relationship viewport");
+    viewport = {
+      x: finiteNumber(
+        source.x,
+        "Relationship viewport x",
+        -1_000_000,
+        1_000_000,
+      ),
+      y: finiteNumber(
+        source.y,
+        "Relationship viewport y",
+        -1_000_000,
+        1_000_000,
+      ),
+      zoom: finiteNumber(source.zoom, "Relationship viewport zoom", 0.25, 2),
+      revision: integer(source.revision, "Relationship viewport revision"),
+    };
+  }
+  return {
+    schemaVersion: exportRecord.schemaVersion as 1 | 2,
+    graphRevision,
+    bindings,
+    ...(nodePositions.length === 0 ? {} : { nodePositions }),
+    ...(viewport === undefined ? {} : { viewport }),
+  };
 }

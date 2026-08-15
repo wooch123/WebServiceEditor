@@ -9,9 +9,16 @@ import type {
   ElementEntryDto,
   PageDto,
   RelationshipBindingMutationDto,
+  RelationshipAutoLayoutApplyDto,
+  RelationshipAutoLayoutPreviewDto,
   RelationshipConnectionPreviewDto,
   RelationshipHistoryDto,
   RelationshipHistoryMutationDto,
+  RelationshipLayoutHistoryDto,
+  RelationshipLayoutHistoryMutationDto,
+  RelationshipNodePositionMutationDto,
+  RelationshipRoutePreviewDto,
+  RelationshipViewportDto,
 } from "@webeditor/domain";
 import Database from "better-sqlite3";
 import type { FastifyInstance } from "fastify";
@@ -456,6 +463,31 @@ describe("Phase 9 Data Relationship Canvas", () => {
     expect(createResponse.statusCode, createResponse.body).toBe(201);
     const original = createResponse.json() as RelationshipBindingMutationDto;
 
+    const positionedGraph = await graph(app, seeded.project.id);
+    const positionedPage = positionedGraph.nodes.find(
+      ({ type }) => type === "page",
+    );
+    const moveResponse = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/projects/${seeded.project.id}/relationship-nodes/${encodeURIComponent(positionedPage?.id ?? "")}`,
+      payload: {
+        x: 176,
+        y: 224,
+        pinned: true,
+        expectedPositionRevision: positionedPage?.positionRevision,
+        expectedGraphRevision: positionedGraph.graphRevision,
+        expectedProjectRevision: positionedGraph.projectRevision,
+        idempotencyKey: `lifecycle-position-${randomUUID()}`,
+      },
+    });
+    expect(moveResponse.statusCode, moveResponse.body).toBe(200);
+    const viewportResponse = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/projects/${seeded.project.id}/relationship-viewport`,
+      payload: { x: 64, y: -48, zoom: 1.4, expectedRevision: 0 },
+    });
+    expect(viewportResponse.statusCode, viewportResponse.body).toBe(200);
+
     const cloneResponse = await app.inject({
       method: "POST",
       url: `/api/v1/projects/${seeded.project.id}/clone`,
@@ -491,6 +523,12 @@ describe("Phase 9 Data Relationship Canvas", () => {
     expect(cloneGraph.edges[0]?.target.objectId).not.toBe(
       original.binding.target.objectId,
     );
+    expect(cloneGraph.nodes.find(({ type }) => type === "page")).toMatchObject({
+      x: 176,
+      y: 224,
+      pinned: true,
+    });
+    expect(cloneGraph.viewport).toMatchObject({ x: 64, y: -48, zoom: 1.4 });
 
     const exportResponse = await app.inject({
       method: "POST",
@@ -513,6 +551,14 @@ describe("Phase 9 Data Relationship Canvas", () => {
     expect(importedGraph.edges).toHaveLength(1);
     expect(importedGraph.edges[0]?.id).not.toBe(original.binding.id);
     expect(importedGraph.edges[0]?.projectId).toBe(imported.id);
+    expect(
+      importedGraph.nodes.find(({ type }) => type === "page"),
+    ).toMatchObject({ x: 176, y: 224, pinned: true });
+    expect(importedGraph.viewport).toMatchObject({
+      x: 64,
+      y: -48,
+      zoom: 1.4,
+    });
 
     const cloneProjectResponse = await app.inject({
       method: "GET",
@@ -554,5 +600,284 @@ describe("Phase 9 Data Relationship Canvas", () => {
     const restoredGraph = await graph(app, clone.id);
     expect(restoredGraph.edges).toHaveLength(1);
     expect(restoredGraph.edges[0]?.id).toBe(cloneGraph.edges[0]?.id);
+    expect(
+      restoredGraph.nodes.find(({ type }) => type === "page"),
+    ).toMatchObject({ x: 176, y: 224, pinned: true });
+    expect(restoredGraph.viewport).toEqual(cloneGraph.viewport);
+  });
+
+  it("fails startup when persisted Node position ownership is tampered", async () => {
+    const current = fixture();
+    const app = server(current);
+    const seeded = await seed(app);
+    const state = await graph(app, seeded.project.id);
+    const pageNode = state.nodes.find(({ type }) => type === "page");
+    const moveResponse = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/projects/${seeded.project.id}/relationship-nodes/${encodeURIComponent(pageNode?.id ?? "")}`,
+      payload: {
+        x: 120,
+        y: 160,
+        pinned: false,
+        expectedPositionRevision: pageNode?.positionRevision,
+        expectedGraphRevision: state.graphRevision,
+        expectedProjectRevision: state.projectRevision,
+        idempotencyKey: `tamper-position-${randomUUID()}`,
+      },
+    });
+    expect(moveResponse.statusCode, moveResponse.body).toBe(200);
+    await close(app);
+    const database = new Database(current.databasePath);
+    database
+      .prepare(
+        "UPDATE relationship_node_positions SET object_id = ? WHERE project_id = ? AND node_id = ?",
+      )
+      .run(randomUUID(), seeded.project.id, pageNode?.id);
+    database.close();
+    expect(() => server(current)).toThrow("invalid graph ownership");
+  });
+
+  it("persists free Node movement and viewport, previews orthogonal routes, and applies one undoable ELK layout", async () => {
+    const current = fixture();
+    let app = server(current);
+    const seeded = await seed(app);
+    let state = await graph(app, seeded.project.id);
+    const source = state.nodes
+      .find(({ type }) => type === "page")
+      ?.ports.find(
+        ({ direction, role }) => direction === "output" && role === "contains",
+      );
+    const target = state.nodes
+      .find(({ type }) => type === "element")
+      ?.ports.find(
+        ({ direction, role }) => direction === "input" && role === "contains",
+      );
+    const previewResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${seeded.project.id}/connections/preview`,
+      payload: {
+        sourcePortId: source?.id,
+        targetPortId: target?.id,
+        expectedGraphRevision: state.graphRevision,
+        expectedProjectRevision: state.projectRevision,
+      },
+    });
+    const connection =
+      previewResponse.json() as RelationshipConnectionPreviewDto;
+    const createResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${seeded.project.id}/bindings`,
+      payload: {
+        previewId: connection.previewId,
+        bindingType: "CONTAINS",
+        expectedGraphRevision: connection.graphRevision,
+        expectedProjectRevision: connection.projectRevision,
+        idempotencyKey: `layout-binding-${randomUUID()}`,
+      },
+    });
+    expect(createResponse.statusCode, createResponse.body).toBe(201);
+    state = await graph(app, seeded.project.id);
+    expect(state.routes).toHaveLength(1);
+    expect(state.routes[0]).toMatchObject({
+      bindingId: state.edges[0]?.id,
+      crossesNode: false,
+    });
+    for (
+      let index = 1;
+      index < (state.routes[0]?.points.length ?? 0);
+      index += 1
+    ) {
+      const before = state.routes[0]?.points[index - 1];
+      const after = state.routes[0]?.points[index];
+      expect(before?.x === after?.x || before?.y === after?.y).toBe(true);
+    }
+
+    const pageNode = state.nodes.find(({ type }) => type === "page");
+    expect(pageNode).toBeDefined();
+    const moveKey = `move-node-${randomUUID()}`;
+    const movePayload = {
+      x: 144,
+      y: 264,
+      pinned: true,
+      expectedPositionRevision: pageNode?.positionRevision,
+      expectedGraphRevision: state.graphRevision,
+      expectedProjectRevision: state.projectRevision,
+      idempotencyKey: moveKey,
+    };
+    const movedResponse = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/projects/${seeded.project.id}/relationship-nodes/${encodeURIComponent(pageNode?.id ?? "")}`,
+      payload: movePayload,
+    });
+    expect(movedResponse.statusCode, movedResponse.body).toBe(200);
+    const moved = movedResponse.json() as RelationshipNodePositionMutationDto;
+    expect(moved.position).toMatchObject({ x: 144, y: 264, pinned: true });
+    const moveReplay = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/projects/${seeded.project.id}/relationship-nodes/${encodeURIComponent(pageNode?.id ?? "")}`,
+      payload: movePayload,
+    });
+    expect(moveReplay.statusCode, moveReplay.body).toBe(200);
+    expect(moveReplay.json()).toEqual(moved);
+    const moveConflict = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/projects/${seeded.project.id}/relationship-nodes/${encodeURIComponent(pageNode?.id ?? "")}`,
+      payload: { ...movePayload, x: 145 },
+    });
+    expect(moveConflict.statusCode, moveConflict.body).toBe(409);
+    expect(moveConflict.json()).toMatchObject({
+      error: { code: "IDEMPOTENCY_PAYLOAD_CONFLICT" },
+    });
+    state = await graph(app, seeded.project.id);
+
+    const routePositions = state.nodes.map((node) => ({
+      nodeId: node.id,
+      nodeType: node.type,
+      objectId: node.objectId,
+      x: node.type === "element" ? node.x + 96 : node.x,
+      y: node.y,
+      pinned: node.pinned,
+      revision: node.positionRevision,
+    }));
+    const routePreviewResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${seeded.project.id}/edges/route-preview`,
+      payload: {
+        positions: routePositions,
+        expectedGraphRevision: state.graphRevision,
+        expectedProjectRevision: state.projectRevision,
+      },
+    });
+    expect(routePreviewResponse.statusCode, routePreviewResponse.body).toBe(
+      200,
+    );
+    const routePreview =
+      routePreviewResponse.json() as RelationshipRoutePreviewDto;
+    expect(routePreview.routes).toHaveLength(1);
+    expect(
+      (await graph(app, seeded.project.id)).nodes.find(
+        ({ type }) => type === "element",
+      )?.x,
+    ).not.toBe(
+      routePositions.find(({ nodeType }) => nodeType === "element")?.x,
+    );
+
+    const viewportResponse = await app.inject({
+      method: "PATCH",
+      url: `/api/v1/projects/${seeded.project.id}/relationship-viewport`,
+      payload: { x: 80, y: -32, zoom: 1.25, expectedRevision: 0 },
+    });
+    expect(viewportResponse.statusCode, viewportResponse.body).toBe(200);
+    expect(viewportResponse.json() as RelationshipViewportDto).toMatchObject({
+      x: 80,
+      y: -32,
+      zoom: 1.25,
+      revision: 1,
+    });
+
+    await close(app);
+    app = server(current);
+    state = await graph(app, seeded.project.id);
+    expect(state.nodes.find(({ type }) => type === "page")).toMatchObject({
+      x: 144,
+      y: 264,
+      pinned: true,
+      positionRevision: 1,
+    });
+    expect(state.viewport).toMatchObject({ x: 80, y: -32, zoom: 1.25 });
+    const beforeAuto = state.nodes.map(({ id, x, y }) => ({ id, x, y }));
+
+    const autoPreviewResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${seeded.project.id}/auto-layout`,
+      payload: {
+        action: "PREVIEW",
+        expectedGraphRevision: state.graphRevision,
+        expectedProjectRevision: state.projectRevision,
+      },
+    });
+    expect(autoPreviewResponse.statusCode, autoPreviewResponse.body).toBe(200);
+    const autoPreview =
+      autoPreviewResponse.json() as RelationshipAutoLayoutPreviewDto;
+    expect(autoPreview.positions).toHaveLength(state.nodes.length);
+    expect(autoPreview.crossingCountAfter).toBeLessThanOrEqual(
+      autoPreview.crossingCountBefore,
+    );
+    expect(
+      autoPreview.positions.find(({ nodeType }) => nodeType === "page"),
+    ).toMatchObject({ x: 144, y: 264, pinned: true });
+
+    const autoLayoutKey = `auto-layout-${randomUUID()}`;
+    const autoLayoutPayload = {
+      action: "APPLY",
+      previewId: autoPreview.previewId,
+      expectedGraphRevision: autoPreview.graphRevision,
+      expectedProjectRevision: autoPreview.projectRevision,
+      idempotencyKey: autoLayoutKey,
+    } as const;
+    const applyResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${seeded.project.id}/auto-layout`,
+      payload: autoLayoutPayload,
+    });
+    expect(applyResponse.statusCode, applyResponse.body).toBe(200);
+    const applied = applyResponse.json() as RelationshipAutoLayoutApplyDto;
+    expect(applied.positions).toHaveLength(state.nodes.length);
+    const applyReplay = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${seeded.project.id}/auto-layout`,
+      payload: autoLayoutPayload,
+    });
+    expect(applyReplay.statusCode, applyReplay.body).toBe(200);
+    expect(applyReplay.json()).toEqual(applied);
+    state = await graph(app, seeded.project.id);
+    for (let left = 0; left < state.nodes.length; left += 1) {
+      for (let right = left + 1; right < state.nodes.length; right += 1) {
+        const a = state.nodes[left];
+        const b = state.nodes[right];
+        expect(
+          (a?.x ?? 0) + (a?.width ?? 0) <= (b?.x ?? 0) ||
+            (b?.x ?? 0) + (b?.width ?? 0) <= (a?.x ?? 0) ||
+            (a?.y ?? 0) + (a?.height ?? 0) <= (b?.y ?? 0) ||
+            (b?.y ?? 0) + (b?.height ?? 0) <= (a?.y ?? 0),
+        ).toBe(true);
+      }
+    }
+
+    const historyResponse = await app.inject({
+      method: "GET",
+      url: `/api/v1/projects/${seeded.project.id}/relationship-layout-history`,
+    });
+    const layoutHistory =
+      historyResponse.json() as RelationshipLayoutHistoryDto;
+    expect(layoutHistory.undo).toMatchObject({ commandType: "AUTO_LAYOUT" });
+    const undoPayload = {
+      expectedCommandId: layoutHistory.undo?.id,
+      expectedGraphRevision: layoutHistory.graphRevision,
+      expectedProjectRevision: layoutHistory.projectRevision,
+      idempotencyKey: `layout-undo-${randomUUID()}`,
+    };
+    const undoResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${seeded.project.id}/relationship-layout-history/undo`,
+      payload: undoPayload,
+    });
+    expect(undoResponse.statusCode, undoResponse.body).toBe(200);
+    const undone = undoResponse.json() as RelationshipLayoutHistoryMutationDto;
+    expect(undone.operation).toBe("UNDO");
+    const undoReplay = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${seeded.project.id}/relationship-layout-history/undo`,
+      payload: undoPayload,
+    });
+    expect(undoReplay.statusCode, undoReplay.body).toBe(200);
+    expect(undoReplay.json()).toEqual(undone);
+    expect(
+      (await graph(app, seeded.project.id)).nodes.map(({ id, x, y }) => ({
+        id,
+        x,
+        y,
+      })),
+    ).toEqual(beforeAuto);
   });
 });

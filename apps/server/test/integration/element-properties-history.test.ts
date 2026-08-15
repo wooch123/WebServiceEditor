@@ -1242,6 +1242,11 @@ describe("Phase 6 Element Registry, properties, history, and Runtime", () => {
       .prepare("UPDATE element_commands SET after_json = ? WHERE id = ?")
       .run(JSON.stringify(legacyAfter), first.commandId);
     version4.exec(`
+      DROP TABLE relationship_layout_history_operations;
+      DROP TABLE relationship_layout_commands;
+      DROP TABLE relationship_node_positions;
+      DROP TRIGGER projects_initialize_relationship_viewport;
+      DROP TABLE project_relationship_viewports;
       DROP TABLE binding_history_operations;
       DROP TABLE binding_commands;
       DROP TABLE bindings;

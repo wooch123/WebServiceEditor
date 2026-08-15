@@ -225,6 +225,28 @@ Test plan:
 - Project Home Backup label has the same left coordinate and alignment as all
   sibling navigation items
 
+## Phase 10 evidence
+
+- Static, behavioral, browser, and Phase 0–9 regression audit:
+  `artifacts/phase10/orthogonal-auto-layout-validation.json`
+- Metadata migration v9: Project-owned Node positions, pin state, viewport,
+  idempotent layout commands, and durable layout Undo/Redo
+- React Flow node interaction is lazy-loaded; ELK layered automatic layout
+  remains server-side with fixed WEST/EAST port order
+- Server-owned routes use only horizontal/vertical segments, 16px endpoint
+  corridors, 12px Node clearance, and 8px rendered corner radius without Bezier
+  paths
+- Free Node movement, route preview, final position persistence, viewport,
+  reload, clone/import remap, trash/restart/restore, and orphan rejection PASS
+- Auto Layout uses a structured preview, preserves pinned Nodes, separates
+  disconnected components, produces zero Node overlap, and applies as one
+  undoable command
+- Browser QA at 1280×720: five Nodes, three Binding-backed Edges, exact
+  drag/reload coordinates, zero crossings after layout, equal four-action
+  controls, equal dialog actions, and clean console PASS
+- Browser QA at 419×800: document width remains 419px and all four layout
+  actions remain reachable at equal 395×40 geometry
+
 ## Deferred operational hardening
 
 - Sudden power-loss durability for directory rename/delete requires mount-backed

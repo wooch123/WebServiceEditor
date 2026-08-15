@@ -1,9 +1,15 @@
 import type {
+  ApplyRelationshipAutoLayoutRequest,
   CreateRelationshipBindingRequest,
   DeleteRelationshipBindingRequest,
   PatchRelationshipBindingRequest,
+  PreviewRelationshipAutoLayoutRequest,
   PreviewRelationshipConnectionRequest,
   RelationshipHistoryMutationRequest,
+  RelationshipLayoutHistoryMutationRequest,
+  RelationshipRoutePreviewRequest,
+  UpdateRelationshipNodePositionRequest,
+  UpdateRelationshipViewportRequest,
 } from "@webeditor/domain";
 import type { FastifyInstance } from "fastify";
 
@@ -53,6 +59,98 @@ export async function registerDataRelationshipRoutes(
     "/api/v1/projects/:projectId/relationship-graph",
     async (request) => service.graph(request.params.projectId),
   );
+
+  server.patch<{ Params: { projectId: string; nodeId: string } }>(
+    "/api/v1/projects/:projectId/relationship-nodes/:nodeId",
+    async (request) => {
+      const body = exactBody(request.body, [
+        "x",
+        "y",
+        "pinned",
+        "expectedPositionRevision",
+        ...graphRevisions,
+        "idempotencyKey",
+      ]);
+      return service.updateNodePosition(
+        request.params.projectId,
+        request.params.nodeId,
+        body as unknown as UpdateRelationshipNodePositionRequest,
+      );
+    },
+  );
+
+  server.patch<{ Params: { projectId: string } }>(
+    "/api/v1/projects/:projectId/relationship-viewport",
+    async (request) => {
+      const body = exactBody(request.body, [
+        "x",
+        "y",
+        "zoom",
+        "expectedRevision",
+      ]);
+      return service.updateViewport(
+        request.params.projectId,
+        body as unknown as UpdateRelationshipViewportRequest,
+      );
+    },
+  );
+
+  server.post<{ Params: { projectId: string } }>(
+    "/api/v1/projects/:projectId/edges/route-preview",
+    async (request) => {
+      const body = exactBody(request.body, ["positions", ...graphRevisions]);
+      return service.routePreview(
+        request.params.projectId,
+        body as unknown as RelationshipRoutePreviewRequest,
+      );
+    },
+  );
+
+  server.post<{ Params: { projectId: string } }>(
+    "/api/v1/projects/:projectId/auto-layout",
+    async (request) => {
+      const source = exactBody(request.body, [
+        "action",
+        "previewId",
+        ...graphRevisions,
+        "idempotencyKey",
+      ]);
+      if (source.action === "PREVIEW") {
+        exactBody(request.body, ["action", ...graphRevisions]);
+        return service.previewAutoLayout(
+          request.params.projectId,
+          source as unknown as PreviewRelationshipAutoLayoutRequest,
+        );
+      }
+      return service.applyAutoLayout(
+        request.params.projectId,
+        source as unknown as ApplyRelationshipAutoLayoutRequest,
+      );
+    },
+  );
+
+  server.get<{ Params: { projectId: string } }>(
+    "/api/v1/projects/:projectId/relationship-layout-history",
+    async (request) => service.layoutHistory(request.params.projectId),
+  );
+
+  for (const operation of ["undo", "redo"] as const) {
+    server.post<{ Params: { projectId: string } }>(
+      `/api/v1/projects/:projectId/relationship-layout-history/${operation}`,
+      async (request) => {
+        const body = exactBody(request.body, [
+          "expectedCommandId",
+          ...graphRevisions,
+          "idempotencyKey",
+        ]);
+        return service.layoutHistoryMutation(
+          request.params.projectId,
+          operation === "undo" ? "UNDO" : "REDO",
+          body as unknown as RelationshipLayoutHistoryMutationRequest,
+        );
+      },
+    );
+  }
 
   server.get<{ Params: { projectId: string } }>(
     "/api/v1/projects/:projectId/bindings",

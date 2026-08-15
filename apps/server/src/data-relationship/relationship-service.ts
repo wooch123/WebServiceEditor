@@ -10,7 +10,11 @@ import {
   type DeleteRelationshipBindingDto,
   type DeleteRelationshipBindingRequest,
   type PatchRelationshipBindingRequest,
+  type ApplyRelationshipAutoLayoutRequest,
+  type PreviewRelationshipAutoLayoutRequest,
   type PreviewRelationshipConnectionRequest,
+  type RelationshipAutoLayoutApplyDto,
+  type RelationshipAutoLayoutPreviewDto,
   type RelationshipBindingDto,
   type RelationshipBindingMutationDto,
   type RelationshipBindingStatus,
@@ -19,8 +23,18 @@ import {
   type RelationshipHistoryDto,
   type RelationshipHistoryMutationDto,
   type RelationshipHistoryMutationRequest,
+  type RelationshipLayoutHistoryDto,
+  type RelationshipLayoutHistoryMutationDto,
+  type RelationshipLayoutHistoryMutationRequest,
   type RelationshipNodeDto,
+  type RelationshipNodePositionDto,
+  type RelationshipNodePositionMutationDto,
   type RelationshipPortDto,
+  type RelationshipRoutePreviewDto,
+  type RelationshipRoutePreviewRequest,
+  type RelationshipViewportDto,
+  type UpdateRelationshipNodePositionRequest,
+  type UpdateRelationshipViewportRequest,
 } from "@webeditor/domain";
 
 import { ApiError, assertApi } from "../errors.js";
@@ -34,6 +48,12 @@ import {
   RelationshipRepository,
   type BindingCommandRow,
 } from "./relationship-repository.js";
+import {
+  layoutRelationshipGraph,
+  relationshipNodeOverlapCount,
+} from "./relationship-auto-layout.js";
+import type { RelationshipLayoutCommandRow } from "./relationship-layout-repository.js";
+import { routeRelationshipEdges } from "./relationship-router.js";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -49,6 +69,10 @@ const FORBIDDEN_CONFIG_KEYS = new Set([
 ]);
 
 interface StoredConnectionPreview extends RelationshipConnectionPreviewDto {
+  readonly createdAtMs: number;
+}
+
+interface StoredAutoLayoutPreview extends RelationshipAutoLayoutPreviewDto {
   readonly createdAtMs: number;
 }
 
@@ -101,6 +125,31 @@ function revision(value: unknown, code: string): number {
     "Revision is invalid",
   );
   return value as number;
+}
+
+function coordinate(value: unknown, code: string): number {
+  assertApi(
+    typeof value === "number" &&
+      Number.isFinite(value) &&
+      Math.abs(value) <= 1_000_000,
+    400,
+    code,
+    "Graph coordinate is invalid",
+  );
+  return value;
+}
+
+function zoom(value: unknown): number {
+  assertApi(
+    typeof value === "number" &&
+      Number.isFinite(value) &&
+      value >= 0.25 &&
+      value <= 2,
+    400,
+    "INVALID_RELATIONSHIP_ZOOM",
+    "Graph zoom is invalid",
+  );
+  return value;
 }
 
 function idempotencyKey(value: unknown): string {
@@ -233,6 +282,19 @@ function storedCommandResult<T>(command: BindingCommandRow, hash: string): T {
   return JSON.parse(command.response_json) as T;
 }
 
+function storedLayoutCommandResult<T>(
+  command: RelationshipLayoutCommandRow,
+  hash: string,
+): T {
+  assertApi(
+    command.request_hash === hash,
+    409,
+    "IDEMPOTENCY_PAYLOAD_CONFLICT",
+    "Idempotency key was already used with a different payload",
+  );
+  return JSON.parse(command.response_json) as T;
+}
+
 export interface RelationshipServiceOptions {
   readonly metadataDatabase: MetadataDatabase;
   readonly clock?: () => Date;
@@ -246,6 +308,7 @@ export class RelationshipService {
   readonly schemaRepository: SchemaRepository;
   readonly #clock: () => Date;
   readonly #previews = new Map<string, StoredConnectionPreview>();
+  readonly #autoLayoutPreviews = new Map<string, StoredAutoLayoutPreview>();
 
   constructor(options: RelationshipServiceOptions) {
     this.repository = new RelationshipRepository(options.metadataDatabase);
@@ -262,7 +325,52 @@ export class RelationshipService {
   graph(projectId: string): DataRelationshipGraphDto {
     assertUuid(projectId, "INVALID_PROJECT_ID", "Project ID");
     const context = this.#context(projectId);
-    const nodes = this.#nodes(projectId);
+    const positionRows = this.repository.layoutRepository.positions(projectId);
+    const positions = new Map(
+      positionRows.map((row) => [row.node_id, row] as const),
+    );
+    const canonicalNodes = this.#nodes(projectId);
+    const canonicalNodeById = new Map(
+      canonicalNodes.map((node) => [node.id, node] as const),
+    );
+    for (const position of positionRows) {
+      const canonical = canonicalNodeById.get(position.node_id);
+      if (canonical !== undefined) {
+        assertApi(
+          canonical.type === position.node_type &&
+            canonical.objectId === position.object_id,
+          503,
+          "RELATIONSHIP_POSITION_TOPOLOGY_INVALID",
+          "A Node position has invalid graph ownership",
+          { nodeId: position.node_id },
+        );
+        continue;
+      }
+      assertApi(
+        this.repository.endpointObjectState({
+          projectId,
+          nodeType: position.node_type,
+          nodeId: position.node_id,
+          objectId: position.object_id,
+        }) === "inactive",
+        503,
+        "RELATIONSHIP_POSITION_TOPOLOGY_INVALID",
+        "A Node position references a missing graph object",
+        { nodeId: position.node_id },
+      );
+    }
+    const nodes = canonicalNodes.map((node) => {
+      const position = positions.get(node.id);
+      return position === undefined
+        ? node
+        : {
+            ...node,
+            x: position.x,
+            y: position.y,
+            pinned: position.pinned === 1,
+            positionRevision: position.revision,
+          };
+    });
     const validPorts = new Set(
       nodes.flatMap((node) => node.ports.map(({ id }) => id)),
     );
@@ -296,15 +404,25 @@ export class RelationshipService {
       }
       return false;
     });
+    const edges = renderableBindings.map((binding) =>
+      this.repository.toDto(binding),
+    );
+    const viewport = this.repository.layoutRepository.viewport(projectId);
+    assertApi(
+      viewport !== undefined,
+      503,
+      "RELATIONSHIP_VIEWPORT_MISSING",
+      "Project relationship viewport is missing",
+    );
     return {
       schemaVersion: DATA_RELATIONSHIP_SCHEMA_VERSION,
       projectId,
       graphRevision: context.graphRevision,
       projectRevision: context.projectRevision,
       nodes,
-      edges: renderableBindings.map((binding) =>
-        this.repository.toDto(binding),
-      ),
+      edges,
+      routes: routeRelationshipEdges(nodes, edges),
+      viewport: this.repository.layoutRepository.viewportDto(viewport),
     };
   }
 
@@ -877,6 +995,532 @@ export class RelationshipService {
     });
   }
 
+  updateNodePosition(
+    projectId: string,
+    nodeId: string,
+    request: UpdateRelationshipNodePositionRequest,
+  ): RelationshipNodePositionMutationDto {
+    const key = idempotencyKey(request.idempotencyKey);
+    const hash = requestHash(
+      "MOVE_RELATIONSHIP_NODE",
+      `${projectId}:${nodeId}`,
+      request,
+    );
+    const replay = this.repository.layoutRepository.command(projectId, key);
+    if (replay !== undefined) {
+      return storedLayoutCommandResult<RelationshipNodePositionMutationDto>(
+        replay,
+        hash,
+      );
+    }
+    const context = this.#context(projectId);
+    this.#assertRevisions(context, request);
+    const graph = this.graph(projectId);
+    const node = graph.nodes.find(({ id }) => id === nodeId);
+    assertApi(
+      node !== undefined,
+      404,
+      "RELATIONSHIP_NODE_NOT_FOUND",
+      "Relationship Node was not found",
+    );
+    const expectedPositionRevision = revision(
+      request.expectedPositionRevision,
+      "INVALID_RELATIONSHIP_POSITION_REVISION",
+    );
+    assertApi(
+      node.positionRevision === expectedPositionRevision,
+      409,
+      "RELATIONSHIP_POSITION_REVISION_CONFLICT",
+      "Relationship Node position changed",
+      { latestRevision: node.positionRevision },
+    );
+    assertApi(
+      typeof request.pinned === "boolean",
+      400,
+      "INVALID_RELATIONSHIP_PIN_STATE",
+      "Relationship Node pin state is invalid",
+    );
+    const before = this.#position(node);
+    const target = {
+      nodeId: node.id,
+      nodeType: node.type,
+      objectId: node.objectId,
+      x: coordinate(request.x, "INVALID_RELATIONSHIP_NODE_X"),
+      y: coordinate(request.y, "INVALID_RELATIONSHIP_NODE_Y"),
+      pinned: request.pinned,
+    };
+    const now = this.#now();
+    const commandId = randomUUID();
+    return this.repository.metadataDatabase.transaction(() => {
+      const row = this.repository.layoutRepository.applyPosition(
+        projectId,
+        target,
+        now,
+        expectedPositionRevision,
+      );
+      assertApi(
+        row !== undefined,
+        409,
+        "RELATIONSHIP_POSITION_REVISION_CONFLICT",
+        "Relationship Node position changed",
+      );
+      const revisions = this.repository.incrementRevisions(
+        projectId,
+        context.graphRevision,
+        context.projectRevision,
+        now,
+      );
+      assertApi(
+        revisions !== null,
+        409,
+        "RELATIONSHIP_REVISION_CONFLICT",
+        "Relationship graph changed before the Node moved",
+      );
+      const position = this.repository.layoutRepository.positionDto(row);
+      const nextGraph = this.graph(projectId);
+      const response: RelationshipNodePositionMutationDto = {
+        position,
+        routes: nextGraph.routes,
+        ...revisions,
+        commandId,
+      };
+      this.repository.layoutRepository.discardRedo(projectId, now);
+      this.repository.layoutRepository.insertCommand({
+        id: commandId,
+        projectId,
+        commandType: "MOVE_NODE",
+        idempotencyKey: key,
+        requestHash: hash,
+        before: [before],
+        after: [position],
+        responseStatus: 200,
+        response,
+        beforeGraphRevision: context.graphRevision,
+        afterGraphRevision: revisions.graphRevision,
+        now,
+      });
+      return response;
+    });
+  }
+
+  updateViewport(
+    projectId: string,
+    request: UpdateRelationshipViewportRequest,
+  ): RelationshipViewportDto {
+    this.#context(projectId);
+    const expectedRevision = revision(
+      request.expectedRevision,
+      "INVALID_RELATIONSHIP_VIEWPORT_REVISION",
+    );
+    const now = this.#now();
+    const row = this.repository.layoutRepository.updateViewport(
+      projectId,
+      expectedRevision,
+      {
+        x: coordinate(request.x, "INVALID_RELATIONSHIP_VIEWPORT_X"),
+        y: coordinate(request.y, "INVALID_RELATIONSHIP_VIEWPORT_Y"),
+        zoom: zoom(request.zoom),
+      },
+      now,
+    );
+    assertApi(
+      row !== undefined,
+      409,
+      "RELATIONSHIP_VIEWPORT_REVISION_CONFLICT",
+      "Relationship viewport changed",
+    );
+    return this.repository.layoutRepository.viewportDto(row);
+  }
+
+  routePreview(
+    projectId: string,
+    request: RelationshipRoutePreviewRequest,
+  ): RelationshipRoutePreviewDto {
+    const context = this.#context(projectId);
+    this.#assertRevisions(context, request);
+    const graph = this.graph(projectId);
+    const positions = this.#validatedRoutePositions(
+      graph.nodes,
+      request.positions,
+    );
+    const positionByNode = new Map(
+      positions.map((position) => [position.nodeId, position] as const),
+    );
+    const nodes = graph.nodes.map((node) => {
+      const position = positionByNode.get(
+        node.id,
+      ) as RelationshipNodePositionDto;
+      return { ...node, x: position.x, y: position.y };
+    });
+    return {
+      projectId,
+      routes: routeRelationshipEdges(nodes, graph.edges),
+      ...context,
+    };
+  }
+
+  async previewAutoLayout(
+    projectId: string,
+    request: PreviewRelationshipAutoLayoutRequest,
+  ): Promise<RelationshipAutoLayoutPreviewDto> {
+    assertApi(
+      request.action === "PREVIEW",
+      400,
+      "INVALID_AUTO_LAYOUT_ACTION",
+      "Auto Layout action is invalid",
+    );
+    const context = this.#context(projectId);
+    this.#assertRevisions(context, request);
+    const graph = this.graph(projectId);
+    const pinnedNodes = graph.nodes.filter(({ pinned }) => pinned);
+    assertApi(
+      relationshipNodeOverlapCount(pinnedNodes) === 0,
+      409,
+      "PINNED_NODE_OVERLAP",
+      "Pinned Nodes overlap and cannot be arranged",
+    );
+    const result = await layoutRelationshipGraph(graph.nodes, graph.edges);
+    const now = this.#clock();
+    this.#purgeExpiredAutoLayouts(now.getTime());
+    const preview: StoredAutoLayoutPreview = {
+      action: "PREVIEW",
+      previewId: randomUUID(),
+      projectId,
+      positions: result.positions,
+      routes: result.routes,
+      crossingCountBefore: result.crossingCountBefore,
+      crossingCountAfter: result.crossingCountAfter,
+      ...context,
+      expiresAt: new Date(now.getTime() + 15_000).toISOString(),
+      createdAtMs: now.getTime(),
+    };
+    this.#autoLayoutPreviews.set(preview.previewId, preview);
+    while (this.#autoLayoutPreviews.size > 128) {
+      const oldest = this.#autoLayoutPreviews.keys().next().value as
+        string | undefined;
+      if (oldest === undefined) break;
+      this.#autoLayoutPreviews.delete(oldest);
+    }
+    return this.#publicAutoLayoutPreview(preview);
+  }
+
+  applyAutoLayout(
+    projectId: string,
+    request: ApplyRelationshipAutoLayoutRequest,
+  ): RelationshipAutoLayoutApplyDto {
+    assertApi(
+      request.action === "APPLY",
+      400,
+      "INVALID_AUTO_LAYOUT_ACTION",
+      "Auto Layout action is invalid",
+    );
+    assertUuid(
+      request.previewId,
+      "INVALID_AUTO_LAYOUT_PREVIEW_ID",
+      "Preview ID",
+    );
+    const key = idempotencyKey(request.idempotencyKey);
+    const hash = requestHash("AUTO_LAYOUT", projectId, request);
+    const replay = this.repository.layoutRepository.command(projectId, key);
+    if (replay !== undefined) {
+      return storedLayoutCommandResult<RelationshipAutoLayoutApplyDto>(
+        replay,
+        hash,
+      );
+    }
+    const preview = this.#consumeAutoLayoutPreview(
+      request.previewId,
+      projectId,
+    );
+    const context = this.#context(projectId);
+    this.#assertRevisions(context, request);
+    assertApi(
+      preview.graphRevision === context.graphRevision &&
+        preview.projectRevision === context.projectRevision,
+      409,
+      "AUTO_LAYOUT_PREVIEW_STALE",
+      "Auto Layout preview is stale",
+    );
+    const graph = this.graph(projectId);
+    this.#validatedRoutePositions(graph.nodes, preview.positions);
+    const before = graph.nodes.map((node) => this.#position(node));
+    const now = this.#now();
+    const commandId = randomUUID();
+    return this.repository.metadataDatabase.transaction(() => {
+      const positions = preview.positions.map((position) => {
+        const row = this.repository.layoutRepository.applyPosition(
+          projectId,
+          {
+            nodeId: position.nodeId,
+            nodeType: position.nodeType,
+            objectId: position.objectId,
+            x: position.x,
+            y: position.y,
+            pinned: position.pinned,
+          },
+          now,
+          position.revision,
+        );
+        assertApi(
+          row !== undefined,
+          409,
+          "RELATIONSHIP_POSITION_REVISION_CONFLICT",
+          "Relationship Node position changed before Auto Layout",
+        );
+        return this.repository.layoutRepository.positionDto(row);
+      });
+      const revisions = this.repository.incrementRevisions(
+        projectId,
+        context.graphRevision,
+        context.projectRevision,
+        now,
+      );
+      assertApi(
+        revisions !== null,
+        409,
+        "RELATIONSHIP_REVISION_CONFLICT",
+        "Relationship graph changed before Auto Layout",
+      );
+      const nextGraph = this.graph(projectId);
+      const response: RelationshipAutoLayoutApplyDto = {
+        action: "APPLY",
+        projectId,
+        positions,
+        routes: nextGraph.routes,
+        ...revisions,
+        commandId,
+      };
+      this.repository.layoutRepository.discardRedo(projectId, now);
+      this.repository.layoutRepository.insertCommand({
+        id: commandId,
+        projectId,
+        commandType: "AUTO_LAYOUT",
+        idempotencyKey: key,
+        requestHash: hash,
+        before,
+        after: positions,
+        responseStatus: 200,
+        response,
+        beforeGraphRevision: context.graphRevision,
+        afterGraphRevision: revisions.graphRevision,
+        now,
+      });
+      return response;
+    });
+  }
+
+  layoutHistory(projectId: string): RelationshipLayoutHistoryDto {
+    const context = this.#context(projectId);
+    const undo = this.repository.layoutRepository.latestUndo(projectId);
+    const redo = this.repository.layoutRepository.nextRedo(projectId);
+    return {
+      projectId,
+      ...context,
+      undo:
+        undo === undefined
+          ? null
+          : this.repository.layoutRepository.commandSummary(undo),
+      redo:
+        redo === undefined
+          ? null
+          : this.repository.layoutRepository.commandSummary(redo),
+    };
+  }
+
+  layoutHistoryMutation(
+    projectId: string,
+    operation: "UNDO" | "REDO",
+    request: RelationshipLayoutHistoryMutationRequest,
+  ): RelationshipLayoutHistoryMutationDto {
+    assertUuid(projectId, "INVALID_PROJECT_ID", "Project ID");
+    assertUuid(
+      request.expectedCommandId,
+      "INVALID_RELATIONSHIP_LAYOUT_COMMAND_ID",
+      "Command ID",
+    );
+    const key = idempotencyKey(request.idempotencyKey);
+    const hash = requestHash(
+      `RELATIONSHIP_LAYOUT_${operation}`,
+      projectId,
+      request,
+    );
+    const replay = this.repository.layoutRepository.historyOperation(
+      projectId,
+      key,
+    );
+    if (replay !== undefined) {
+      assertApi(
+        replay.request_hash === hash,
+        409,
+        "IDEMPOTENCY_PAYLOAD_CONFLICT",
+        "Idempotency key was already used with a different payload",
+      );
+      return JSON.parse(
+        replay.response_json,
+      ) as RelationshipLayoutHistoryMutationDto;
+    }
+    const context = this.#context(projectId);
+    this.#assertRevisions(context, request);
+    const command =
+      operation === "UNDO"
+        ? this.repository.layoutRepository.latestUndo(projectId)
+        : this.repository.layoutRepository.nextRedo(projectId);
+    assertApi(
+      command !== undefined && command.id === request.expectedCommandId,
+      409,
+      "RELATIONSHIP_LAYOUT_HISTORY_CONFLICT",
+      `${operation} command changed`,
+      { latestCommandId: command?.id ?? null },
+    );
+    const snapshots = JSON.parse(
+      operation === "UNDO" ? command.before_json : command.after_json,
+    ) as readonly RelationshipNodePositionDto[];
+    const now = this.#now();
+    return this.repository.metadataDatabase.transaction(() => {
+      this.repository.layoutRepository.applyPositionSnapshot(
+        projectId,
+        snapshots,
+        now,
+      );
+      this.repository.layoutRepository.setHistoryState(
+        command.id,
+        operation === "UNDO" ? "UNDONE" : "APPLIED",
+        now,
+      );
+      const revisions = this.repository.incrementRevisions(
+        projectId,
+        context.graphRevision,
+        context.projectRevision,
+        now,
+      );
+      assertApi(
+        revisions !== null,
+        409,
+        "RELATIONSHIP_REVISION_CONFLICT",
+        "Relationship graph changed before layout history was applied",
+      );
+      const graph = this.graph(projectId);
+      const response: RelationshipLayoutHistoryMutationDto = {
+        projectId,
+        operation,
+        commandId: command.id,
+        positions: graph.nodes.map((node) => this.#position(node)),
+        routes: graph.routes,
+        ...revisions,
+      };
+      this.repository.layoutRepository.insertHistoryOperation({
+        id: randomUUID(),
+        projectId,
+        commandId: command.id,
+        requestedCommandId: request.expectedCommandId,
+        operationType: operation,
+        idempotencyKey: key,
+        requestHash: hash,
+        response,
+        now,
+      });
+      return response;
+    });
+  }
+
+  #position(node: RelationshipNodeDto): RelationshipNodePositionDto {
+    return {
+      nodeId: node.id,
+      nodeType: node.type,
+      objectId: node.objectId,
+      x: node.x,
+      y: node.y,
+      pinned: node.pinned,
+      revision: node.positionRevision,
+    };
+  }
+
+  #validatedRoutePositions(
+    nodes: readonly RelationshipNodeDto[],
+    input: unknown,
+  ): readonly RelationshipNodePositionDto[] {
+    assertApi(
+      Array.isArray(input) && input.length === nodes.length,
+      400,
+      "INVALID_RELATIONSHIP_ROUTE_POSITIONS",
+      "Route preview must contain every active Node exactly once",
+    );
+    const nodeById = new Map(nodes.map((node) => [node.id, node] as const));
+    const seen = new Set<string>();
+    return input.map((value) => {
+      assertApi(
+        typeof value === "object" && value !== null && !Array.isArray(value),
+        400,
+        "INVALID_RELATIONSHIP_ROUTE_POSITION",
+        "Route preview Node position is invalid",
+      );
+      const position = value as Record<string, unknown>;
+      const node =
+        typeof position.nodeId === "string"
+          ? nodeById.get(position.nodeId)
+          : undefined;
+      assertApi(
+        node !== undefined &&
+          !seen.has(node.id) &&
+          position.nodeType === node.type &&
+          position.objectId === node.objectId &&
+          position.pinned === node.pinned &&
+          position.revision === node.positionRevision,
+        400,
+        "INVALID_RELATIONSHIP_ROUTE_POSITION_OWNERSHIP",
+        "Route preview Node position does not match the current graph",
+      );
+      seen.add(node.id);
+      return {
+        nodeId: node.id,
+        nodeType: node.type,
+        objectId: node.objectId,
+        x: coordinate(position.x, "INVALID_RELATIONSHIP_NODE_X"),
+        y: coordinate(position.y, "INVALID_RELATIONSHIP_NODE_Y"),
+        pinned: node.pinned,
+        revision: node.positionRevision,
+      };
+    });
+  }
+
+  #consumeAutoLayoutPreview(
+    previewId: string,
+    projectId: string,
+  ): StoredAutoLayoutPreview {
+    const now = this.#clock().getTime();
+    this.#purgeExpiredAutoLayouts(now);
+    const preview = this.#autoLayoutPreviews.get(previewId);
+    assertApi(
+      preview !== undefined,
+      409,
+      "AUTO_LAYOUT_PREVIEW_NOT_FOUND",
+      "Auto Layout preview was not found or expired",
+    );
+    assertApi(
+      preview.projectId === projectId,
+      409,
+      "AUTO_LAYOUT_PREVIEW_PROJECT_MISMATCH",
+      "Auto Layout preview belongs to another Project",
+    );
+    this.#autoLayoutPreviews.delete(previewId);
+    return preview;
+  }
+
+  #purgeExpiredAutoLayouts(now: number): void {
+    for (const [id, preview] of this.#autoLayoutPreviews) {
+      if (preview.createdAtMs + 15_000 <= now) {
+        this.#autoLayoutPreviews.delete(id);
+      }
+    }
+  }
+
+  #publicAutoLayoutPreview(
+    preview: StoredAutoLayoutPreview,
+  ): RelationshipAutoLayoutPreviewDto {
+    const { createdAtMs: _createdAtMs, ...publicPreview } = preview;
+    return publicPreview;
+  }
+
   #context(projectId: string): RelationshipContext {
     assertUuid(projectId, "INVALID_PROJECT_ID", "Project ID");
     const project = this.projectRepository.get(projectId);
@@ -988,6 +1632,8 @@ export class RelationshipService {
         y: 40 + index * 180,
         width: 240,
         height: 128,
+        pinned: false,
+        positionRevision: 0,
         ports,
       };
     });
@@ -1038,6 +1684,8 @@ export class RelationshipService {
         y: 40 + index * 180,
         width: 260,
         height: Math.max(128, 88 + ports.length * 28),
+        pinned: false,
+        positionRevision: 0,
         ports,
       };
     });
@@ -1094,6 +1742,8 @@ export class RelationshipService {
           y: 40 + index * 220,
           width: 300,
           height: Math.max(128, 88 + (table.fields.length + 1) * 30),
+          pinned: false,
+          positionRevision: 0,
           ports,
         };
       },
