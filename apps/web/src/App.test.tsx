@@ -74,17 +74,24 @@ describe("WebEditor first frontend slice", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(
-      screen.getByRole("button", {
-        name: "설문 분석 워크벤치 휴지통으로 이동",
-      }),
-    );
-    const dialog = screen.getByRole("dialog", {
+    const trashTrigger = screen.getByRole("button", {
+      name: "설문 분석 워크벤치 휴지통으로 이동",
+    });
+    await user.click(trashTrigger);
+    const dialog = screen.getByRole("alertdialog", {
       name: "휴지통으로 이동할까요?",
     });
     expect(within(dialog).getByText("3")).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(trashTrigger).toHaveFocus();
+
+    await user.click(trashTrigger);
     await user.click(
-      within(dialog).getByRole("button", { name: "휴지통으로 이동" }),
+      within(
+        screen.getByRole("alertdialog", {
+          name: "휴지통으로 이동할까요?",
+        }),
+      ).getByRole("button", { name: "휴지통으로 이동" }),
     );
 
     const projectNavigation = screen.getByRole("navigation", {

@@ -15,37 +15,49 @@
       "id": "REQ-002",
       "title": "shadcn/ui product UI",
       "phase": 1,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "apps/web/src/components/ui",
+        "apps/web/src/DesignSystemGallery.tsx"
+      ],
+      "tests": [
+        "apps/web/src/DesignSystemGallery.test.tsx",
+        "scripts/verify-phase1.mjs"
+      ],
+      "evidence": [
+        "docs/evidence/shadcn-info.json",
+        "artifacts/phase1/design-system-validation.json"
+      ]
     },
     {
       "id": "REQ-003",
       "title": "Repository shadcn skill",
       "phase": 1,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [".agents/skills/shadcn/SKILL.md", "skills-lock.json"],
+      "tests": ["scripts/verify-phase1.mjs"],
+      "evidence": ["docs/evidence/shadcn-info.json"]
     },
     {
       "id": "REQ-004",
       "title": "Lucide-only general icons",
       "phase": 1,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "apps/web/src/App.tsx",
+        "apps/web/src/DesignSystemGallery.tsx"
+      ],
+      "tests": ["scripts/verify-phase1.mjs"],
+      "evidence": ["artifacts/phase1/design-system-validation.json"]
     },
     {
       "id": "REQ-005",
       "title": "Top-right theme control",
       "phase": 1,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": ["apps/web/src/App.tsx"],
+      "tests": ["apps/web/src/App.test.tsx", "scripts/verify-phase1.mjs"],
+      "evidence": ["artifacts/phase1/design-system-validation.json"]
     },
     {
       "id": "REQ-006",
@@ -60,10 +72,10 @@
       "id": "REQ-007",
       "title": "Font size control",
       "phase": 1,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": ["apps/web/src/App.tsx"],
+      "tests": ["apps/web/src/App.test.tsx", "scripts/verify-phase1.mjs"],
+      "evidence": ["artifacts/phase1/design-system-validation.json"]
     },
     {
       "id": "REQ-008",

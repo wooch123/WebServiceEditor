@@ -1,4 +1,5 @@
 node_modules
+.agents/skills
 dist
 coverage
 artifacts

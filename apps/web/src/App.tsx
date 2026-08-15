@@ -32,7 +32,21 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { CSSProperties } from "react";
-import { useMemo, useState } from "react";
+import { lazy, Suspense, useMemo, useRef, useState } from "react";
+
+import { Button } from "@/components/ui/button";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogMedia,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { NativeSelect } from "@/components/ui/native-select";
 
 import {
   defaultTheme,
@@ -40,6 +54,11 @@ import {
   themeToCssVariables,
   type ThemeGroup,
 } from "./theme";
+
+const DesignSystemGallery = lazy(async () => {
+  const gallery = await import("./DesignSystemGallery");
+  return { default: gallery.DesignSystemGallery };
+});
 
 type HomeSection = "active" | "recent" | "favorites" | "trash" | "backup";
 type RuntimeStatus = "online" | "draft" | "offline";
@@ -189,33 +208,37 @@ function HeaderControls({
   return (
     <div className="header-controls" aria-label="화면 표시 설정">
       <div className="font-size-control" aria-label="글꼴 크기">
-        <button
+        <Button
           className="icon-button"
+          variant="ghost"
+          size="icon-sm"
           type="button"
           aria-label="글꼴 크기 줄이기"
           disabled={fontSize === 10}
           onClick={() => onFontSizeChange(Math.max(10, fontSize - 1))}
         >
           <Minus aria-hidden="true" />
-        </button>
+        </Button>
         <output aria-live="polite" aria-label="현재 글꼴 크기">
           {fontSize}px
         </output>
-        <button
+        <Button
           className="icon-button"
+          variant="ghost"
+          size="icon-sm"
           type="button"
           aria-label="글꼴 크기 늘리기"
           disabled={fontSize === 24}
           onClick={() => onFontSizeChange(Math.min(24, fontSize + 1))}
         >
           <Plus aria-hidden="true" />
-        </button>
+        </Button>
       </div>
 
       <label className="theme-control">
         <Palette aria-hidden="true" />
         <span className="sr-only">테마 선택</span>
-        <select
+        <NativeSelect
           aria-label="테마 선택"
           value={themeId}
           onChange={(event) => onThemeChange(event.target.value)}
@@ -231,7 +254,7 @@ function HeaderControls({
                 ))}
             </optgroup>
           ))}
-        </select>
+        </NativeSelect>
       </label>
     </div>
   );
@@ -263,7 +286,7 @@ function ProjectCard({
   onDuplicate: () => void;
   onExport: () => void;
   onFavorite: () => void;
-  onTrash: () => void;
+  onTrash: (trigger: HTMLButtonElement) => void;
   onRestore: () => void;
 }) {
   const ProjectIcon = projectIcons[project.icon];
@@ -354,7 +377,7 @@ function ProjectCard({
                 type="button"
                 aria-label={`${project.name} 휴지통으로 이동`}
                 title="휴지통으로 이동"
-                onClick={onTrash}
+                onClick={(event) => onTrash(event.currentTarget)}
               >
                 <Trash2 aria-hidden="true" />
               </button>
@@ -420,6 +443,7 @@ function HomeSurface({
   const [query, setQuery] = useState("");
   const [sort, setSort] = useState<"saved" | "name">("saved");
   const [pendingTrashId, setPendingTrashId] = useState<string | null>(null);
+  const trashTriggerRef = useRef<HTMLButtonElement | null>(null);
 
   const activeCount = projects.filter(
     (project) => project.trashedAt === null,
@@ -640,7 +664,10 @@ function HomeSurface({
                     onFavorite={() =>
                       updateProject(project.id, { favorite: !project.favorite })
                     }
-                    onTrash={() => setPendingTrashId(project.id)}
+                    onTrash={(trigger) => {
+                      trashTriggerRef.current = trigger;
+                      setPendingTrashId(project.id);
+                    }}
                     onRestore={() =>
                       updateProject(project.id, { trashedAt: null })
                     }
@@ -663,22 +690,33 @@ function HomeSurface({
         </main>
       </div>
 
-      {pendingProject && (
-        <div className="dialog-backdrop" role="presentation">
-          <section
+      <AlertDialog
+        open={pendingProject !== undefined}
+        onOpenChange={(open) => {
+          if (!open) setPendingTrashId(null);
+        }}
+      >
+        {pendingProject && (
+          <AlertDialogContent
             className="dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="trash-dialog-title"
+            onCloseAutoFocus={(event) => {
+              const trigger = trashTriggerRef.current;
+              if (trigger?.isConnected) {
+                event.preventDefault();
+                trigger.focus();
+              }
+            }}
           >
-            <span className="dialog-icon destructive">
+            <AlertDialogMedia className="dialog-icon destructive">
               <Trash2 aria-hidden="true" />
-            </span>
-            <h2 id="trash-dialog-title">휴지통으로 이동할까요?</h2>
-            <p>
+            </AlertDialogMedia>
+            <AlertDialogHeader>
+              <AlertDialogTitle>휴지통으로 이동할까요?</AlertDialogTitle>
+            </AlertDialogHeader>
+            <AlertDialogDescription>
               <strong>{pendingProject.name}</strong>의 운영 접근이 중단됩니다.
               정의와 연결 정보는 휴지통에 보존되며 다시 복원할 수 있습니다.
-            </p>
+            </AlertDialogDescription>
             <dl className="impact-summary">
               <div>
                 <dt>페이지</dt>
@@ -693,17 +731,16 @@ function HomeSurface({
                 <dd>{pendingProject.tableCount}</dd>
               </div>
             </dl>
-            <div className="dialog-actions">
-              <button
+            <AlertDialogFooter className="dialog-actions">
+              <AlertDialogCancel
                 className="button secondary"
-                type="button"
                 onClick={() => setPendingTrashId(null)}
               >
                 취소
-              </button>
-              <button
+              </AlertDialogCancel>
+              <AlertDialogAction
                 className="button destructive"
-                type="button"
+                variant="destructive"
                 onClick={() => {
                   updateProject(pendingProject.id, { trashedAt: "방금" });
                   setPendingTrashId(null);
@@ -711,11 +748,11 @@ function HomeSurface({
               >
                 <Trash2 aria-hidden="true" />
                 휴지통으로 이동
-              </button>
-            </div>
-          </section>
-        </div>
-      )}
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        )}
+      </AlertDialog>
     </div>
   );
 }
@@ -1102,7 +1139,7 @@ function EditorSurface({
   );
 }
 
-export function App() {
+function ProductApp() {
   const [projects, setProjects] = useState(initialProjects);
   const [surface, setSurface] = useState<"home" | "editor">("home");
   const [selectedProjectId, setSelectedProjectId] = useState(
@@ -1152,4 +1189,25 @@ export function App() {
       )}
     </div>
   );
+}
+
+export function App() {
+  const pathname =
+    typeof window === "undefined" ? "/" : window.location.pathname;
+
+  if (pathname.replace(/\/+$/, "") === "/internal/design-system") {
+    return (
+      <Suspense
+        fallback={
+          <div className="grid min-h-screen place-items-center" role="status">
+            디자인 시스템을 불러오는 중입니다.
+          </div>
+        }
+      >
+        <DesignSystemGallery />
+      </Suspense>
+    );
+  }
+
+  return <ProductApp />;
 }

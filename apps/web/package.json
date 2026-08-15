@@ -9,14 +9,34 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run src/theme.unit.test.ts",
-    "test:component": "vitest run src/App.test.tsx"
+    "test:component": "vitest run src/App.test.tsx src/DesignSystemGallery.test.tsx"
   },
   "dependencies": {
+    "@base-ui/react": "^1.7.0",
+    "@fontsource-variable/geist": "^5.3.0",
+    "@shadcn/react": "^0.3.0",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "date-fns": "^4.4.0",
+    "embla-carousel-react": "^8.6.0",
+    "input-otp": "^1.4.2",
     "lucide-react": "1.31.0",
+    "next-themes": "^0.4.6",
+    "radix-ui": "^1.6.7",
     "react": "19.2.8",
-    "react-dom": "19.2.8"
+    "react-day-picker": "^10.0.1",
+    "react-dom": "19.2.8",
+    "react-resizable-panels": "^4.12.2",
+    "recharts": "3.8.0",
+    "shadcn": "^4.18.0",
+    "sonner": "^2.0.8",
+    "tailwind-merge": "^3.6.0",
+    "tw-animate-css": "^1.4.0",
+    "vaul": "^1.1.2"
   },
   "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
     "@testing-library/jest-dom": "7.0.1",
     "@testing-library/react": "16.3.2",
     "@testing-library/user-event": "14.6.4",
@@ -24,6 +44,7 @@
     "@types/react-dom": "19.2.4",
     "@vitejs/plugin-react": "6.0.5",
     "jsdom": "30.0.1",
+    "tailwindcss": "^4.3.3",
     "vite": "8.2.1",
     "vitest": "4.1.10"
   }

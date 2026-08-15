@@ -1,0 +1,37 @@
+{
+  "capturedAt": "2026-08-15T21:14:00+09:00",
+  "project": {
+    "framework": "Vite",
+    "frameworkName": "vite",
+    "srcDirectory": true,
+    "rsc": false,
+    "typescript": true,
+    "tailwindVersion": "v4",
+    "tailwindCss": "src/styles.css",
+    "importAlias": "@"
+  },
+  "config": {
+    "style": "radix-nova",
+    "base": "radix",
+    "rsc": false,
+    "typescript": true,
+    "iconLibrary": "lucide",
+    "rtl": false,
+    "aliases": {
+      "components": "@/components",
+      "utils": "@/lib/utils",
+      "ui": "@/components/ui",
+      "lib": "@/lib",
+      "hooks": "@/hooks"
+    }
+  },
+  "preset": {
+    "code": "b2fA",
+    "style": "nova",
+    "baseColor": "neutral",
+    "theme": "neutral",
+    "iconLibrary": "lucide",
+    "font": "geist"
+  },
+  "initialComponents": ["button"]
+}
