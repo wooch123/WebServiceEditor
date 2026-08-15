@@ -18,6 +18,7 @@ import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { DatabaseDesigner } from "@/features/data-schema/DatabaseDesigner";
 import {
   CanvasControls,
   ElementCanvas,
@@ -104,36 +105,6 @@ function Brand() {
         <Blocks aria-hidden="true" />
       </span>
       <span className="brand-wordmark">WebEditor</span>
-    </div>
-  );
-}
-
-function DataDesignPreview() {
-  return (
-    <div className="graph-stage" aria-label="데이터 연결 설계 미리보기">
-      <div className="graph-node page-node">
-        <span className="node-kicker">PAGE</span>
-        <strong>지역별 비교</strong>
-        <span className="node-port output" aria-label="페이지 출력 포트" />
-      </div>
-      <div className="graph-edge edge-one" aria-hidden="true" />
-      <div className="graph-node element-node">
-        <span className="node-port input" aria-label="엘리먼트 입력 포트" />
-        <span className="node-kicker">ELEMENT</span>
-        <strong>재원일수 차트</strong>
-        <span className="node-port output" aria-label="엘리먼트 출력 포트" />
-      </div>
-      <div className="graph-edge edge-two" aria-hidden="true" />
-      <div className="graph-node database-node">
-        <span className="node-port input" aria-label="데이터베이스 입력 포트" />
-        <span className="node-kicker">DATABASE</span>
-        <strong>regional_health</strong>
-        <small>12 fields · SQLite</small>
-      </div>
-      <div className="graph-note">
-        <Waypoints aria-hidden="true" />
-        입력: 왼쪽 · 출력: 오른쪽
-      </div>
     </div>
   );
 }
@@ -312,15 +283,13 @@ function EditorSurface({
                   <span>빈 페이지 추가</span>
                 </div>
               ))}
-            {step === "data" &&
-              (selectedPage ? (
-                <DataDesignPreview />
-              ) : (
-                <div className="editor-empty-state" role="status">
-                  <strong>페이지 필요</strong>
-                  <span>페이지 단계</span>
-                </div>
-              ))}
+            {step === "data" && (
+              <DatabaseDesigner
+                projectId={project.id}
+                projectRevision={project.revision}
+                onProjectRevisionChange={onProjectRevisionChange}
+              />
+            )}
             {step === "validation" && (
               <ValidationPreview pageExists={selectedPage !== null} />
             )}
@@ -341,23 +310,14 @@ function EditorSurface({
             {step === "page" && <ElementPropertyInspector />}
             {step === "data" && (
               <div className="inspector-summary">
-                {selectedPage ? (
-                  <>
-                    <span>
-                      <Database aria-hidden="true" />
-                      SQLite 연결 1개
-                    </span>
-                    <span>
-                      <Waypoints aria-hidden="true" />
-                      실행 바인딩 2개
-                    </span>
-                  </>
-                ) : (
-                  <span>
-                    <Clock3 aria-hidden="true" />
-                    페이지 필요
-                  </span>
-                )}
+                <span>
+                  <Database aria-hidden="true" />
+                  Test DB
+                </span>
+                <span>
+                  <Waypoints aria-hidden="true" />
+                  관계
+                </span>
               </div>
             )}
             {step === "validation" && (

@@ -743,6 +743,7 @@ export class ProjectStorage {
       "PURGE_RECOVERY_NOT_VERIFIED",
       "Purge recovery copy is not verified",
     );
+    this.#removeSchemaBackups(projectId);
     this.triggerFailure("purge:commit-recovery");
     if (backupBeforePurge) {
       const projectBackupRoot = join(this.backupsRoot, projectId);
@@ -882,6 +883,20 @@ export class ProjectStorage {
               "UPDATE webeditor_runtime_metadata SET project_id = ?, sentinel = ?",
             )
             .run(projectId, `${projectId}:${environment}:v1`);
+          const hasSchemaState = database
+            .prepare(
+              `SELECT 1 AS present FROM sqlite_master
+               WHERE type = 'table' AND name = 'webeditor_runtime_schema_state'`,
+            )
+            .get() as { readonly present: 1 } | undefined;
+          if (hasSchemaState !== undefined) {
+            database
+              .prepare(
+                `UPDATE webeditor_runtime_schema_state
+                 SET project_id = ?, environment = ?`,
+              )
+              .run(projectId, environment);
+          }
         } finally {
           database.close();
         }
@@ -1085,10 +1100,25 @@ export class ProjectStorage {
     }
     return (
       existsSync(projectBackupRoot) &&
-      readdirSync(projectBackupRoot, { withFileTypes: true }).some((entry) =>
-        entry.isDirectory(),
+      readdirSync(projectBackupRoot, { withFileTypes: true }).some(
+        (entry) => entry.isDirectory() && entry.name !== "schema",
       )
     );
+  }
+
+  #removeSchemaBackups(projectId: string): void {
+    const projectBackupRoot = join(this.backupsRoot, projectId);
+    const schemaBackupRoot = join(projectBackupRoot, "schema");
+    assertWithin(this.backupsRoot, schemaBackupRoot);
+    if (!existsSync(schemaBackupRoot)) return;
+    this.#assertProjectDirectory(schemaBackupRoot, projectBackupRoot);
+    rmSync(schemaBackupRoot, { force: false, recursive: true });
+    if (
+      existsSync(projectBackupRoot) &&
+      readdirSync(projectBackupRoot).length === 0
+    ) {
+      rmSync(projectBackupRoot, { force: false });
+    }
   }
 
   assertWritable(): void {

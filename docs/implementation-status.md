@@ -6,32 +6,30 @@ Overall state: `IN PROGRESS`
 
 ## Current phase
 
-### PHASE 7 — Statistical Elements and Layout Presets
+### PHASE 8 — Database Designer
 
 State: `VERIFIED`
 
 Scope:
 
-- Add the accepted statistical Element inventory and theme-aware renderers.
-- Persist deterministic Layout Presets as real Page and Element instances.
-- Preview Preset structure before applying it to an empty or current Page.
-- Keep Preset application atomic, revisioned, idempotent, and undoable.
-- Preserve Draft, Published Runtime, lifecycle, and Registry boundaries.
+- Create Table, Field, and Relation definitions through a GUI.
+- Keep editable display names separate from server-owned physical identifiers.
+- Apply an immutable migration plan only to the isolated Test runtime database.
+- Verify backup, row count, foreign keys, integrity, and rollback.
+- Preserve Production, clone/import, and Project lifecycle boundaries.
 
-Data risk: high. Preset application creates multiple Elements and may replace a
-Page layout. All mutations require an impact plan, optimistic revisions,
-idempotency, atomic history, and isolated fixtures.
+Data risk: high. Runtime schema replacement can destroy rows. Physical changes
+require an impact plan, verified backup, explicit destructive confirmation,
+staging database validation, and atomic replacement.
 
 Test plan:
 
-- Validate every statistical Element through Registry, Palette, Inspector,
-  Editor, and immutable Runtime projections.
-- Verify chart marks use semantic chart tokens and preserve accessible labels,
-  reduced motion, resize previews, and truthful empty states.
-- Verify every Preset preview matches the exact applied Element count and grid
-  coordinate snapshot with no screenshot-only template.
-- Verify add/replace choices, impact gating, idempotent replay, Undo/Redo,
-  reload, restart, publish, clone, export/import, trash, restore, and purge.
+- Validate eight Field types, three templates, relation ownership, optimistic
+  revisions, idempotency, and physical-name request rejection.
+- Apply real SQLite schema changes while preserving compatible rows and the
+  byte-identical Production database.
+- Inject apply failures and restart interrupted journals from a verified backup.
+- Verify clone, export/import, trash, restart, restore, and purge ownership.
 
 ## Phase ledger
 
@@ -45,7 +43,8 @@ Test plan:
 | 5     | VERIFIED    | Element placement, grid snapping, and eight-way resize        |
 | 6     | VERIFIED    | Registry, Property Inspector, Runtime renderer, Undo/Redo     |
 | 7     | VERIFIED    | Statistical Elements and real Layout Preset instances         |
-| 8–23  | NOT STARTED | Must follow sequentially                                      |
+| 8     | VERIFIED    | GUI schema design and isolated Test SQLite migration          |
+| 9–23  | NOT STARTED | Must follow sequentially                                      |
 
 ## Phase 0 evidence
 
@@ -185,6 +184,26 @@ Test plan:
   action, and impact controls remain reachable with equal sibling geometry
 - Full workspace format, lint, typecheck, unit, integration, component,
   validation, and production build: PASS
+
+## Phase 8 evidence
+
+- Static, behavioral, browser, and Phase 0–7 regression audit:
+  `artifacts/phase8/database-designer-validation.json` — 39/39
+- Metadata migration v7: Project schema state, Tables, Fields, Relations,
+  migration plans, verified backups, and idempotency commands
+- Eight Field types and three Table templates; display names remain editable
+  while `t_<32 hex>` and `c_<32 hex>` physical names remain server-owned
+- Server unit: 35/35; Server integration: 58/58; Phase 8 lifecycle: 5/5
+- Real Test SQLite apply preserves compatible rows, checks foreign keys and
+  `quick_check`, and leaves Production byte-identical
+- Failure injection and startup recovery restore verified backups without
+  advancing the applied schema revision
+- Clone and import remap metadata IDs while preserving physical names and rows;
+  trash/restart/restore preserves them and purge removes owned schema metadata
+- Browser QA at 1280×720: equal Table/Relation/Plan, Field, and dialog controls;
+  display-name edits preserve physical names; relationship and Test apply PASS
+- Browser QA at 419px: document width remains 419px, same-level controls retain
+  equal geometry, and the Field grid owns horizontal overflow
 
 ## Deferred operational hardening
 

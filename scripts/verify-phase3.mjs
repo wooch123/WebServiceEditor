@@ -576,7 +576,18 @@ export function inspectDestructiveSafety(files) {
       !routeInspection.forbiddenActiveDeleteRoutes.some((route) =>
         file.source.includes(route.path),
       );
-    if (!isPurgeScoped) {
+    const filesystemDeleteTargets = [
+      ...file.source.matchAll(
+        /\b(?:rm|rmSync|rmdir|rmdirSync|unlink|unlinkSync)\s*\(\s*([^,\n)]+)/gu,
+      ),
+    ].map((match) => match[1].trim());
+    const isScopedTransientCleanup =
+      filesystemDeleteTargets.length > 0 &&
+      filesystemDeleteTargets.every((target) =>
+        /^(?:stagingPath|backupPath|verificationMarkerPath)$/u.test(target),
+      ) &&
+      /assertWithin|#runtimePath|same-directory staging/u.test(file.source);
+    if (!isPurgeScoped && !isScopedTransientCleanup) {
       unsafeFilesystemDeletes.push(file.path);
     }
   }
@@ -631,7 +642,7 @@ export function inspectFrontendPersistence(files) {
         source,
       ),
     neverDeletesActiveEndpoint:
-      !/method\s*:\s*["']DELETE["'][\s\S]{0,300}\/api\/v1\/projects(?:\/|["'`])|\/api\/v1\/projects[\s\S]{0,300}method\s*:\s*["']DELETE["']/iu.test(
+      !/(?:fetch|requestJson|request)\s*(?:<[^>]+>)?\(\s*(["'`])\/api\/v1\/projects\/(?![^"'`]*\/(?:trash|schema(?:\/|$)|relations(?:\/|$)))[^"'`]*\1\s*,\s*\{[^}]{0,240}method\s*:\s*["']DELETE["']/iu.test(
         source,
       ),
     hasImpactConfirmation:

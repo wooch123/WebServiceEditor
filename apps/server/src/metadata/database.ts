@@ -6,7 +6,7 @@ import { PROJECT_LIFECYCLE_STATUSES } from "@webeditor/domain";
 import Database from "better-sqlite3";
 
 const METADATA_APPLICATION_ID = 0x57454245;
-export const LATEST_METADATA_SCHEMA_VERSION = 6;
+export const LATEST_METADATA_SCHEMA_VERSION = 7;
 
 const lifecycleSqlValues = PROJECT_LIFECYCLE_STATUSES.map(
   (status) => `'${status}'`,
@@ -703,6 +703,222 @@ export const STATISTICAL_ELEMENTS_LAYOUT_PRESETS_SCHEMA_CHECKSUM = createHash(
   .update(statisticalElementsLayoutPresetsSchemaSql)
   .digest("hex");
 
+const databaseDesignerSchemaSql = `
+  CREATE TABLE project_schema_states (
+    project_id TEXT PRIMARY KEY NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    draft_revision INTEGER NOT NULL DEFAULT 0
+      CHECK (draft_revision >= 0 AND typeof(draft_revision) = 'integer'),
+    test_applied_revision INTEGER NOT NULL DEFAULT 0
+      CHECK (test_applied_revision >= 0 AND typeof(test_applied_revision) = 'integer'),
+    test_schema_checksum TEXT CHECK (
+      test_schema_checksum IS NULL OR (
+        length(test_schema_checksum) = 64 AND
+        test_schema_checksum = lower(test_schema_checksum) AND
+        test_schema_checksum NOT GLOB '*[^0-9a-f]*'
+      )
+    ),
+    production_applied_revision INTEGER NOT NULL DEFAULT 0
+      CHECK (production_applied_revision >= 0 AND typeof(production_applied_revision) = 'integer'),
+    production_schema_checksum TEXT CHECK (
+      production_schema_checksum IS NULL OR (
+        length(production_schema_checksum) = 64 AND
+        production_schema_checksum = lower(production_schema_checksum) AND
+        production_schema_checksum NOT GLOB '*[^0-9a-f]*'
+      )
+    ),
+    updated_at TEXT NOT NULL
+  );
+  INSERT INTO project_schema_states (project_id, updated_at)
+    SELECT id, updated_at FROM projects;
+  CREATE TRIGGER projects_initialize_schema_state
+    AFTER INSERT ON projects
+    BEGIN
+      INSERT INTO project_schema_states (project_id, updated_at)
+      VALUES (NEW.id, NEW.updated_at);
+    END;
+
+  CREATE TABLE data_tables (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    display_name TEXT NOT NULL CHECK (length(trim(display_name)) BETWEEN 1 AND 120),
+    physical_name TEXT NOT NULL CHECK (
+      physical_name GLOB 't_[0-9a-f]*' AND length(physical_name) = 34
+    ),
+    description TEXT CHECK (
+      description IS NULL OR length(description) <= 1000
+    ),
+    revision INTEGER NOT NULL DEFAULT 1
+      CHECK (revision >= 1 AND typeof(revision) = 'integer'),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT,
+    UNIQUE(id, project_id),
+    UNIQUE(project_id, physical_name)
+  );
+  CREATE UNIQUE INDEX data_tables_active_display_name_idx
+    ON data_tables(project_id, display_name COLLATE NOCASE)
+    WHERE deleted_at IS NULL;
+  CREATE INDEX data_tables_project_active_idx
+    ON data_tables(project_id, deleted_at, created_at, id);
+
+  CREATE TABLE data_fields (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    table_id TEXT NOT NULL,
+    display_name TEXT NOT NULL CHECK (length(trim(display_name)) BETWEEN 1 AND 120),
+    physical_name TEXT NOT NULL CHECK (
+      physical_name GLOB 'c_[0-9a-f]*' AND length(physical_name) = 34
+    ),
+    field_type TEXT NOT NULL CHECK (
+      field_type IN ('INTEGER', 'REAL', 'TEXT', 'BOOLEAN', 'DATE', 'DATETIME', 'JSON', 'BLOB')
+    ),
+    primary_key INTEGER NOT NULL DEFAULT 0 CHECK (primary_key IN (0, 1)),
+    auto_increment INTEGER NOT NULL DEFAULT 0 CHECK (auto_increment IN (0, 1)),
+    nullable INTEGER NOT NULL DEFAULT 1 CHECK (nullable IN (0, 1)),
+    is_unique INTEGER NOT NULL DEFAULT 0 CHECK (is_unique IN (0, 1)),
+    default_value TEXT CHECK (default_value IS NULL OR length(default_value) <= 1000),
+    indexed INTEGER NOT NULL DEFAULT 0 CHECK (indexed IN (0, 1)),
+    unit TEXT CHECK (unit IS NULL OR length(unit) <= 100),
+    description TEXT CHECK (description IS NULL OR length(description) <= 1000),
+    sort_order INTEGER NOT NULL CHECK (sort_order >= 0 AND typeof(sort_order) = 'integer'),
+    revision INTEGER NOT NULL DEFAULT 1
+      CHECK (revision >= 1 AND typeof(revision) = 'integer'),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT,
+    UNIQUE(id, table_id, project_id),
+    UNIQUE(table_id, physical_name),
+    CHECK (auto_increment = 0 OR (primary_key = 1 AND field_type = 'INTEGER')),
+    CHECK (primary_key = 0 OR nullable = 0),
+    FOREIGN KEY (table_id, project_id)
+      REFERENCES data_tables(id, project_id) ON DELETE CASCADE
+  );
+  CREATE UNIQUE INDEX data_fields_active_display_name_idx
+    ON data_fields(table_id, display_name COLLATE NOCASE)
+    WHERE deleted_at IS NULL;
+  CREATE UNIQUE INDEX data_fields_active_sort_order_idx
+    ON data_fields(table_id, sort_order) WHERE deleted_at IS NULL;
+  CREATE INDEX data_fields_project_table_active_idx
+    ON data_fields(project_id, table_id, deleted_at, sort_order, id);
+
+  CREATE TABLE data_relations (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    display_name TEXT NOT NULL CHECK (length(trim(display_name)) BETWEEN 1 AND 120),
+    relation_type TEXT NOT NULL CHECK (
+      relation_type IN ('ONE_TO_ONE', 'ONE_TO_MANY', 'MANY_TO_ONE')
+    ),
+    source_table_id TEXT NOT NULL,
+    source_field_id TEXT NOT NULL,
+    target_table_id TEXT NOT NULL,
+    target_field_id TEXT NOT NULL,
+    on_delete TEXT NOT NULL CHECK (on_delete IN ('RESTRICT', 'CASCADE', 'SET_NULL')),
+    revision INTEGER NOT NULL DEFAULT 1
+      CHECK (revision >= 1 AND typeof(revision) = 'integer'),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT,
+    UNIQUE(id, project_id),
+    FOREIGN KEY (source_table_id, project_id)
+      REFERENCES data_tables(id, project_id) ON DELETE CASCADE,
+    FOREIGN KEY (target_table_id, project_id)
+      REFERENCES data_tables(id, project_id) ON DELETE CASCADE,
+    FOREIGN KEY (source_field_id, source_table_id, project_id)
+      REFERENCES data_fields(id, table_id, project_id) ON DELETE CASCADE,
+    FOREIGN KEY (target_field_id, target_table_id, project_id)
+      REFERENCES data_fields(id, table_id, project_id) ON DELETE CASCADE
+  );
+  CREATE UNIQUE INDEX data_relations_active_endpoints_idx
+    ON data_relations(project_id, source_field_id, target_field_id)
+    WHERE deleted_at IS NULL;
+  CREATE INDEX data_relations_project_active_idx
+    ON data_relations(project_id, deleted_at, created_at, id);
+
+  CREATE TABLE schema_migration_plans (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    target_environment TEXT NOT NULL CHECK (target_environment = 'test'),
+    schema_revision INTEGER NOT NULL CHECK (
+      schema_revision >= 0 AND typeof(schema_revision) = 'integer'
+    ),
+    project_revision INTEGER NOT NULL CHECK (
+      project_revision >= 1 AND typeof(project_revision) = 'integer'
+    ),
+    schema_checksum TEXT NOT NULL CHECK (
+      length(schema_checksum) = 64 AND schema_checksum = lower(schema_checksum) AND
+      schema_checksum NOT GLOB '*[^0-9a-f]*'
+    ),
+    snapshot_json TEXT NOT NULL CHECK (
+      json_valid(snapshot_json) AND json_type(snapshot_json) = 'object'
+    ),
+    plan_json TEXT NOT NULL CHECK (
+      json_valid(plan_json) AND json_type(plan_json) = 'object'
+    ),
+    status TEXT NOT NULL CHECK (
+      status IN ('READY', 'APPLYING', 'APPLIED', 'FAILED', 'EXPIRED')
+    ),
+    backup_id TEXT,
+    backup_checksum TEXT,
+    result_json TEXT CHECK (result_json IS NULL OR json_valid(result_json)),
+    error_json TEXT CHECK (error_json IS NULL OR json_valid(error_json)),
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    started_at TEXT,
+    completed_at TEXT
+  );
+  CREATE INDEX schema_migration_plans_project_status_idx
+    ON schema_migration_plans(project_id, status, expires_at);
+
+  CREATE TABLE schema_backups (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    plan_id TEXT NOT NULL REFERENCES schema_migration_plans(id) ON DELETE CASCADE,
+    environment TEXT NOT NULL CHECK (environment = 'test'),
+    relative_path TEXT NOT NULL,
+    checksum TEXT NOT NULL CHECK (
+      length(checksum) = 64 AND checksum = lower(checksum) AND
+      checksum NOT GLOB '*[^0-9a-f]*'
+    ),
+    size_bytes INTEGER NOT NULL CHECK (
+      size_bytes >= 0 AND typeof(size_bytes) = 'integer'
+    ),
+    verified INTEGER NOT NULL CHECK (verified = 1),
+    created_at TEXT NOT NULL,
+    UNIQUE(project_id, plan_id)
+  );
+
+  CREATE TABLE schema_commands (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    object_id TEXT,
+    command_type TEXT NOT NULL CHECK (
+      command_type IN (
+        'TABLE_CREATE', 'TABLE_UPDATE', 'TABLE_DELETE',
+        'FIELD_CREATE', 'FIELD_UPDATE', 'FIELD_DELETE',
+        'RELATION_CREATE', 'RELATION_UPDATE', 'RELATION_DELETE',
+        'SCHEMA_APPLY'
+      )
+    ),
+    idempotency_key TEXT NOT NULL,
+    request_hash TEXT NOT NULL CHECK (
+      length(request_hash) = 64 AND request_hash = lower(request_hash) AND
+      request_hash NOT GLOB '*[^0-9a-f]*'
+    ),
+    response_status INTEGER NOT NULL CHECK (
+      response_status BETWEEN 200 AND 499 AND typeof(response_status) = 'integer'
+    ),
+    response_json TEXT NOT NULL CHECK (json_valid(response_json)),
+    created_at TEXT NOT NULL,
+    UNIQUE(project_id, idempotency_key)
+  );
+  CREATE INDEX schema_commands_project_created_idx
+    ON schema_commands(project_id, created_at, id);
+`;
+
+export const DATABASE_DESIGNER_SCHEMA_CHECKSUM = createHash("sha256")
+  .update(databaseDesignerSchemaSql)
+  .digest("hex");
+
 const metadataMigrations = [
   {
     checksum: INITIAL_METADATA_SCHEMA_CHECKSUM,
@@ -739,6 +955,12 @@ const metadataMigrations = [
     name: "statistical-elements-layout-presets",
     sql: statisticalElementsLayoutPresetsSchemaSql,
     version: 6,
+  },
+  {
+    checksum: DATABASE_DESIGNER_SCHEMA_CHECKSUM,
+    name: "database-designer-runtime-schema",
+    sql: databaseDesignerSchemaSql,
+    version: 7,
   },
 ] as const;
 

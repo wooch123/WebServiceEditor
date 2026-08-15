@@ -3,6 +3,10 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { resolveMetadataDatabasePath, resolveStorageRoot } from "./config.js";
 import { ApiError } from "./errors.js";
 import {
+  SchemaService,
+  type SchemaFailurePoint,
+} from "./data-schema/schema-service.js";
+import {
   ElementService,
   type ElementFailureInjector,
 } from "./elements/element-service.js";
@@ -19,6 +23,7 @@ import { registerElementRoutes } from "./routes/elements.js";
 import { registerLayoutPresetRoutes } from "./routes/layout-presets.js";
 import { registerPageRoutes } from "./routes/pages.js";
 import { registerSystemRoutes } from "./routes/system.js";
+import { registerDataSchemaRoutes } from "./routes/data-schema.js";
 
 export interface BuildServerOptions {
   readonly logger?: boolean;
@@ -27,6 +32,7 @@ export interface BuildServerOptions {
   readonly failureInjector?: LifecycleFailureInjector;
   readonly elementFailureInjector?: ElementFailureInjector;
   readonly layoutPresetFailureInjector?: LayoutPresetFailureInjector;
+  readonly schemaFailureInjector?: (point: SchemaFailurePoint) => void;
   readonly clock?: () => Date;
 }
 
@@ -65,6 +71,14 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
     ...(options.layoutPresetFailureInjector === undefined
       ? {}
       : { failureInjector: options.layoutPresetFailureInjector }),
+    ...(options.clock === undefined ? {} : { clock: options.clock }),
+  });
+  const schemaService = new SchemaService({
+    metadataDatabase,
+    projectStorage: projectService.storage,
+    ...(options.schemaFailureInjector === undefined
+      ? {}
+      : { failureInjector: options.schemaFailureInjector }),
     ...(options.clock === undefined ? {} : { clock: options.clock }),
   });
 
@@ -126,6 +140,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   void app.register(registerPageRoutes, { pageService });
   void app.register(registerElementRoutes, { elementService });
   void app.register(registerLayoutPresetRoutes, { layoutPresetService });
+  void app.register(registerDataSchemaRoutes, { schemaService });
 
   return app;
 }

@@ -4,6 +4,7 @@ import {
   LUCIDE_ICON_CATALOG_VERSION,
   PUBLISH_VALIDATION_CODES,
   type ElementEntryDto,
+  type DataSchemaExportDto,
   type LayoutPresetInstanceDto,
   type LayoutPresetInstancesExportDto,
   type LayoutPresetProposedElementDto,
@@ -25,6 +26,8 @@ import {
 } from "@webeditor/domain";
 
 import { ApiError, assertApi } from "../errors.js";
+import { SchemaRepository } from "../data-schema/schema-repository.js";
+import { parseDataSchemaExport } from "../data-schema/schema-export.js";
 import { LayoutPresetRepository } from "../elements/layout-preset-repository.js";
 import {
   elementDefinition,
@@ -93,6 +96,7 @@ interface ImportableProjectExport {
   readonly layoutRevisions: readonly ImportableLayoutRevision[];
   readonly publishedVersions: readonly ImportablePublishedVersion[];
   readonly layoutPresetInstances: LayoutPresetInstancesExportDto;
+  readonly dataSchema: DataSchemaExportDto;
   readonly files: readonly ProjectExportFile[];
 }
 
@@ -1094,6 +1098,7 @@ export class ProjectService {
   readonly repository: ProjectRepository;
   readonly pageRepository: PageRepository;
   readonly elementRepository: LayoutPresetRepository;
+  readonly schemaRepository: SchemaRepository;
   readonly storage: ProjectStorage;
   readonly #clock: () => Date;
 
@@ -1103,6 +1108,7 @@ export class ProjectService {
     this.elementRepository = new LayoutPresetRepository(
       options.metadataDatabase,
     );
+    this.schemaRepository = new SchemaRepository(options.metadataDatabase);
     this.storage = new ProjectStorage(
       options.storageRoot,
       options.failureInjector,
@@ -1345,6 +1351,7 @@ export class ProjectService {
         instances:
           this.elementRepository.listExportableLayoutPresetInstances(projectId),
       },
+      dataSchema: this.schemaRepository.exportDefinition(projectId),
       publishedVersions: this.pageRepository
         .listVersions(projectId)
         .map((version) => {
@@ -1400,6 +1407,9 @@ export class ProjectService {
     const themeId = validateThemeId(exportDto.project.themeId);
     const pageIdMap = new Map<string, string>();
     const elementIdMap = new Map<string, string>();
+    const tableIdMap = new Map<string, string>();
+    const fieldIdMap = new Map<string, string>();
+    const relationIdMap = new Map<string, string>();
     for (const page of exportDto.pages) {
       pageIdMap.set(page.id, randomUUID());
     }
@@ -1417,6 +1427,13 @@ export class ProjectService {
       if (!elementIdMap.has(entry.element.id)) {
         elementIdMap.set(entry.element.id, randomUUID());
       }
+    }
+    for (const table of exportDto.dataSchema.tables) {
+      tableIdMap.set(table.id, randomUUID());
+      for (const field of table.fields) fieldIdMap.set(field.id, randomUUID());
+    }
+    for (const relation of exportDto.dataSchema.relations) {
+      relationIdMap.set(relation.id, randomUUID());
     }
     this.storage.stageFromExport(id, { ...project, themeId }, exportDto.files);
     const now = this.#now();
@@ -1440,6 +1457,14 @@ export class ProjectService {
             now,
           );
         }
+        this.schemaRepository.insertImportedDefinition({
+          projectId: id,
+          source: exportDto.dataSchema,
+          tableIdMap,
+          fieldIdMap,
+          relationIdMap,
+          now,
+        });
         for (const entry of exportDto.elements) {
           this.elementRepository.insertImported({
             entry,
@@ -1617,6 +1642,10 @@ export class ProjectService {
       pageIds,
       elements,
     );
+    const dataSchema = parseDataSchemaExport(
+      manifest?.dataSchema,
+      project.id as string,
+    );
     assertApi(
       Array.isArray(record.files) &&
         record.files.length > 0 &&
@@ -1733,6 +1762,7 @@ export class ProjectService {
       layoutRevisions,
       publishedVersions,
       layoutPresetInstances,
+      dataSchema,
       files,
     };
   }
@@ -2137,6 +2167,7 @@ export class ProjectService {
         this.repository.setPurgeTombstone(projectId, snapshot.checksum);
         this.repository.putTombstone(tombstone, operationId, plan.id);
         this.pageRepository.deleteOwnedDefinitions(projectId);
+        this.schemaRepository.deleteOwnedDefinitions(projectId);
         this.repository.removeTrashManifest(projectId);
         this.repository.consumePurgePlan(plan.id, completedAt);
         this.repository.writeAudit({
@@ -2895,7 +2926,7 @@ export class ProjectService {
       pages: this.pageRepository.activeCount(row.id),
       elements: this.elementRepository.activeCountForProject(row.id),
       bindings: 0,
-      tables: 0,
+      tables: this.schemaRepository.activeTableCount(row.id),
       assets:
         namespace === "active"
           ? this.storage.snapshot("active", row.id).assetCount
