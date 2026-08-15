@@ -1,4 +1,4 @@
-import { Check, Palette, Search, ShieldCheck, Undo2 } from "lucide-react";
+import { Check, Palette, Search, Undo2 } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,6 @@ import { Input } from "@/components/ui/input";
 import {
   Popover,
   PopoverContent,
-  PopoverDescription,
   PopoverHeader,
   PopoverTitle,
   PopoverTrigger,
@@ -107,10 +106,7 @@ export function ThemePicker({
         aria-label="테마 선택기"
       >
         <PopoverHeader className="theme-picker-header">
-          <PopoverTitle>프로젝트 테마</PopoverTitle>
-          <PopoverDescription>
-            60개 검증 프리셋을 즉시 미리 보고 적용합니다.
-          </PopoverDescription>
+          <PopoverTitle>테마</PopoverTitle>
         </PopoverHeader>
 
         <Tabs
@@ -133,7 +129,7 @@ export function ThemePicker({
           <Input
             type="search"
             value={query}
-            placeholder="이름 또는 참고 계열 검색"
+            placeholder="테마 검색"
             onChange={(event) => setQuery(event.target.value)}
           />
         </label>
@@ -169,19 +165,11 @@ export function ThemePicker({
             {visibleThemes.length === 0 && (
               <div className="theme-picker-empty">
                 <Search aria-hidden="true" />
-                <span>검색 결과가 없습니다.</span>
+                <span>결과 없음</span>
               </div>
             )}
           </div>
         </ScrollArea>
-
-        <div className="theme-picker-status">
-          <span>
-            <ShieldCheck aria-hidden="true" />
-            대비 검증 통과 · 52 토큰
-          </span>
-          <small>{currentTheme.tokenHash}</small>
-        </div>
 
         <div className="theme-picker-actions">
           <Button

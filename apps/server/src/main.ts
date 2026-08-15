@@ -1,10 +1,10 @@
 import { buildServer } from "./app.js";
-import { SERVER_HOST, SERVER_PORT } from "./config.js";
+import { resolveServerPort, SERVER_HOST } from "./config.js";
 
 const app = buildServer({ logger: true });
 
 try {
-  await app.listen({ host: SERVER_HOST, port: SERVER_PORT });
+  await app.listen({ host: SERVER_HOST, port: resolveServerPort() });
 } catch (error) {
   app.log.error(error);
   await app.close();

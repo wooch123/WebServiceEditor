@@ -1,11 +1,118 @@
 import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import themeManifest from "../../../webeditor_theme_presets_v3.json";
 
 import { App } from "./App";
+import type { ProjectDto } from "./services/projects-api";
 import { themes, themeToCssVariables } from "./theme";
+
+const originalFetch = globalThis.fetch;
+
+function project(
+  id: string,
+  name: string,
+  slug: string,
+  themeId: string,
+): ProjectDto {
+  return {
+    id,
+    name,
+    slug,
+    description: `${name} 설명`,
+    lifecycleStatus: "ACTIVE",
+    status: "DRAFT",
+    schemaVersion: 1,
+    revision: 1,
+    lifecycleRevision: 0,
+    favorite: false,
+    themeId,
+    createdAt: "2026-08-15T00:00:00.000Z",
+    updatedAt: "2026-08-15T00:00:00.000Z",
+    pageCount: 3,
+    elementCount: 12,
+    bindingCount: 4,
+    tableCount: 2,
+    assetCount: 0,
+  };
+}
+
+beforeEach(() => {
+  let activeProjects = [
+    project(
+      "project-health",
+      "지역 건강지표 모니터",
+      "regional-health",
+      "light-clean-paper",
+    ),
+    project(
+      "project-spc",
+      "품질 관리 SPC 센터",
+      "spc-center",
+      "dark-polar-night",
+    ),
+  ];
+
+  const fetchMock = vi.fn(
+    async (input: RequestInfo | URL, init: RequestInit = {}) => {
+      const rawUrl =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.toString()
+            : input.url;
+      const pathname = new URL(rawUrl, "http://webeditor.local").pathname;
+      const method = init.method?.toUpperCase() ?? "GET";
+
+      if (pathname === "/api/v1/projects" && method === "GET") {
+        return Response.json({ projects: activeProjects });
+      }
+      if (pathname === "/api/v1/recycle-bin/projects" && method === "GET") {
+        return Response.json({ projects: [] });
+      }
+      if (pathname === "/api/v1/projects/project-spc" && method === "PATCH") {
+        const body = JSON.parse(String(init.body)) as { themeId?: string };
+        const current = activeProjects.find(
+          (candidate) => candidate.id === "project-spc",
+        )!;
+        const updated = {
+          ...current,
+          themeId: body.themeId ?? current.themeId,
+          revision: current.revision + 1,
+        };
+        activeProjects = activeProjects.map((candidate) =>
+          candidate.id === updated.id ? updated : candidate,
+        );
+        return Response.json({ project: updated });
+      }
+
+      return Response.json(
+        {
+          error: {
+            code: "UNHANDLED_TEST_ROUTE",
+            message: `${method} ${pathname}`,
+          },
+        },
+        { status: 500 },
+      );
+    },
+  );
+
+  Object.defineProperty(globalThis, "fetch", {
+    configurable: true,
+    value: fetchMock,
+    writable: true,
+  });
+});
+
+afterEach(() => {
+  Object.defineProperty(globalThis, "fetch", {
+    configurable: true,
+    value: originalFetch,
+    writable: true,
+  });
+});
 
 const canonicalTokenToCssVariable = {
   background: "--background",
@@ -117,7 +224,7 @@ describe("canonical theme runtime", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    const displaySettings = screen.getByLabelText("화면 표시 설정");
+    const displaySettings = await screen.findByLabelText("화면 표시 설정");
     const minus = within(displaySettings).getByRole("button", {
       name: "글꼴 크기 줄이기",
     });
@@ -171,7 +278,9 @@ describe("canonical theme runtime", () => {
   it("selects and applies every canonical theme through the visible header control", async () => {
     const user = userEvent.setup();
     const { container } = render(<App />);
-    const themeTrigger = screen.getByRole("button", { name: /테마 선택/ });
+    const themeTrigger = await screen.findByRole("button", {
+      name: /테마 선택/,
+    });
     const app = container.querySelector<HTMLElement>(".webeditor-app");
 
     expect(app).not.toBeNull();
@@ -219,15 +328,13 @@ describe("canonical theme runtime", () => {
   it("uses and retains the selected project default while editing", async () => {
     const user = userEvent.setup();
     const { container } = render(<App />);
-    const spcHeading = screen.getByRole("heading", {
+    const spcHeading = await screen.findByRole("heading", {
       name: "품질 관리 SPC 센터",
     });
     const spcCard = spcHeading.closest("article");
 
     expect(spcCard).not.toBeNull();
-    await user.click(
-      within(spcCard!).getByRole("button", { name: "편집 열기" }),
-    );
+    await user.click(within(spcCard!).getByRole("button", { name: "열기" }));
     expect(container.querySelector(".webeditor-app")).toHaveAttribute(
       "data-theme-id",
       "dark-polar-night",
@@ -242,11 +349,11 @@ describe("canonical theme runtime", () => {
     await user.click(screen.getByRole("button", { name: "적용" }));
     await user.click(screen.getByRole("button", { name: "프로젝트 홈으로" }));
 
-    const reopenedCard = screen
-      .getByRole("heading", { name: "품질 관리 SPC 센터" })
-      .closest("article");
+    const reopenedCard = (
+      await screen.findByRole("heading", { name: "품질 관리 SPC 센터" })
+    ).closest("article");
     await user.click(
-      within(reopenedCard!).getByRole("button", { name: "편집 열기" }),
+      within(reopenedCard!).getByRole("button", { name: "열기" }),
     );
     expect(container.querySelector(".webeditor-app")).toHaveAttribute(
       "data-theme-id",

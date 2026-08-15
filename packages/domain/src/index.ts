@@ -4,4 +4,23 @@ export {
   isProjectLifecycleStatus,
   type ProjectLifecycleStatus,
 } from "./project-lifecycle.js";
-export type { Project } from "./project.js";
+export {
+  PROJECT_STATUSES,
+  RESTORE_CONFLICT_RESOLUTIONS,
+  type CreateProjectRequest,
+  type PatchProjectRequest,
+  type Project,
+  type ProjectCounts,
+  type ProjectDto,
+  type ProjectExportDto,
+  type ProjectExportFile,
+  type ProjectStatus,
+  type ProjectTombstoneDto,
+  type PurgePlanDto,
+  type PurgePlanImpact,
+  type PurgePlanRequest,
+  type PurgeProjectRequest,
+  type RestoreConflictResolution,
+  type RestoreProjectRequest,
+  type TrashProjectRequest,
+} from "./project.js";

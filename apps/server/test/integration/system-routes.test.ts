@@ -23,7 +23,10 @@ describe("system routes", () => {
     const directory = await mkdtemp(join(tmpdir(), "webeditor-server-"));
     temporaryDirectories.push(directory);
     const databasePath = join(directory, "metadata", "webeditor.sqlite");
-    const app = buildServer({ metadataDatabasePath: databasePath });
+    const app = buildServer({
+      metadataDatabasePath: databasePath,
+      storageRoot: join(directory, "projects"),
+    });
 
     try {
       const healthResponse = await app.inject({
@@ -42,8 +45,8 @@ describe("system routes", () => {
       });
       expect(readyResponse.statusCode).toBe(200);
       expect(readyResponse.json()).toEqual({
-        checks: { metadataDatabase: "ready" },
-        schemaVersion: 1,
+        checks: { metadataDatabase: "ready", projectStorage: "ready" },
+        schemaVersion: 2,
         status: "ready",
       });
     } finally {
@@ -52,13 +55,13 @@ describe("system routes", () => {
     expect(existsSync(databasePath)).toBe(true);
 
     const database = new Database(databasePath);
-    const migration = database
-      .prepare("SELECT version, name FROM metadata_migrations")
-      .get();
-    expect(migration).toEqual({
-      name: "initial-project-metadata",
-      version: 1,
-    });
+    const migrations = database
+      .prepare("SELECT version, name FROM metadata_migrations ORDER BY version")
+      .all();
+    expect(migrations).toEqual([
+      { name: "initial-project-metadata", version: 1 },
+      { name: "project-lifecycle-foundation", version: 2 },
+    ]);
     expect(database.pragma("quick_check", { simple: true })).toBe("ok");
     expect(() =>
       database

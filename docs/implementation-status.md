@@ -6,28 +6,30 @@ Overall state: `IN PROGRESS`
 
 ## Current phase
 
-### PHASE 3 — Project Home and Lifecycle Foundation
+### PHASE 4 — Page Management and Published Navigation
 
 State: `IN PROGRESS`
 
 Scope:
 
-- Replace the in-memory project list with the canonical `/api/v1` contract.
-- Persist project CRUD, soft trash, restore, purge plans, audit events, and
-  operation journals in SQLite.
-- Move isolated project storage atomically between active and trash roots with
-  checksum verification and startup recovery.
+- Persist Page metadata, ordering, icons, revisions, and draft deletion in each
+  isolated Project.
+- Replace the Editor's in-memory Page list with optimistic `/api/v1` contracts.
+- Keep Published Runtime navigation on immutable snapshots so Draft changes do
+  not leak before publish.
 
-Data risk: medium. Lifecycle tests use isolated temporary fixtures only; the
-workspace `data/` directory remains ignored and no user project data exists.
+Data risk: medium. Page and publish work will use isolated temporary fixtures;
+the workspace `data/` directory remains ignored.
 
 Test plan:
 
-- Verify optimistic revision and idempotency replay behavior.
-- Trash, close the server, reopen the same database, and restore with identical
-  data/file checksums.
-- Inject move and purge failures and prove compensation or recoverability.
-- Verify an active project is never visible in the recycle bin at the same time.
+- Verify Page create, rename, reorder, icon selection, delete, and Undo across
+  refresh and server restart.
+- Prove Pointer and Keyboard reorder persist one complete Page-ID permutation.
+- Prove Draft changes do not alter Runtime navigation until a new immutable
+  snapshot is published.
+- Verify clone, export, import, trash, restore, and purge preserve or remove Page
+  ownership as required.
 
 ## Phase ledger
 
@@ -36,8 +38,9 @@ Test plan:
 | 0     | VERIFIED    | 337 source/traceability checks and all bootstrap gates passed |
 | 1     | VERIFIED    | 177 design-system checks, 61/61 gallery, browser QA passed    |
 | 2     | VERIFIED    | 60 themes, 5,712 checks, browser 3,120/3,120, 60 baselines    |
-| 3     | IN PROGRESS | Persistent project lifecycle vertical slice                   |
-| 4–23  | NOT STARTED | Must follow sequentially                                      |
+| 3     | VERIFIED    | Persistent lifecycle, restart recovery, and browser QA passed |
+| 4     | IN PROGRESS | Page management and immutable runtime navigation              |
+| 5–23  | NOT STARTED | Must follow sequentially                                      |
 
 ## Phase 0 evidence
 
@@ -80,6 +83,30 @@ Test plan:
   4.0576
 - Theme revision lifecycle foundation and per-project default theme behavior:
   unit/component tests PASS
+
+## Phase 3 evidence
+
+- Static audit: `artifacts/phase3/project-lifecycle-validation.json` — 99/99
+- Domain unit: 6/6; Server unit: 3/3; Server integration: 18/18
+- Web component: 22/22; Validation suite: 31/31
+- Full workspace format, lint, typecheck, test, and production build: PASS
+- Browser QA at 419px: concise product copy; equal sibling-control geometry;
+  create, trash, reload, restore, and server-restart persistence: PASS
+- Independent rich restore probe: nested assets and custom rows in both runtime
+  databases retained identical SHA-256 values after trash, restart, and restore
+- Adversarial review: no remaining Phase 3 P0/P1 blocker
+
+## Deferred operational hardening
+
+- Sudden power-loss durability for directory rename/delete requires mount-backed
+  testing in a later recovery phase; Phase 3 proves process interruption and
+  startup recovery, not full operational power-loss certification.
+- Backup availability should eventually require a verified backup marker rather
+  than any child directory.
+- Metadata startup must fail closed on unknown future migration versions before
+  backward-compatible release testing.
+- Runtime metadata singleton and lifecycle-status constraints will be tightened
+  with the relevant database schema phases.
 
 ## Known external blockers
 

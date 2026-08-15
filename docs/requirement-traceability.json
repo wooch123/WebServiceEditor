@@ -320,37 +320,73 @@
       "id": "REQ-033",
       "title": "Project soft delete to recycle bin",
       "phase": 3,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "apps/server/src/projects/project-service.ts",
+        "apps/server/src/projects/project-storage.ts",
+        "apps/server/src/routes/projects.ts",
+        "apps/web/src/features/projects/ProjectHome.tsx"
+      ],
+      "tests": [
+        "apps/server/test/integration/project-lifecycle.test.ts",
+        "apps/web/src/App.test.tsx",
+        "scripts/verify-phase3.mjs"
+      ],
+      "evidence": ["artifacts/phase3/project-lifecycle-validation.json"]
     },
     {
       "id": "REQ-034",
       "title": "Full project restore",
       "phase": 3,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "apps/server/src/projects/project-service.ts",
+        "apps/server/src/projects/project-repository.ts",
+        "apps/server/src/projects/project-storage.ts",
+        "apps/web/src/features/projects/ProjectHome.tsx"
+      ],
+      "tests": [
+        "apps/server/test/integration/project-lifecycle.test.ts",
+        "apps/web/src/App.test.tsx",
+        "scripts/verify-phase3.mjs"
+      ],
+      "evidence": ["artifacts/phase3/project-lifecycle-validation.json"]
     },
     {
       "id": "REQ-035",
       "title": "Recycle-bin-only permanent purge",
       "phase": 3,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "apps/server/src/projects/project-service.ts",
+        "apps/server/src/projects/project-storage.ts",
+        "apps/server/src/routes/projects.ts",
+        "apps/web/src/features/projects/ProjectHome.tsx"
+      ],
+      "tests": [
+        "apps/server/test/integration/project-lifecycle.test.ts",
+        "apps/web/src/App.test.tsx",
+        "scripts/verify-phase3.mjs"
+      ],
+      "evidence": ["artifacts/phase3/project-lifecycle-validation.json"]
     },
     {
       "id": "REQ-036",
       "title": "Persistent lifecycle audit and recovery",
       "phase": 3,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "apps/server/src/metadata/database.ts",
+        "apps/server/src/projects/project-repository.ts",
+        "apps/server/src/projects/project-service.ts",
+        "apps/server/src/routes/system.ts"
+      ],
+      "tests": [
+        "apps/server/test/integration/project-lifecycle.test.ts",
+        "apps/server/test/unit/metadata-migration.test.ts",
+        "scripts/verify-phase3.mjs"
+      ],
+      "evidence": ["artifacts/phase3/project-lifecycle-validation.json"]
     },
     {
       "id": "REQ-037",

@@ -6,7 +6,7 @@ import { PROJECT_LIFECYCLE_STATUSES } from "@webeditor/domain";
 import Database from "better-sqlite3";
 
 const METADATA_APPLICATION_ID = 0x57454245;
-const LATEST_METADATA_SCHEMA_VERSION = 1;
+export const LATEST_METADATA_SCHEMA_VERSION = 2;
 
 const lifecycleSqlValues = PROJECT_LIFECYCLE_STATUSES.map(
   (status) => `'${status}'`,
@@ -39,9 +39,123 @@ const initialSchemaSql = `
   CREATE INDEX projects_deleted_at_idx ON projects(deleted_at);
 `;
 
-const initialSchemaChecksum = createHash("sha256")
+export const INITIAL_METADATA_SCHEMA_CHECKSUM = createHash("sha256")
   .update(initialSchemaSql)
   .digest("hex");
+
+const lifecycleFoundationSchemaSql = `
+  ALTER TABLE projects ADD COLUMN lifecycle_revision INTEGER NOT NULL DEFAULT 0 CHECK (lifecycle_revision >= 0);
+  ALTER TABLE projects ADD COLUMN favorite INTEGER NOT NULL DEFAULT 0 CHECK (favorite IN (0, 1));
+  ALTER TABLE projects ADD COLUMN theme_id TEXT NOT NULL DEFAULT 'light-clean-paper';
+  CREATE UNIQUE INDEX projects_active_slug_unique_idx
+    ON projects(slug COLLATE NOCASE)
+    WHERE lifecycle_status IN ('ACTIVE', 'TRASHING', 'RESTORING');
+
+  CREATE TABLE audit_logs (
+    id TEXT PRIMARY KEY NOT NULL,
+    user_id TEXT,
+    project_id TEXT NOT NULL REFERENCES projects(id),
+    action TEXT NOT NULL,
+    object_type TEXT NOT NULL,
+    object_id TEXT NOT NULL,
+    before_json TEXT,
+    after_json TEXT,
+    correlation_id TEXT NOT NULL,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX audit_logs_project_created_idx ON audit_logs(project_id, created_at);
+
+  CREATE TABLE project_lifecycle_operations (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id),
+    operation_type TEXT NOT NULL CHECK (operation_type IN ('TRASH', 'RESTORE', 'PURGE')),
+    from_status TEXT NOT NULL,
+    to_status TEXT NOT NULL,
+    idempotency_key TEXT NOT NULL,
+    request_hash TEXT NOT NULL,
+    storage_from TEXT,
+    storage_to TEXT,
+    status TEXT NOT NULL CHECK (status IN ('PENDING', 'COMPLETED', 'FAILED')),
+    response_status INTEGER,
+    response_json TEXT,
+    error_json TEXT,
+    started_at TEXT NOT NULL,
+    completed_at TEXT,
+    UNIQUE(project_id, idempotency_key)
+  );
+  CREATE INDEX lifecycle_operations_project_status_idx
+    ON project_lifecycle_operations(project_id, status);
+
+  CREATE TABLE lifecycle_outbox (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id),
+    operation_id TEXT NOT NULL REFERENCES project_lifecycle_operations(id),
+    event_type TEXT NOT NULL,
+    payload_json TEXT NOT NULL,
+    status TEXT NOT NULL CHECK (status IN ('PENDING', 'COMPLETED', 'FAILED')),
+    attempt_count INTEGER NOT NULL DEFAULT 0 CHECK (attempt_count >= 0),
+    next_attempt_at TEXT,
+    created_at TEXT NOT NULL,
+    completed_at TEXT
+  );
+  CREATE INDEX lifecycle_outbox_status_idx ON lifecycle_outbox(status, next_attempt_at);
+
+  CREATE TABLE trash_manifests (
+    project_id TEXT PRIMARY KEY NOT NULL REFERENCES projects(id),
+    operation_id TEXT NOT NULL REFERENCES project_lifecycle_operations(id),
+    original_slug TEXT NOT NULL,
+    original_storage_path TEXT NOT NULL,
+    trash_storage_path TEXT NOT NULL,
+    project_checksum TEXT NOT NULL,
+    test_db_checksum TEXT NOT NULL,
+    production_db_checksum TEXT NOT NULL,
+    asset_count INTEGER NOT NULL CHECK (asset_count >= 0),
+    deleted_at TEXT NOT NULL,
+    manifest_json TEXT NOT NULL
+  );
+
+  CREATE TABLE purge_plans (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id),
+    project_name TEXT NOT NULL,
+    lifecycle_revision INTEGER NOT NULL CHECK (lifecycle_revision >= 0),
+    project_checksum TEXT NOT NULL,
+    impact_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    consumed_at TEXT
+  );
+  CREATE INDEX purge_plans_project_expires_idx ON purge_plans(project_id, expires_at);
+
+  CREATE TABLE project_tombstones (
+    project_id TEXT PRIMARY KEY NOT NULL REFERENCES projects(id),
+    project_name TEXT NOT NULL,
+    project_checksum TEXT NOT NULL,
+    operation_id TEXT NOT NULL REFERENCES project_lifecycle_operations(id),
+    backup_retained INTEGER NOT NULL CHECK (backup_retained IN (0, 1)),
+    detail_json TEXT NOT NULL,
+    purged_at TEXT NOT NULL
+  );
+`;
+
+const lifecycleFoundationSchemaChecksum = createHash("sha256")
+  .update(lifecycleFoundationSchemaSql)
+  .digest("hex");
+
+const metadataMigrations = [
+  {
+    checksum: INITIAL_METADATA_SCHEMA_CHECKSUM,
+    name: "initial-project-metadata",
+    sql: initialSchemaSql,
+    version: 1,
+  },
+  {
+    checksum: lifecycleFoundationSchemaChecksum,
+    name: "project-lifecycle-foundation",
+    sql: lifecycleFoundationSchemaSql,
+    version: 2,
+  },
+] as const;
 
 export interface MetadataReadiness {
   readonly applicationId: number;
@@ -92,31 +206,43 @@ export class MetadataDatabase {
         );
       `);
 
-      const applied = this.#database
-        .prepare("SELECT checksum FROM metadata_migrations WHERE version = ?")
-        .get(LATEST_METADATA_SCHEMA_VERSION) as
-        { readonly checksum: string } | undefined;
-
-      if (applied !== undefined) {
-        if (applied.checksum !== initialSchemaChecksum) {
-          throw new Error("Metadata migration checksum mismatch at version 1");
-        }
-        return;
-      }
-
-      this.#database.exec(initialSchemaSql);
-      this.#database
+      const rows = this.#database
         .prepare(
-          `INSERT INTO metadata_migrations
-            (version, name, checksum, applied_at)
-           VALUES (?, ?, ?, ?)`,
+          "SELECT version, checksum FROM metadata_migrations ORDER BY version",
         )
-        .run(
-          LATEST_METADATA_SCHEMA_VERSION,
-          "initial-project-metadata",
-          initialSchemaChecksum,
-          new Date().toISOString(),
-        );
+        .all() as readonly {
+        readonly version: number;
+        readonly checksum: string;
+      }[];
+      const appliedByVersion = new Map(
+        rows.map((row) => [row.version, row.checksum]),
+      );
+
+      for (const migration of metadataMigrations) {
+        const appliedChecksum = appliedByVersion.get(migration.version);
+        if (appliedChecksum !== undefined) {
+          if (appliedChecksum !== migration.checksum) {
+            throw new Error(
+              `Metadata migration checksum mismatch at version ${migration.version}`,
+            );
+          }
+          continue;
+        }
+
+        this.#database.exec(migration.sql);
+        this.#database
+          .prepare(
+            `INSERT INTO metadata_migrations
+              (version, name, checksum, applied_at)
+             VALUES (?, ?, ?, ?)`,
+          )
+          .run(
+            migration.version,
+            migration.name,
+            migration.checksum,
+            new Date().toISOString(),
+          );
+      }
       this.#database.pragma(`user_version = ${LATEST_METADATA_SCHEMA_VERSION}`);
     });
 
@@ -165,6 +291,14 @@ export class MetadataDatabase {
       integrity,
       schemaVersion,
     };
+  }
+
+  get connection(): Database.Database {
+    return this.#database;
+  }
+
+  transaction<T>(operation: () => T): T {
+    return this.#database.transaction(operation).immediate();
   }
 
   close(): void {
