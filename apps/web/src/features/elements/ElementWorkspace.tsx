@@ -48,6 +48,8 @@ import {
   type PlacementCandidateDto,
   type ResizeHandle,
 } from "@/services/elements-api";
+import type { ApplyLayoutPresetDto } from "@/services/layout-presets-api";
+import { LayoutPresetBrowser } from "@/features/presets/LayoutPresetBrowser";
 import { ElementPalette, PaletteDragOverlay } from "./ElementPalette";
 import { elementDefinitionMap } from "./element-definitions";
 import { assertEditorRendererDefinitions } from "./ElementRenderer";
@@ -152,6 +154,14 @@ interface ElementWorkspaceContextValue {
   toggleElementLock: (entry: ElementEntryDto) => Promise<void>;
   removeElement: (entry: ElementEntryDto) => Promise<void>;
   removeSelectedElements: () => Promise<void>;
+  captureLayoutPresetRevision: () => {
+    pageId: string;
+    layoutRevision: number;
+    projectRevision: number;
+  } | null;
+  acceptLayoutPresetApplication: (
+    result: ApplyLayoutPresetDto,
+  ) => Promise<void>;
 }
 
 const ElementWorkspaceContext =
@@ -1038,12 +1048,7 @@ export function ElementWorkspaceProvider({
         });
         if (pageIdRef.current === payload.pageId) {
           const deletedIds = new Set(payload.deletedElementIds);
-          let nextEntries = entriesRef.current.filter(
-            (entry) => !deletedIds.has(entry.element.id),
-          );
-          for (const entry of payload.entries) {
-            nextEntries = upsertEntry(nextEntries, entry);
-          }
+          const nextEntries = [...payload.entries];
           entriesRef.current = nextEntries;
           setEntries(nextEntries);
           setSelectedElementIds(
@@ -1338,6 +1343,42 @@ export function ElementWorkspaceProvider({
     setSelectedElementIds(new Set());
   }, []);
 
+  const captureLayoutPresetRevision = useCallback(() => {
+    const currentPageId = pageIdRef.current;
+    if (!currentPageId) return null;
+    return {
+      pageId: currentPageId,
+      layoutRevision: revisionRef.current.layoutRevision,
+      projectRevision: revisionRef.current.projectRevision,
+    };
+  }, []);
+
+  const acceptLayoutPresetApplication = useCallback(
+    async (result: ApplyLayoutPresetDto) => {
+      const mutationPageId = result.instance.pageId;
+      applyPageAwareRevisions(
+        result.projectRevision,
+        result.layoutRevision,
+        mutationPageId,
+      );
+      if (pageIdRef.current === mutationPageId) {
+        const deletedIds = new Set(result.deletedElementIds);
+        setEntries((current) => {
+          let next = current.filter(
+            (entry) => !deletedIds.has(entry.element.id),
+          );
+          for (const entry of result.entries) next = upsertEntry(next, entry);
+          return next;
+        });
+        setSelectedElementIds(new Set());
+        setLastCommandId(result.commandId);
+        setError("");
+      }
+      await loadHistory();
+    },
+    [applyPageAwareRevisions, loadHistory],
+  );
+
   function handleDragStart(event: DragStartEvent) {
     const elementType = event.active.data.current?.elementType;
     if (!isElementType(elementType, definitionByTypeRef.current)) return;
@@ -1467,14 +1508,18 @@ export function ElementWorkspaceProvider({
       toggleElementLock,
       removeElement,
       removeSelectedElements,
+      captureLayoutPresetRevision,
+      acceptLayoutPresetApplication,
     }),
     [
       activeElementType,
+      acceptLayoutPresetApplication,
       beginKeyboardPlacement,
       cancelPlacement,
       captureElementPropertyTarget,
       candidate,
       candidateLoading,
+      captureLayoutPresetRevision,
       clearSelection,
       commitPlacement,
       definitionByType,
@@ -1552,6 +1597,31 @@ export function WorkspaceElementPalette({
       definitions={workspace.definitions}
       loading={workspace.registryLoading}
       error={workspace.registryError}
+      presetControl={
+        <LayoutPresetBrowser
+          pageId={workspace.pageId}
+          definitions={workspace.definitions}
+          disabled={
+            disabled ||
+            !workspace.pageId ||
+            workspace.loading ||
+            workspace.mutating ||
+            workspace.detailLoading ||
+            workspace.propertyDraftPending ||
+            workspace.propertySaving ||
+            workspace.historyLoading ||
+            workspace.historyMutating ||
+            workspace.candidateLoading ||
+            Boolean(workspace.candidate) ||
+            Boolean(workspace.activeElementType) ||
+            workspace.keyboardPlacement ||
+            workspace.registryLoading ||
+            Boolean(workspace.registryError)
+          }
+          captureRevision={workspace.captureLayoutPresetRevision}
+          onApplied={workspace.acceptLayoutPresetApplication}
+        />
+      }
       onRetry={() => void workspace.retryRegistry()}
       disabled={
         disabled ||

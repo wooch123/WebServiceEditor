@@ -171,7 +171,7 @@ describe("element layout routes", () => {
             correctedCanvasY: 16,
           },
           canvasWidth: 1_000,
-          canvasHeight: 800,
+          canvasHeight: 8_000,
           expectedLayoutRevision: layoutRevision,
           expectedProjectRevision: projectRevision,
         },

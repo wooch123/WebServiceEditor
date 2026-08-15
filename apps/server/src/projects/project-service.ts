@@ -4,6 +4,10 @@ import {
   LUCIDE_ICON_CATALOG_VERSION,
   PUBLISH_VALIDATION_CODES,
   type ElementEntryDto,
+  type LayoutPresetInstanceDto,
+  type LayoutPresetInstancesExportDto,
+  type LayoutPresetProposedElementDto,
+  type LayoutPresetBindingPlaceholderDto,
   type CreateProjectRequest,
   type PageDto,
   type PatchProjectRequest,
@@ -21,12 +25,17 @@ import {
 } from "@webeditor/domain";
 
 import { ApiError, assertApi } from "../errors.js";
-import { ElementRepository } from "../elements/element-repository.js";
+import { LayoutPresetRepository } from "../elements/layout-preset-repository.js";
 import {
   elementDefinition,
   rectanglesOverlap,
   validateElementStoredState,
 } from "../elements/element-registry.js";
+import {
+  canonicalLayoutPresetJson,
+  layoutPresetCoordinateChecksum,
+  validateLayoutPresetDefinitionSnapshot,
+} from "../elements/layout-preset-registry.js";
 import { LUCIDE_ICON_CATALOG } from "../icons/lucide-icon-catalog.generated.js";
 import type { MetadataDatabase } from "../metadata/database.js";
 import { PageRepository } from "../pages/page-repository.js";
@@ -83,6 +92,7 @@ interface ImportableProjectExport {
   readonly elements: readonly ElementEntryDto[];
   readonly layoutRevisions: readonly ImportableLayoutRevision[];
   readonly publishedVersions: readonly ImportablePublishedVersion[];
+  readonly layoutPresetInstances: LayoutPresetInstancesExportDto;
   readonly files: readonly ProjectExportFile[];
 }
 
@@ -666,6 +676,372 @@ function parseImportPublishedVersions(
   );
 }
 
+function assertExactObjectKeys(
+  value: Record<string, unknown>,
+  expected: readonly string[],
+  code: string,
+  detail: Record<string, unknown>,
+): void {
+  assertApi(
+    Object.keys(value).length === expected.length &&
+      expected.every((key) => Object.hasOwn(value, key)),
+    400,
+    code,
+    "Layout Preset export fields are invalid",
+    detail,
+  );
+}
+
+function parseLayoutPresetInstances(
+  value: unknown,
+  sourceProjectId: string,
+  pageIds: ReadonlySet<string>,
+  activeElements: readonly ElementEntryDto[],
+): LayoutPresetInstancesExportDto {
+  if (value === undefined) return { schemaVersion: 1, instances: [] };
+  assertApi(
+    typeof value === "object" && value !== null && !Array.isArray(value),
+    400,
+    "INVALID_LAYOUT_PRESET_INSTANCES",
+    "Layout Preset instances are invalid",
+  );
+  const wrapper = value as Record<string, unknown>;
+  assertExactObjectKeys(
+    wrapper,
+    ["schemaVersion", "instances"],
+    "INVALID_LAYOUT_PRESET_INSTANCES",
+    {},
+  );
+  assertApi(
+    wrapper.schemaVersion === 1 &&
+      Array.isArray(wrapper.instances) &&
+      wrapper.instances.length <= 10_000,
+    400,
+    "INVALID_LAYOUT_PRESET_INSTANCES",
+    "Layout Preset instances are invalid",
+  );
+  const activeById = new Map(
+    activeElements.map((entry) => [entry.element.id, entry]),
+  );
+  const seenInstanceIds = new Set<string>();
+  const claimedElementIds = new Set<string>();
+  const instances = wrapper.instances.map(
+    (instanceValue, instanceIndex): LayoutPresetInstanceDto => {
+      const detail = { instanceIndex };
+      assertApi(
+        typeof instanceValue === "object" &&
+          instanceValue !== null &&
+          !Array.isArray(instanceValue),
+        400,
+        "INVALID_LAYOUT_PRESET_INSTANCE",
+        "Layout Preset instance is invalid",
+        detail,
+      );
+      const instance = instanceValue as Record<string, unknown>;
+      assertExactObjectKeys(
+        instance,
+        [
+          "id",
+          "projectId",
+          "pageId",
+          "presetId",
+          "presetVersion",
+          "presetSnapshot",
+          "registryChecksum",
+          "coordinateChecksum",
+          "mode",
+          "state",
+          "origin",
+          "commandId",
+          "elements",
+          "proposedElements",
+          "bindingPlaceholders",
+          "createdAt",
+          "updatedAt",
+        ],
+        "INVALID_LAYOUT_PRESET_INSTANCE",
+        detail,
+      );
+      let snapshot: LayoutPresetInstanceDto["presetSnapshot"];
+      try {
+        snapshot = validateLayoutPresetDefinitionSnapshot(
+          instance.presetSnapshot,
+        );
+      } catch {
+        throw new ApiError(
+          400,
+          "INVALID_LAYOUT_PRESET_SNAPSHOT",
+          "Layout Preset snapshot is invalid",
+          detail,
+        );
+      }
+      assertApi(
+        typeof instance.id === "string" &&
+          PROJECT_ID_PATTERN.test(instance.id) &&
+          !seenInstanceIds.has(instance.id) &&
+          instance.projectId === sourceProjectId &&
+          typeof instance.pageId === "string" &&
+          pageIds.has(instance.pageId) &&
+          instance.presetId === snapshot.id &&
+          instance.presetVersion === snapshot.version &&
+          typeof instance.registryChecksum === "string" &&
+          /^[0-9a-f]{64}$/.test(instance.registryChecksum) &&
+          typeof instance.coordinateChecksum === "string" &&
+          /^[0-9a-f]{64}$/.test(instance.coordinateChecksum) &&
+          (instance.mode === "ADD" || instance.mode === "REPLACE") &&
+          instance.state === "APPLIED" &&
+          (instance.origin === "APPLY" || instance.origin === "IMPORT") &&
+          (instance.commandId === null ||
+            (typeof instance.commandId === "string" &&
+              PROJECT_ID_PATTERN.test(instance.commandId))) &&
+          isCanonicalIsoDate(instance.createdAt) &&
+          isCanonicalIsoDate(instance.updatedAt) &&
+          Array.isArray(instance.elements) &&
+          Array.isArray(instance.proposedElements) &&
+          Array.isArray(instance.bindingPlaceholders),
+        400,
+        "INVALID_LAYOUT_PRESET_INSTANCE",
+        "Layout Preset instance fields are invalid",
+        detail,
+      );
+      seenInstanceIds.add(instance.id);
+
+      const proposedValues = instance.proposedElements as unknown[];
+      assertApi(
+        proposedValues.length === snapshot.elements.length,
+        400,
+        "INVALID_LAYOUT_PRESET_MEMBERSHIP",
+        "Layout Preset membership is incomplete",
+        detail,
+      );
+      const proposedTemplateIds = new Set<string>();
+      const rawEntries = proposedValues.map((proposedValue, proposedIndex) => {
+        assertApi(
+          typeof proposedValue === "object" &&
+            proposedValue !== null &&
+            !Array.isArray(proposedValue),
+          400,
+          "INVALID_LAYOUT_PRESET_MEMBERSHIP",
+          "Layout Preset membership is invalid",
+          { ...detail, proposedIndex },
+        );
+        const proposed = proposedValue as Record<string, unknown>;
+        assertExactObjectKeys(
+          proposed,
+          ["templateId", "entry"],
+          "INVALID_LAYOUT_PRESET_MEMBERSHIP",
+          { ...detail, proposedIndex },
+        );
+        assertApi(
+          typeof proposed.templateId === "string" &&
+            !proposedTemplateIds.has(proposed.templateId),
+          400,
+          "INVALID_LAYOUT_PRESET_MEMBERSHIP",
+          "Layout Preset template membership is invalid",
+          { ...detail, proposedIndex },
+        );
+        proposedTemplateIds.add(proposed.templateId);
+        return proposed.entry;
+      });
+      const parsedEntries = parseElementEntries(
+        rawEntries,
+        sourceProjectId,
+        pageIds,
+        detail,
+      );
+      const proposedElements = proposedValues
+        .map(
+          (proposedValue, proposedIndex): LayoutPresetProposedElementDto => ({
+            templateId: (proposedValue as Record<string, unknown>)
+              .templateId as string,
+            entry: parsedEntries[proposedIndex] as ElementEntryDto,
+          }),
+        )
+        .sort((left, right) => left.templateId.localeCompare(right.templateId));
+      const expectedTemplateIds = snapshot.elements
+        .map(({ templateId }) => templateId)
+        .sort();
+      assertApi(
+        canonicalLayoutPresetJson(
+          proposedElements.map(({ templateId }) => templateId),
+        ) === canonicalLayoutPresetJson(expectedTemplateIds),
+        400,
+        "INVALID_LAYOUT_PRESET_MEMBERSHIP",
+        "Layout Preset membership does not match its snapshot",
+        detail,
+      );
+      for (const proposed of proposedElements) {
+        const current = activeById.get(proposed.entry.element.id);
+        const template = snapshot.elements.find(
+          ({ templateId }) => templateId === proposed.templateId,
+        );
+        assertApi(
+          current !== undefined &&
+            template !== undefined &&
+            !claimedElementIds.has(proposed.entry.element.id) &&
+            proposed.entry.element.pageId === instance.pageId &&
+            proposed.entry.element.type === template.elementType &&
+            current.element.projectId === sourceProjectId &&
+            current.element.pageId === proposed.entry.element.pageId &&
+            current.element.type === proposed.entry.element.type &&
+            current.element.typeVersion === proposed.entry.element.typeVersion,
+          400,
+          "INVALID_LAYOUT_PRESET_MEMBERSHIP",
+          "Layout Preset membership element is invalid",
+          detail,
+        );
+        claimedElementIds.add(proposed.entry.element.id);
+      }
+      assertApi(
+        layoutPresetCoordinateChecksum(proposedElements) ===
+          instance.coordinateChecksum,
+        400,
+        "INVALID_LAYOUT_PRESET_COORDINATE_CHECKSUM",
+        "Layout Preset coordinate checksum is invalid",
+        detail,
+      );
+
+      const expectedMembership = proposedElements.map(
+        ({ templateId, entry }) => ({
+          templateId,
+          elementId: entry.element.id,
+        }),
+      );
+      assertApi(
+        instance.elements.length === expectedMembership.length,
+        400,
+        "INVALID_LAYOUT_PRESET_MEMBERSHIP",
+        "Layout Preset membership is invalid",
+        detail,
+      );
+      const suppliedMembership = (instance.elements as unknown[])
+        .map((membershipValue, membershipIndex) => {
+          assertApi(
+            typeof membershipValue === "object" &&
+              membershipValue !== null &&
+              !Array.isArray(membershipValue),
+            400,
+            "INVALID_LAYOUT_PRESET_MEMBERSHIP",
+            "Layout Preset membership is invalid",
+            { ...detail, membershipIndex },
+          );
+          const membership = membershipValue as Record<string, unknown>;
+          assertExactObjectKeys(
+            membership,
+            ["templateId", "elementId"],
+            "INVALID_LAYOUT_PRESET_MEMBERSHIP",
+            { ...detail, membershipIndex },
+          );
+          return {
+            templateId: membership.templateId,
+            elementId: membership.elementId,
+          };
+        })
+        .sort((left, right) =>
+          String(left.templateId).localeCompare(String(right.templateId)),
+        );
+      assertApi(
+        canonicalLayoutPresetJson(suppliedMembership) ===
+          canonicalLayoutPresetJson(expectedMembership),
+        400,
+        "INVALID_LAYOUT_PRESET_MEMBERSHIP",
+        "Layout Preset membership is invalid",
+        detail,
+      );
+
+      const proposedByTemplateId = new Map(
+        proposedElements.map((proposed) => [proposed.templateId, proposed]),
+      );
+      const expectedPlaceholders = snapshot.bindingPlaceholders
+        .map((placeholder): LayoutPresetBindingPlaceholderDto => {
+          const proposed = proposedByTemplateId.get(placeholder.templateId);
+          if (proposed === undefined) {
+            throw new ApiError(
+              400,
+              "INVALID_LAYOUT_PRESET_PLACEHOLDERS",
+              "Layout Preset placeholder target is invalid",
+              detail,
+            );
+          }
+          return {
+            instanceId: instance.id as string,
+            elementId: proposed.entry.element.id,
+            elementTypeVersion: proposed.entry.element.typeVersion,
+            templateId: placeholder.templateId,
+            portId: placeholder.portId,
+            status: "UNCONNECTED",
+          };
+        })
+        .sort(
+          (left, right) =>
+            left.templateId.localeCompare(right.templateId) ||
+            left.portId.localeCompare(right.portId),
+        );
+      const suppliedPlaceholders = (instance.bindingPlaceholders as unknown[])
+        .map((placeholderValue, placeholderIndex) => {
+          assertApi(
+            typeof placeholderValue === "object" &&
+              placeholderValue !== null &&
+              !Array.isArray(placeholderValue),
+            400,
+            "INVALID_LAYOUT_PRESET_PLACEHOLDERS",
+            "Layout Preset placeholder is invalid",
+            { ...detail, placeholderIndex },
+          );
+          const placeholder = placeholderValue as Record<string, unknown>;
+          assertExactObjectKeys(
+            placeholder,
+            [
+              "instanceId",
+              "elementId",
+              "elementTypeVersion",
+              "templateId",
+              "portId",
+              "status",
+            ],
+            "INVALID_LAYOUT_PRESET_PLACEHOLDERS",
+            { ...detail, placeholderIndex },
+          );
+          return placeholder;
+        })
+        .sort(
+          (left, right) =>
+            String(left.templateId).localeCompare(String(right.templateId)) ||
+            String(left.portId).localeCompare(String(right.portId)),
+        );
+      assertApi(
+        canonicalLayoutPresetJson(suppliedPlaceholders) ===
+          canonicalLayoutPresetJson(expectedPlaceholders),
+        400,
+        "INVALID_LAYOUT_PRESET_PLACEHOLDERS",
+        "Layout Preset placeholder topology is invalid",
+        detail,
+      );
+
+      return {
+        id: instance.id,
+        projectId: sourceProjectId,
+        pageId: instance.pageId,
+        presetId: snapshot.id,
+        presetVersion: snapshot.version,
+        presetSnapshot: snapshot,
+        registryChecksum: instance.registryChecksum,
+        coordinateChecksum: instance.coordinateChecksum,
+        mode: instance.mode,
+        state: "APPLIED",
+        origin: instance.origin,
+        commandId: instance.commandId,
+        elements: expectedMembership,
+        proposedElements,
+        bindingPlaceholders: expectedPlaceholders,
+        createdAt: instance.createdAt,
+        updatedAt: instance.updatedAt,
+      } as LayoutPresetInstanceDto;
+    },
+  );
+  return { schemaVersion: 1, instances };
+}
+
 function assertProjectId(projectId: string): void {
   assertApi(
     PROJECT_ID_PATTERN.test(projectId),
@@ -717,14 +1093,16 @@ function assertSafeImportPath(path: string, index: number): void {
 export class ProjectService {
   readonly repository: ProjectRepository;
   readonly pageRepository: PageRepository;
-  readonly elementRepository: ElementRepository;
+  readonly elementRepository: LayoutPresetRepository;
   readonly storage: ProjectStorage;
   readonly #clock: () => Date;
 
   constructor(options: ProjectServiceOptions) {
     this.repository = new ProjectRepository(options.metadataDatabase);
     this.pageRepository = new PageRepository(options.metadataDatabase);
-    this.elementRepository = new ElementRepository(options.metadataDatabase);
+    this.elementRepository = new LayoutPresetRepository(
+      options.metadataDatabase,
+    );
     this.storage = new ProjectStorage(
       options.storageRoot,
       options.failureInjector,
@@ -736,6 +1114,7 @@ export class ProjectService {
     this.assertStorageIntegrity();
     this.reconcileStorageManifests();
     this.assertStorageIntegrity();
+    this.elementRepository.assertBindingPlaceholderTopology();
   }
 
   #now(): string {
@@ -961,6 +1340,11 @@ export class ProjectService {
         .map((page) => this.pageRepository.toDto(page)),
       elements: this.elementRepository.listActiveForProject(projectId),
       layoutRevisions: this.elementRepository.layoutRevisionSnapshot(projectId),
+      layoutPresetInstances: {
+        schemaVersion: 1,
+        instances:
+          this.elementRepository.listExportableLayoutPresetInstances(projectId),
+      },
       publishedVersions: this.pageRepository
         .listVersions(projectId)
         .map((version) => {
@@ -1065,6 +1449,59 @@ export class ProjectService {
             now,
           });
         }
+        for (const sourceInstance of exportDto.layoutPresetInstances
+          .instances) {
+          const instanceId = randomUUID();
+          const proposedElements = sourceInstance.proposedElements.map(
+            ({ templateId, entry }): LayoutPresetProposedElementDto => {
+              const elementId = elementIdMap.get(entry.element.id) as string;
+              return {
+                templateId,
+                entry: {
+                  element: {
+                    ...entry.element,
+                    id: elementId,
+                    projectId: id,
+                    pageId: pageIdMap.get(entry.element.pageId) as string,
+                  },
+                  layout: { ...entry.layout, elementId },
+                },
+              };
+            },
+          );
+          this.elementRepository.insertLayoutPresetInstance({
+            id: instanceId,
+            projectId: id,
+            pageId: pageIdMap.get(sourceInstance.pageId) as string,
+            presetId: sourceInstance.presetId,
+            presetVersion: sourceInstance.presetVersion,
+            presetSnapshot: sourceInstance.presetSnapshot,
+            registryChecksum: sourceInstance.registryChecksum,
+            coordinateChecksum:
+              layoutPresetCoordinateChecksum(proposedElements),
+            mode: sourceInstance.mode,
+            state: "APPLIED",
+            origin: "IMPORT",
+            commandId: null,
+            now,
+          });
+          for (const proposed of proposedElements) {
+            this.elementRepository.insertLayoutPresetMembership(
+              instanceId,
+              proposed,
+            );
+          }
+          for (const placeholder of sourceInstance.bindingPlaceholders) {
+            this.elementRepository.attachImportedLayoutPresetPlaceholder({
+              instanceId,
+              templateId: placeholder.templateId,
+              elementId: elementIdMap.get(placeholder.elementId) as string,
+              elementTypeVersion: placeholder.elementTypeVersion,
+              portId: placeholder.portId,
+            });
+          }
+        }
+        this.elementRepository.assertBindingPlaceholderTopology(id);
         for (const layoutRevision of exportDto.layoutRevisions) {
           this.elementRepository.setImportedLayoutRevision(
             pageIdMap.get(layoutRevision.pageId) as string,
@@ -1173,6 +1610,12 @@ export class ProjectService {
     const publishedVersions = parseImportPublishedVersions(
       record.manifest,
       project.id,
+    );
+    const layoutPresetInstances = parseLayoutPresetInstances(
+      manifest?.layoutPresetInstances,
+      project.id as string,
+      pageIds,
+      elements,
     );
     assertApi(
       Array.isArray(record.files) &&
@@ -1289,6 +1732,7 @@ export class ProjectService {
       elements,
       layoutRevisions,
       publishedVersions,
+      layoutPresetInstances,
       files,
     };
   }

@@ -308,7 +308,8 @@ describe("Phase 6 editor and immutable runtime renderers", () => {
     const tokenField = definition.propertySchema.fields.find(
       (field) => field.id === "style.backgroundToken",
     )!;
-    for (const option of tokenField.options ?? []) {
+    const tokenOptions = "options" in tokenField ? tokenField.options : [];
+    for (const option of tokenOptions ?? []) {
       const entry = makeEntry("button", {
         style: {
           backgroundToken: option.value,

@@ -6,33 +6,32 @@ Overall state: `IN PROGRESS`
 
 ## Current phase
 
-### PHASE 6 — Element Registry and Property Inspector
+### PHASE 7 — Statistical Elements and Layout Presets
 
 State: `VERIFIED`
 
 Scope:
 
-- Replace duplicated Element metadata with a deterministic Registry contract.
-- Generate the right Property Inspector from persisted Property Schema.
-- Add real input and data-display Elements with truthful binding/render states.
-- Add durable command history with Undo/Redo and Redo-branch invalidation.
-- Render immutable published Element snapshots separately from the Editor.
+- Add the accepted statistical Element inventory and theme-aware renderers.
+- Persist deterministic Layout Presets as real Page and Element instances.
+- Preview Preset structure before applying it to an empty or current Page.
+- Keep Preset application atomic, revisioned, idempotent, and undoable.
+- Preserve Draft, Published Runtime, lifecycle, and Registry boundaries.
 
-Data risk: high. Migration v5 extends Element constraints and durable command
-history. All writes require optimistic revisions and idempotency, and all
-fixtures remain isolated from the workspace `data/` directory.
+Data risk: high. Preset application creates multiple Elements and may replace a
+Page layout. All mutations require an impact plan, optimistic revisions,
+idempotency, atomic history, and isolated fixtures.
 
 Test plan:
 
-- Generate Palette, Inspector, Inventory, Editor, and Runtime coverage from
-  every Registry entry and Property field.
-- Verify every Property saves, debounces, flushes, retries, reloads, and survives
-  server restart without stale revision loss.
-- Verify all Element command types Undo/Redo exactly, discard a Redo branch on a
-  new edit, and preserve monotonic revisions and idempotent replay.
-- Prove Published Runtime reads immutable snapshots and never leaks Draft edits.
-- Verify clone, export, import, trash, restore, purge, checksum, and publish keep
-  Registry values and history ownership consistent.
+- Validate every statistical Element through Registry, Palette, Inspector,
+  Editor, and immutable Runtime projections.
+- Verify chart marks use semantic chart tokens and preserve accessible labels,
+  reduced motion, resize previews, and truthful empty states.
+- Verify every Preset preview matches the exact applied Element count and grid
+  coordinate snapshot with no screenshot-only template.
+- Verify add/replace choices, impact gating, idempotent replay, Undo/Redo,
+  reload, restart, publish, clone, export/import, trash, restore, and purge.
 
 ## Phase ledger
 
@@ -45,7 +44,8 @@ Test plan:
 | 4     | VERIFIED    | Page management and immutable runtime navigation              |
 | 5     | VERIFIED    | Element placement, grid snapping, and eight-way resize        |
 | 6     | VERIFIED    | Registry, Property Inspector, Runtime renderer, Undo/Redo     |
-| 7–23  | NOT STARTED | Must follow sequentially                                      |
+| 7     | VERIFIED    | Statistical Elements and real Layout Preset instances         |
+| 8–23  | NOT STARTED | Must follow sequentially                                      |
 
 ## Phase 0 evidence
 
@@ -162,6 +162,27 @@ Test plan:
   actions, and Undo/Redo controls retain equal sibling geometry
 - Browser QA at 419px: document width remains bounded and the stacked Inspector
   is reachable through the Editor workspace scroll owner
+- Full workspace format, lint, typecheck, unit, integration, component,
+  validation, and production build: PASS
+
+## Phase 7 evidence
+
+- Static, behavioral, and browser audit:
+  `artifacts/phase7/statistical-elements-layout-presets-validation.json` —
+  136/136
+- Element Registry: existing six types plus Line, Bar, Histogram, Scatter,
+  Box, and Summary Statistics; exact 12-type contract PASS
+- Layout Presets: all 22 corpus IDs in canonical order with deterministic
+  structural previews, coordinates, and SHA-256 evidence
+- Domain unit: 11/11; Server unit: 35/35; Server integration: 53/53
+- Web unit/component: 128/128; Phase 0–6 regression: PASS
+- ADD and REPLACE preserve exact preview coordinates, durable instance
+  provenance, binding placeholders, idempotency, and atomic Undo/Redo
+- Browser QA at 1280×720: equal sibling controls, structured preview without
+  images, reload persistence, replace impact confirmation, and immutable
+  Runtime until republish PASS
+- Browser QA at 419px: document width remains 419px and all Preset mode,
+  action, and impact controls remain reachable with equal sibling geometry
 - Full workspace format, lint, typecheck, unit, integration, component,
   validation, and production build: PASS
 

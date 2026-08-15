@@ -861,6 +861,27 @@ describe("WebEditor persistent project home", () => {
       /\.selection-actions > button,[\s\S]*?\[data-slot="alert-dialog-footer"\] > button\s*\{[^}]*height:\s*var\(--control-height\);[^}]*gap:\s*var\(--control-gap\);[^}]*border-radius:\s*var\(--control-radius\);/,
     );
 
+    const navigation = screen.getByRole("navigation", {
+      name: "프로젝트 홈",
+    });
+    const navigationButtons = within(navigation).getAllByRole("button");
+    expect(navigationButtons).toHaveLength(5);
+    expectSameComputedStyle(navigationButtons, [
+      "width",
+      "min-height",
+      "padding-left",
+      "padding-right",
+      "justify-content",
+      "text-align",
+    ]);
+    expect(stylesCss).toMatch(
+      /\.sidebar-nav-item\s*\{[^}]*justify-content:\s*flex-start;[^}]*gap:\s*0\.8em;[^}]*text-align:\s*left;/s,
+    );
+    for (const navigationButton of navigationButtons) {
+      expect(navigationButton).toHaveClass("sidebar-nav-item");
+      expect(navigationButton.querySelector("svg")).not.toBeNull();
+    }
+
     const search = screen
       .getByPlaceholderText("이름·설명·Slug 검색")
       .closest("label");
@@ -899,7 +920,6 @@ describe("WebEditor persistent project home", () => {
     ]);
     await user.click(themeActionButtons[1]!);
 
-    const navigation = screen.getByRole("navigation", { name: "프로젝트 홈" });
     await user.click(within(navigation).getByRole("button", { name: /^백업/ }));
     const backupButtons = Array.from(
       container.querySelectorAll(

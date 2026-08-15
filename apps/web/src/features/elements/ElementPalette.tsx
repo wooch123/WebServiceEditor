@@ -1,6 +1,7 @@
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
 import { RotateCcw, TriangleAlert } from "lucide-react";
+import type { ReactNode } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ interface ElementPaletteProps {
   disabled?: boolean;
   loading?: boolean;
   error?: string;
+  presetControl?: ReactNode;
   onRetry?: () => void;
   onKeyboardPlace: (elementType: ElementType) => void;
 }
@@ -81,6 +83,7 @@ export function ElementPalette({
   disabled = false,
   loading = false,
   error = "",
+  presetControl,
   onRetry,
   onKeyboardPlace,
 }: ElementPaletteProps) {
@@ -90,6 +93,7 @@ export function ElementPalette({
         <div>
           <strong>엘리먼트</strong>
         </div>
+        {presetControl}
       </div>
       {error ? (
         <Alert className="palette-alert" variant="destructive">

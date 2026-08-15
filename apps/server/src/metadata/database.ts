@@ -6,7 +6,7 @@ import { PROJECT_LIFECYCLE_STATUSES } from "@webeditor/domain";
 import Database from "better-sqlite3";
 
 const METADATA_APPLICATION_ID = 0x57454245;
-export const LATEST_METADATA_SCHEMA_VERSION = 5;
+export const LATEST_METADATA_SCHEMA_VERSION = 6;
 
 const lifecycleSqlValues = PROJECT_LIFECYCLE_STATUSES.map(
   (status) => `'${status}'`,
@@ -491,6 +491,218 @@ export const ELEMENT_REGISTRY_PROPERTIES_HISTORY_SCHEMA_CHECKSUM = createHash(
   .update(elementRegistryPropertiesHistorySchemaSql)
   .digest("hex");
 
+const statisticalElementsLayoutPresetsSchemaSql = `
+  CREATE TABLE element_commands_v6 (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    page_id TEXT NOT NULL,
+    element_id TEXT,
+    command_type TEXT NOT NULL CHECK (
+      command_type IN (
+        'ADD', 'MOVE', 'RESIZE', 'LOCK', 'BATCH_LAYOUT', 'DELETE',
+        'PROPERTIES', 'PRESET_APPLY'
+      )
+    ),
+    idempotency_key TEXT NOT NULL,
+    request_hash TEXT NOT NULL,
+    before_json TEXT CHECK (before_json IS NULL OR json_valid(before_json)),
+    after_json TEXT CHECK (after_json IS NULL OR json_valid(after_json)),
+    response_status INTEGER NOT NULL
+      CHECK (response_status BETWEEN 200 AND 499)
+      CHECK (typeof(response_status) = 'integer'),
+    response_json TEXT NOT NULL CHECK (json_valid(response_json)),
+    before_layout_revision INTEGER NOT NULL
+      CHECK (before_layout_revision >= 0)
+      CHECK (typeof(before_layout_revision) = 'integer'),
+    after_layout_revision INTEGER NOT NULL
+      CHECK (after_layout_revision >= before_layout_revision)
+      CHECK (typeof(after_layout_revision) = 'integer'),
+    history_state TEXT CHECK (
+      history_state IS NULL OR history_state IN ('APPLIED', 'UNDONE', 'DISCARDED')
+    ),
+    history_sequence INTEGER CHECK (
+      history_sequence IS NULL OR
+      (history_sequence >= 1 AND typeof(history_sequence) = 'integer')
+    ),
+    history_updated_at TEXT,
+    created_at TEXT NOT NULL,
+    CHECK (
+      (history_state IS NULL AND history_sequence IS NULL AND history_updated_at IS NULL) OR
+      (history_state IS NOT NULL AND history_sequence IS NOT NULL AND history_updated_at IS NOT NULL)
+    ),
+    UNIQUE(id, project_id),
+    UNIQUE(project_id, idempotency_key),
+    UNIQUE(project_id, history_sequence),
+    FOREIGN KEY (page_id, project_id) REFERENCES pages(id, project_id) ON DELETE CASCADE
+  );
+  INSERT INTO element_commands_v6 (
+    id, project_id, page_id, element_id, command_type, idempotency_key,
+    request_hash, before_json, after_json, response_status, response_json,
+    before_layout_revision, after_layout_revision, history_state,
+    history_sequence, history_updated_at, created_at
+  ) SELECT
+    id, project_id, page_id, element_id, command_type, idempotency_key,
+    request_hash, before_json, after_json, response_status, response_json,
+    before_layout_revision, after_layout_revision, history_state,
+    history_sequence, history_updated_at, created_at
+  FROM element_commands;
+
+  CREATE TABLE element_history_operations_v6 (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    command_id TEXT,
+    requested_command_id TEXT NOT NULL,
+    operation_type TEXT NOT NULL CHECK (operation_type IN ('UNDO', 'REDO')),
+    idempotency_key TEXT NOT NULL,
+    request_hash TEXT NOT NULL,
+    response_status INTEGER NOT NULL
+      CHECK (response_status BETWEEN 200 AND 499)
+      CHECK (typeof(response_status) = 'integer'),
+    response_json TEXT NOT NULL CHECK (json_valid(response_json)),
+    created_at TEXT NOT NULL,
+    UNIQUE(project_id, idempotency_key),
+    FOREIGN KEY (command_id, project_id)
+      REFERENCES element_commands_v6(id, project_id) ON DELETE CASCADE
+  );
+  INSERT INTO element_history_operations_v6 (
+    id, project_id, command_id, requested_command_id, operation_type,
+    idempotency_key, request_hash, response_status, response_json, created_at
+  ) SELECT
+    id, project_id, command_id, requested_command_id, operation_type,
+    idempotency_key, request_hash, response_status, response_json, created_at
+  FROM element_history_operations;
+
+  DROP TABLE element_history_operations;
+  DROP TABLE element_commands;
+  ALTER TABLE element_commands_v6 RENAME TO element_commands;
+  ALTER TABLE element_history_operations_v6 RENAME TO element_history_operations;
+  CREATE INDEX element_commands_page_created_idx
+    ON element_commands(page_id, created_at, id);
+  CREATE INDEX element_commands_project_history_idx
+    ON element_commands(project_id, history_state, history_sequence);
+  CREATE INDEX element_history_operations_project_created_idx
+    ON element_history_operations(project_id, created_at, id);
+
+  CREATE TABLE layout_preset_instances (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    page_id TEXT NOT NULL,
+    preset_id TEXT NOT NULL CHECK (length(preset_id) BETWEEN 1 AND 120),
+    preset_version INTEGER NOT NULL CHECK (preset_version = 1),
+    preset_snapshot_json TEXT NOT NULL CHECK (
+      json_valid(preset_snapshot_json) AND
+      json_type(preset_snapshot_json) = 'object'
+    ),
+    registry_checksum TEXT NOT NULL CHECK (
+      length(registry_checksum) = 64 AND
+      registry_checksum = lower(registry_checksum) AND
+      registry_checksum NOT GLOB '*[^0-9a-f]*'
+    ),
+    coordinate_checksum TEXT NOT NULL CHECK (
+      length(coordinate_checksum) = 64 AND
+      coordinate_checksum = lower(coordinate_checksum) AND
+      coordinate_checksum NOT GLOB '*[^0-9a-f]*'
+    ),
+    apply_mode TEXT NOT NULL CHECK (apply_mode IN ('ADD', 'REPLACE')),
+    instance_state TEXT NOT NULL CHECK (
+      instance_state IN ('APPLIED', 'UNDONE', 'DISCARDED')
+    ),
+    origin TEXT NOT NULL CHECK (origin IN ('APPLY', 'IMPORT')),
+    command_id TEXT,
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    UNIQUE(id, project_id, page_id),
+    UNIQUE(command_id, project_id),
+    FOREIGN KEY (page_id, project_id) REFERENCES pages(id, project_id) ON DELETE CASCADE,
+    FOREIGN KEY (command_id, project_id)
+      REFERENCES element_commands(id, project_id) ON DELETE CASCADE
+  );
+  CREATE INDEX layout_preset_instances_page_state_idx
+    ON layout_preset_instances(page_id, instance_state, created_at, id);
+  CREATE INDEX layout_preset_instances_project_idx
+    ON layout_preset_instances(project_id, created_at, id);
+
+  CREATE TABLE layout_preset_instance_elements (
+    instance_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    page_id TEXT NOT NULL,
+    template_id TEXT NOT NULL CHECK (length(template_id) BETWEEN 1 AND 120),
+    element_id TEXT NOT NULL,
+    element_type TEXT NOT NULL CHECK (length(element_type) BETWEEN 1 AND 120),
+    element_type_version INTEGER NOT NULL CHECK (element_type_version = 1),
+    initial_x INTEGER NOT NULL CHECK (initial_x >= 0 AND typeof(initial_x) = 'integer'),
+    initial_y INTEGER NOT NULL CHECK (initial_y >= 0 AND typeof(initial_y) = 'integer'),
+    initial_w INTEGER NOT NULL CHECK (initial_w >= 1 AND typeof(initial_w) = 'integer'),
+    initial_h INTEGER NOT NULL CHECK (initial_h >= 1 AND typeof(initial_h) = 'integer'),
+    entry_snapshot_json TEXT NOT NULL CHECK (
+      json_valid(entry_snapshot_json) AND json_type(entry_snapshot_json) = 'object'
+    ),
+    PRIMARY KEY (instance_id, template_id),
+    UNIQUE(element_id),
+    UNIQUE(
+      instance_id, template_id, element_id, element_type_version,
+      project_id, page_id
+    ),
+    FOREIGN KEY (instance_id, project_id, page_id)
+      REFERENCES layout_preset_instances(id, project_id, page_id) ON DELETE CASCADE,
+    FOREIGN KEY (element_id, page_id, project_id)
+      REFERENCES elements(id, page_id, project_id) ON DELETE CASCADE
+  );
+  CREATE INDEX layout_preset_instance_elements_project_idx
+    ON layout_preset_instance_elements(project_id, page_id, element_id);
+
+  CREATE TABLE element_binding_placeholders (
+    element_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    page_id TEXT NOT NULL,
+    element_type_version INTEGER NOT NULL CHECK (element_type_version = 1),
+    port_id TEXT NOT NULL CHECK (length(port_id) BETWEEN 1 AND 120),
+    instance_id TEXT,
+    template_id TEXT,
+    status TEXT NOT NULL CHECK (status = 'UNCONNECTED'),
+    created_at TEXT NOT NULL,
+    PRIMARY KEY (element_id, port_id),
+    CHECK (
+      (instance_id IS NULL AND template_id IS NULL) OR
+      (instance_id IS NOT NULL AND template_id IS NOT NULL)
+    ),
+    FOREIGN KEY (element_id, page_id, project_id)
+      REFERENCES elements(id, page_id, project_id) ON DELETE CASCADE,
+    FOREIGN KEY (
+      instance_id, template_id, element_id, element_type_version,
+      project_id, page_id
+    ) REFERENCES layout_preset_instance_elements (
+      instance_id, template_id, element_id, element_type_version,
+      project_id, page_id
+    ) ON DELETE CASCADE
+  );
+  CREATE INDEX element_binding_placeholders_project_page_idx
+    ON element_binding_placeholders(project_id, page_id, element_id, port_id);
+  CREATE INDEX element_binding_placeholders_instance_idx
+    ON element_binding_placeholders(instance_id, template_id);
+
+  INSERT INTO element_binding_placeholders (
+    element_id, project_id, page_id, element_type_version, port_id,
+    instance_id, template_id, status, created_at
+  )
+  SELECT id, project_id, page_id, type_version, 'value', NULL, NULL,
+    'UNCONNECTED', created_at
+  FROM elements WHERE type = 'kpi-card';
+  INSERT INTO element_binding_placeholders (
+    element_id, project_id, page_id, element_type_version, port_id,
+    instance_id, template_id, status, created_at
+  )
+  SELECT id, project_id, page_id, type_version, 'rows', NULL, NULL,
+    'UNCONNECTED', created_at
+  FROM elements WHERE type = 'data-table';
+`;
+
+export const STATISTICAL_ELEMENTS_LAYOUT_PRESETS_SCHEMA_CHECKSUM = createHash(
+  "sha256",
+)
+  .update(statisticalElementsLayoutPresetsSchemaSql)
+  .digest("hex");
+
 const metadataMigrations = [
   {
     checksum: INITIAL_METADATA_SCHEMA_CHECKSUM,
@@ -521,6 +733,12 @@ const metadataMigrations = [
     name: "element-registry-properties-history",
     sql: elementRegistryPropertiesHistorySchemaSql,
     version: 5,
+  },
+  {
+    checksum: STATISTICAL_ELEMENTS_LAYOUT_PRESETS_SCHEMA_CHECKSUM,
+    name: "statistical-elements-layout-presets",
+    sql: statisticalElementsLayoutPresetsSchemaSql,
+    version: 6,
   },
 ] as const;
 

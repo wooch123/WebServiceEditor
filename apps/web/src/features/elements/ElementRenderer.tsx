@@ -35,12 +35,18 @@ import type {
   ElementType,
 } from "@/services/elements-api";
 import { elementPresentation } from "./element-presentation";
+import {
+  StatisticalVisualization,
+  type StatisticalElementType,
+  type StatisticalRenderData,
+} from "./statistical-rendering";
 
 interface CanvasRendererProps {
   entry: ElementEntryDto;
   definition: ElementDefinitionDto;
   compact: boolean;
   renderState?: ElementRenderState;
+  renderData?: StatisticalRenderData;
 }
 
 function stringValue(
@@ -192,7 +198,9 @@ function EmptyData({
           <Database />
         </EmptyMedia>
         <EmptyTitle>{label}</EmptyTitle>
-        <EmptyDescription>미연결</EmptyDescription>
+        <EmptyDescription>
+          <Badge variant="secondary">미연결</Badge>
+        </EmptyDescription>
       </EmptyHeader>
     </Empty>
   );
@@ -274,6 +282,25 @@ function DataTableRenderer({
   );
 }
 
+function StatisticalRenderer({
+  entry,
+  compact,
+  renderState = "EMPTY",
+  renderData,
+}: CanvasRendererProps) {
+  return (
+    <StatisticalVisualization
+      type={entry.element.type as StatisticalElementType}
+      title={stringValue(entry.element.props, "title", entry.element.name)}
+      emptyLabel={stringValue(entry.element.props, "emptyLabel", "데이터 없음")}
+      state={renderState}
+      compact={compact}
+      options={entry.element.props}
+      {...(renderData ? { data: renderData } : {})}
+    />
+  );
+}
+
 export const editorRendererByKey: Readonly<
   Record<ElementType, ComponentType<CanvasRendererProps>>
 > = {
@@ -283,6 +310,12 @@ export const editorRendererByKey: Readonly<
   "kpi-card": KpiRenderer,
   "number-input": NumberInputRenderer,
   "data-table": DataTableRenderer,
+  "line-chart": StatisticalRenderer,
+  "bar-chart": StatisticalRenderer,
+  histogram: StatisticalRenderer,
+  "scatter-plot": StatisticalRenderer,
+  "box-plot": StatisticalRenderer,
+  "summary-statistics": StatisticalRenderer,
 };
 
 export function assertEditorRendererDefinitions(
@@ -300,6 +333,7 @@ export function ElementRenderer({
   definition,
   compact,
   renderState,
+  renderData,
 }: CanvasRendererProps) {
   const Renderer = editorRendererByKey[definition.rendererKey];
   const presentation = elementPresentation(entry);
@@ -340,6 +374,7 @@ export function ElementRenderer({
         definition={definition}
         compact={compact}
         renderState={effectiveRenderState}
+        {...(renderData ? { renderData } : {})}
       />
     </div>
   );

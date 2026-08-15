@@ -127,6 +127,38 @@ function assertNumberInputBounds(
   );
 }
 
+function assertStatisticalPropertyState(
+  definition: ElementDefinition,
+  props: Readonly<Record<string, unknown>>,
+  code:
+    "INVALID_PROJECT_ELEMENT_PROPERTY_STATE" | "INVALID_ELEMENT_PROPERTY_VALUE",
+): void {
+  if (definition.type === "histogram") {
+    assertApi(
+      Number.isSafeInteger(props.binCount),
+      400,
+      code,
+      "Histogram bin count must be an integer",
+    );
+  }
+  if (definition.type === "summary-statistics") {
+    assertApi(
+      Number.isSafeInteger(props.precision) &&
+        [
+          props.showCount,
+          props.showMean,
+          props.showMedian,
+          props.showStdDev,
+          props.showMin,
+          props.showMax,
+        ].some((value) => value === true),
+      400,
+      code,
+      "Summary Statistics requires integer precision and one visible statistic",
+    );
+  }
+}
+
 export function validateElementStoredState(
   definition: ElementDefinition,
   value: {
@@ -208,6 +240,11 @@ export function validateElementStoredState(
   if (definition.type === "number-input") {
     assertNumberInputBounds(props, "INVALID_PROJECT_ELEMENT_PROPERTY_STATE");
   }
+  assertStatisticalPropertyState(
+    definition,
+    props,
+    "INVALID_PROJECT_ELEMENT_PROPERTY_STATE",
+  );
   return { props, style, events: [] };
 }
 
@@ -376,6 +413,11 @@ export function projectElementProperties(
   if (definition.type === "number-input") {
     assertNumberInputBounds(props, "INVALID_ELEMENT_PROPERTY_VALUE");
   }
+  assertStatisticalPropertyState(
+    definition,
+    props,
+    "INVALID_ELEMENT_PROPERTY_VALUE",
+  );
   return { name, props, style, locked, hidden };
 }
 

@@ -13,14 +13,29 @@ import {
 } from "../../src/elements/element-registry.js";
 
 describe("element registry and grid geometry", () => {
-  it("exposes the deterministic six-type Phase 6 Registry", () => {
-    expect(elementRegistry().definitions.map(({ type }) => type)).toEqual([
+  it("extends the deterministic Phase 6 prefix with six statistical types", () => {
+    const types = elementRegistry().definitions.map(({ type }) => type);
+    expect(types.slice(0, 6)).toEqual([
       "text",
       "button",
       "container",
       "kpi-card",
       "number-input",
       "data-table",
+    ]);
+    expect(types).toEqual([
+      "text",
+      "button",
+      "container",
+      "kpi-card",
+      "number-input",
+      "data-table",
+      "line-chart",
+      "bar-chart",
+      "histogram",
+      "scatter-plot",
+      "box-plot",
+      "summary-statistics",
     ]);
     expect(elementRegistry().checksum).toMatch(/^[0-9a-f]{64}$/);
     expect(elementDefinition("text").defaultProps).toMatchObject({
@@ -38,6 +53,22 @@ describe("element registry and grid geometry", () => {
     });
     expect(elementDefinition("number-input").category).toBe("input");
     expect(elementDefinition("data-table").category).toBe("data");
+    for (const type of types.slice(6)) {
+      const definition = elementDefinition(type as never);
+      expect(definition.category).toBe("statistics");
+      expect(definition.supportedRenderStates).toEqual([
+        "EMPTY",
+        "LOADING",
+        "ERROR",
+        "DATA",
+      ]);
+      expect(
+        definition.bindingPorts.some(
+          (port) =>
+            port.required && port.direction === "input" && port.side === "left",
+        ),
+      ).toBe(true);
+    }
     expect(() => elementDefinition("chart")).toThrow("Element type is invalid");
   });
 

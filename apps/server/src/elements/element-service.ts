@@ -224,6 +224,7 @@ export class ElementService {
     this.candidateStore =
       options.candidateStore ??
       new PlacementCandidateStore({ clock: this.#clock });
+    this.repository.assertBindingPlaceholderTopology();
   }
 
   #now(): string {
@@ -1121,6 +1122,7 @@ export class ElementService {
           command.command_type === "MOVE" ||
           command.command_type === "RESIZE" ||
           command.command_type === "BATCH_LAYOUT" ||
+          command.command_type === "PRESET_APPLY" ||
           command.command_type === "DELETE";
         const layoutRevision = changesLayout
           ? this.#bumpLayout(
@@ -1237,7 +1239,10 @@ export class ElementService {
     } else if (command.command_type === "DELETE") {
       snapshots = [this.#historyEntry(before, command, projectId)];
       active = operation === "UNDO";
-    } else if (command.command_type === "BATCH_LAYOUT") {
+    } else if (
+      command.command_type === "BATCH_LAYOUT" ||
+      command.command_type === "PRESET_APPLY"
+    ) {
       snapshots = this.#historyEntries(
         operation === "UNDO" ? before : after,
         command,
@@ -1253,6 +1258,22 @@ export class ElementService {
         ),
       ];
       active = true;
+    }
+    if (command.command_type === "PRESET_APPLY") {
+      const targetIds = new Set(snapshots.map(({ element }) => element.id));
+      for (const current of this.repository.listActive(command.page_id)) {
+        if (!targetIds.has(current.element.id)) {
+          const result = this.repository.applyHistoryEntry(current, false, now);
+          assertApi(
+            result === undefined &&
+              this.repository.get(current.element.id) !== undefined,
+            409,
+            "ELEMENT_HISTORY_STATE_CONFLICT",
+            "Element state changed outside its history",
+            { elementId: current.element.id },
+          );
+        }
+      }
     }
     for (const snapshot of snapshots) {
       const result = this.repository.applyHistoryEntry(snapshot, active, now);
@@ -1298,7 +1319,8 @@ export class ElementService {
       entry.element.pageId !== command.page_id ||
       entry.layout.elementId !== entry.element.id ||
       entry.element.typeVersion !== 1 ||
-      (command.command_type === "BATCH_LAYOUT"
+      (command.command_type === "BATCH_LAYOUT" ||
+      command.command_type === "PRESET_APPLY"
         ? command.element_id !== null
         : command.element_id !== entry.element.id)
     ) {

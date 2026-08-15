@@ -615,7 +615,10 @@ describe("Phase 6 validation contract", () => {
       JSON.stringify(report.failures, null, 2),
     );
     assert.ok(report.checks >= 100);
-    assert.equal(report.details.registryInspection.definitionCount, 6);
+    assert.ok(
+      report.details.registryInspection.definitionCount >=
+        REQUIRED_PHASE6_ELEMENT_TYPES.length,
+    );
     assert.equal(report.details.requiredEvidencePath, PHASE6_EVIDENCE_PATH);
     assert.equal(
       report.details.browserEvidencePath,
@@ -646,6 +649,24 @@ describe("Phase 6 validation contract", () => {
     ])
       assert.equal(inspected[property], true, property);
 
+    const forwardCompatibleDefinition = registryDefinition(
+      "future-chart",
+      "statistics",
+      "input",
+    );
+    const forwardCompatibleRegistry = {
+      ...baseline,
+      definitions: [...baseline.definitions, forwardCompatibleDefinition],
+    };
+    forwardCompatibleRegistry.checksum = calculateRegistryChecksum(
+      forwardCompatibleRegistry,
+    );
+    const forwardCompatibleInspection = inspectRegistrySnapshot(
+      forwardCompatibleRegistry,
+    );
+    assert.equal(forwardCompatibleInspection.typeOrderExact, true);
+    assert.equal(forwardCompatibleInspection.checksumExact, true);
+
     const mutations = [
       [
         "checksum",
@@ -666,6 +687,14 @@ describe("Phase 6 validation contract", () => {
             baseline.definitions[0],
             ...baseline.definitions.slice(2),
           ],
+        },
+        "typeOrderExact",
+      ],
+      [
+        "required type missing",
+        {
+          ...baseline,
+          definitions: baseline.definitions.slice(0, -1),
         },
         "typeOrderExact",
       ],

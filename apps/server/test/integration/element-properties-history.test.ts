@@ -164,6 +164,12 @@ describe("Phase 6 Element Registry, properties, history, and Runtime", () => {
       "kpi-card",
       "number-input",
       "data-table",
+      "line-chart",
+      "bar-chart",
+      "histogram",
+      "scatter-plot",
+      "box-plot",
+      "summary-statistics",
     ]);
     expect(registry.tabs.map(({ id }) => id)).toEqual([
       "general",
@@ -1236,8 +1242,11 @@ describe("Phase 6 Element Registry, properties, history, and Runtime", () => {
       .prepare("UPDATE element_commands SET after_json = ? WHERE id = ?")
       .run(JSON.stringify(legacyAfter), first.commandId);
     version4.exec(`
+      DROP TABLE element_binding_placeholders;
+      DROP TABLE layout_preset_instance_elements;
+      DROP TABLE layout_preset_instances;
       DROP TABLE element_history_operations;
-      DELETE FROM metadata_migrations WHERE version = 5;
+      DELETE FROM metadata_migrations WHERE version >= 5;
     `);
     version4.pragma("user_version = 4");
     version4.close();

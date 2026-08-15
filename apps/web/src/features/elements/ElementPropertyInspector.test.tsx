@@ -45,6 +45,8 @@ interface InspectorApiOptions {
   deferFirstProperty?: boolean;
   failFirstProperty?: boolean;
   historyMutationPageId?: string;
+  historyMutationEntries?: readonly ElementEntryDto[];
+  historyMutationDeletedElementIds?: readonly string[];
 }
 
 function definitionFor(type: ElementType) {
@@ -278,8 +280,8 @@ function installInspectorApi(options: InspectorApiOptions = {}) {
           operation: historyMatch[1] === "undo" ? "UNDO" : "REDO",
           commandId: String(body.expectedCommandId),
           pageId,
-          entries: [],
-          deletedElementIds: [],
+          entries: options.historyMutationEntries ?? [],
+          deletedElementIds: options.historyMutationDeletedElementIds ?? [],
           layoutRevision,
           projectRevision,
           canUndo: true,
@@ -676,7 +678,7 @@ describe("Phase 6 property inspector", () => {
     editor.unmount();
   });
 
-  it("projects six registry entries, six schema tabs, and truthful unconnected data without Custom CSS", async () => {
+  it("projects twelve registry entries, six schema tabs, and truthful unconnected data without Custom CSS", async () => {
     installInspectorApi({
       pageOneEntries: [
         makeEntry("no-port", "text"),
@@ -686,7 +688,7 @@ describe("Phase 6 property inspector", () => {
     const user = userEvent.setup();
     render(<Harness />);
 
-    expect(await screen.findAllByTestId(/^palette-item-/)).toHaveLength(6);
+    expect(await screen.findAllByTestId(/^palette-item-/)).toHaveLength(12);
     await user.click(
       await screen.findByRole("button", { name: "no-port 선택" }),
     );
@@ -923,5 +925,33 @@ describe("Phase 6 property inspector", () => {
     await user.keyboard("{Control>}{Shift>}z{/Shift}{/Control}");
     await waitFor(() => expect(api.historyMutationCalls).toHaveLength(2));
     expect(api.historyMutationCalls[1]!.path).toMatch(/\/redo$/);
+  });
+
+  it("replaces the current page with the authoritative history snapshot", async () => {
+    const restored = makeEntry("restored-element", "text", "page-1");
+    const replaced = makeEntry("replaced-element", "bar-chart", "page-1");
+    installInspectorApi({
+      pageOneEntries: [restored, replaced],
+      historyMutationEntries: [restored],
+      historyMutationDeletedElementIds: [replaced.element.id],
+    });
+    const user = userEvent.setup();
+    render(<Harness />);
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("현재 엘리먼트")).toHaveTextContent(
+        "restored-element,replaced-element",
+      ),
+    );
+    await user.click(screen.getByRole("button", { name: "실행 취소" }));
+
+    await waitFor(() =>
+      expect(screen.getByLabelText("현재 엘리먼트")).toHaveTextContent(
+        "restored-element",
+      ),
+    );
+    expect(screen.getByLabelText("현재 엘리먼트")).not.toHaveTextContent(
+      "replaced-element",
+    );
   });
 });

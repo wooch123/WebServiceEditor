@@ -454,7 +454,11 @@ export function inspectRegistrySnapshot(registry) {
     schemaVersion: registry?.schemaVersion === 1,
     checksumFormat: /^[a-f0-9]{64}$/u.test(registry?.checksum ?? ""),
     checksumExact: registry?.checksum === computedChecksum,
-    typeOrderExact: exactArray(typeOrder, REQUIRED_PHASE6_ELEMENT_TYPES),
+    typeOrderExact:
+      typeOrder.length >= REQUIRED_PHASE6_ELEMENT_TYPES.length &&
+      REQUIRED_PHASE6_ELEMENT_TYPES.every(
+        (type, index) => typeOrder[index] === type,
+      ),
     tabOrderExact: exactArray(tabOrder, REQUIRED_PROPERTY_TABS),
     uniqueTypes: uniqueStrings(typeOrder),
     uniqueTabs: uniqueStrings(tabOrder),
@@ -1359,7 +1363,10 @@ export async function validatePhase6({
       "checksumExact",
       "Registry checksum matches independent stable canonicalization",
     ],
-    ["typeOrderExact", "Registry type order is deterministic and complete"],
+    [
+      "typeOrderExact",
+      "Phase 6 Registry types remain a deterministic required prefix",
+    ],
     ["tabOrderExact", "Property tab order is deterministic and canonical"],
     ["uniqueTypes", "Registry types are unique"],
     ["uniqueTabs", "Property tabs are unique"],

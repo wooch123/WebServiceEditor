@@ -6,12 +6,17 @@ import {
   ElementService,
   type ElementFailureInjector,
 } from "./elements/element-service.js";
+import {
+  LayoutPresetService,
+  type LayoutPresetFailureInjector,
+} from "./elements/layout-preset-service.js";
 import { MetadataDatabase } from "./metadata/database.js";
 import { PageService } from "./pages/page-service.js";
 import { ProjectService } from "./projects/project-service.js";
 import type { LifecycleFailureInjector } from "./projects/project-storage.js";
 import { registerProjectRoutes } from "./routes/projects.js";
 import { registerElementRoutes } from "./routes/elements.js";
+import { registerLayoutPresetRoutes } from "./routes/layout-presets.js";
 import { registerPageRoutes } from "./routes/pages.js";
 import { registerSystemRoutes } from "./routes/system.js";
 
@@ -21,6 +26,7 @@ export interface BuildServerOptions {
   readonly storageRoot?: string;
   readonly failureInjector?: LifecycleFailureInjector;
   readonly elementFailureInjector?: ElementFailureInjector;
+  readonly layoutPresetFailureInjector?: LayoutPresetFailureInjector;
   readonly clock?: () => Date;
 }
 
@@ -52,6 +58,13 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
     ...(options.elementFailureInjector === undefined
       ? {}
       : { failureInjector: options.elementFailureInjector }),
+    ...(options.clock === undefined ? {} : { clock: options.clock }),
+  });
+  const layoutPresetService = new LayoutPresetService({
+    metadataDatabase,
+    ...(options.layoutPresetFailureInjector === undefined
+      ? {}
+      : { failureInjector: options.layoutPresetFailureInjector }),
     ...(options.clock === undefined ? {} : { clock: options.clock }),
   });
 
@@ -112,6 +125,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   void app.register(registerProjectRoutes, { projectService });
   void app.register(registerPageRoutes, { pageService });
   void app.register(registerElementRoutes, { elementService });
+  void app.register(registerLayoutPresetRoutes, { layoutPresetService });
 
   return app;
 }

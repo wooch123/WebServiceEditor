@@ -743,9 +743,12 @@ describe("ElementCanvas Phase 5 interaction", () => {
     const user = userEvent.setup();
     render(<Harness />);
     await screen.findByText("빈 캔버스");
+    const presetTrigger = screen.getByRole("button", { name: "프리셋" });
+    expect(presetTrigger).toBeEnabled();
 
     await user.click(screen.getByTestId("palette-item-text"));
     let placeholder = await screen.findByTestId("placement-placeholder");
+    expect(presetTrigger).toBeDisabled();
     expect(placeholder).toHaveAttribute("data-w", "6");
     expect(placeholder).toHaveAttribute("data-h", "5");
     expect(mutationCalls(api.calls)).toHaveLength(0);
@@ -792,6 +795,7 @@ describe("ElementCanvas Phase 5 interaction", () => {
     expect(
       screen.queryByTestId("palette-drag-overlay"),
     ).not.toBeInTheDocument();
+    expect(presetTrigger).toBeEnabled();
   });
 
   it("isolates candidate cancel Enter and keeps pointer cancel and commit actions clickable with a created element", async () => {
@@ -1900,7 +1904,7 @@ describe("ElementCanvas Phase 5 interaction", () => {
     expect(mutationCalls(api.calls)).toHaveLength(0);
   });
 
-  it("measures all six palette items and canvas zoom-grid sibling control geometry with getBoundingClientRect", async () => {
+  it("measures all twelve palette items and canvas zoom-grid sibling control geometry with getBoundingClientRect", async () => {
     installElementApi();
     installCanvasGeometry();
     const user = userEvent.setup();
@@ -1929,7 +1933,7 @@ describe("ElementCanvas Phase 5 interaction", () => {
     const paletteItems = ELEMENT_DEFINITIONS.map((definition) =>
       screen.getByTestId(`palette-item-${definition.type}`),
     );
-    expect(paletteItems).toHaveLength(6);
+    expect(paletteItems).toHaveLength(12);
     expect(new Set(paletteItems.map((item) => item.dataset.size))).toEqual(
       new Set(["default"]),
     );

@@ -1,6 +1,7 @@
 import { Database } from "lucide-react";
 import type { ComponentType } from "react";
 
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -18,15 +19,23 @@ import {
 } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
 import { elementPresentation } from "@/features/elements/element-presentation";
+import {
+  StatisticalVisualization,
+  type StatisticalElementType,
+  type StatisticalRenderData,
+} from "@/features/elements/statistical-rendering";
 import type {
   ElementDefinitionDto,
   ElementEntryDto,
+  ElementRenderState,
   ElementType,
 } from "@/services/elements-api";
 
 interface RuntimeRendererProps {
   entry: ElementEntryDto;
   definition: ElementDefinitionDto;
+  renderState?: ElementRenderState;
+  renderData?: StatisticalRenderData;
 }
 
 function stringValue(
@@ -95,7 +104,9 @@ function RuntimeKpi({ entry }: RuntimeRendererProps) {
         <EmptyTitle>
           {stringValue(entry.element.props, "label", "값 없음")}
         </EmptyTitle>
-        <EmptyDescription>미연결</EmptyDescription>
+        <EmptyDescription>
+          <Badge variant="secondary">미연결</Badge>
+        </EmptyDescription>
       </EmptyHeader>
     </Empty>
   );
@@ -138,9 +149,29 @@ function RuntimeDataTable({ entry }: RuntimeRendererProps) {
         <EmptyTitle>
           {stringValue(entry.element.props, "emptyLabel", "데이터 없음")}
         </EmptyTitle>
-        <EmptyDescription>미연결</EmptyDescription>
+        <EmptyDescription>
+          <Badge variant="secondary">미연결</Badge>
+        </EmptyDescription>
       </EmptyHeader>
     </Empty>
+  );
+}
+
+function RuntimeStatistical({
+  entry,
+  renderState = "EMPTY",
+  renderData,
+}: RuntimeRendererProps) {
+  return (
+    <StatisticalVisualization
+      type={entry.element.type as StatisticalElementType}
+      title={stringValue(entry.element.props, "title", entry.element.name)}
+      emptyLabel={stringValue(entry.element.props, "emptyLabel", "데이터 없음")}
+      state={renderState}
+      compact={false}
+      options={entry.element.props}
+      {...(renderData ? { data: renderData } : {})}
+    />
   );
 }
 
@@ -153,6 +184,12 @@ export const runtimeRendererByKey: Readonly<
   "kpi-card": RuntimeKpi,
   "number-input": RuntimeNumberInput,
   "data-table": RuntimeDataTable,
+  "line-chart": RuntimeStatistical,
+  "bar-chart": RuntimeStatistical,
+  histogram: RuntimeStatistical,
+  "scatter-plot": RuntimeStatistical,
+  "box-plot": RuntimeStatistical,
+  "summary-statistics": RuntimeStatistical,
 };
 
 export function assertRuntimeRendererDefinitions(
@@ -168,15 +205,19 @@ export function assertRuntimeRendererDefinitions(
 export function RuntimeElementRenderer({
   entry,
   definition,
+  renderState,
+  renderData,
 }: RuntimeRendererProps) {
   const presentation = elementPresentation(entry);
   if (presentation.hidden) return null;
   const Renderer = runtimeRendererByKey[definition.rendererKey];
-  const renderState = definition.bindingPorts.some(
-    (port) => port.direction === "input" && port.required,
-  )
-    ? "EMPTY"
-    : "DATA";
+  const effectiveRenderState =
+    renderState ??
+    (definition.bindingPorts.some(
+      (port) => port.direction === "input" && port.required,
+    )
+      ? "EMPTY"
+      : "DATA");
   return (
     <section
       className="runtime-element"
@@ -187,12 +228,17 @@ export function RuntimeElementRenderer({
       data-element-id={entry.element.id}
       data-element-type={entry.element.type}
       data-renderer-key={definition.rendererKey}
-      data-render-state={renderState}
+      data-render-state={effectiveRenderState}
       {...(entry.element.type === "data-table"
         ? { "data-density": dataDensity(entry) }
         : {})}
     >
-      <Renderer entry={entry} definition={definition} />
+      <Renderer
+        entry={entry}
+        definition={definition}
+        renderState={effectiveRenderState}
+        {...(renderData ? { renderData } : {})}
+      />
     </section>
   );
 }

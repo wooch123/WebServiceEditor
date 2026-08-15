@@ -33,9 +33,25 @@ describe("element canvas contract", () => {
     expect(BATCH_LAYOUT_MODES).toEqual(["COMPLETE", "PARTIAL"]);
   });
 
-  it("keeps the Phase 6 registry deterministic, real, and size-bounded", () => {
+  it("keeps the Phase 7 registry deterministic, real, and size-bounded", () => {
     expect(ELEMENT_DEFINITIONS.map(({ type }) => type)).toEqual(ELEMENT_TYPES);
-    expect(ELEMENT_DEFINITIONS).toHaveLength(6);
+    expect(ELEMENT_DEFINITIONS).toHaveLength(12);
+    expect(ELEMENT_TYPES.slice(0, 6)).toEqual([
+      "text",
+      "button",
+      "container",
+      "kpi-card",
+      "number-input",
+      "data-table",
+    ]);
+    expect(ELEMENT_TYPES.slice(6)).toEqual([
+      "line-chart",
+      "bar-chart",
+      "histogram",
+      "scatter-plot",
+      "box-plot",
+      "summary-statistics",
+    ]);
     expect(new Set(ELEMENT_TYPES).size).toBe(ELEMENT_TYPES.length);
     for (const definition of ELEMENT_DEFINITIONS) {
       expect(definition.typeVersion).toBe(1);
@@ -85,5 +101,48 @@ describe("element canvas contract", () => {
       ELEMENT_DEFINITIONS.find(({ type }) => type === "data-table")
         ?.supportedRenderStates,
     ).toEqual(ELEMENT_RENDER_STATES);
+    for (const definition of ELEMENT_DEFINITIONS.slice(6)) {
+      expect(definition.category).toBe("statistics");
+      expect(definition.supportedRenderStates).toEqual(ELEMENT_RENDER_STATES);
+      expect(
+        definition.bindingPorts.some(
+          (port) =>
+            port.required && port.direction === "input" && port.side === "left",
+        ),
+      ).toBe(true);
+      expect(definition.defaultProps).toMatchObject({
+        title: expect.any(String),
+        emptyLabel: expect.any(String),
+      });
+      expect(definition.defaultProps).not.toHaveProperty("previewData");
+      expect(definition.defaultProps).not.toHaveProperty("sampleData");
+    }
+    expect(
+      ELEMENT_DEFINITIONS.find(({ type }) => type === "line-chart")
+        ?.defaultProps,
+    ).toMatchObject({ curve: "monotone", showLegend: true, showGrid: true });
+    expect(
+      ELEMENT_DEFINITIONS.find(({ type }) => type === "histogram")
+        ?.defaultProps,
+    ).toMatchObject({ binCount: 10, showGrid: true });
+    expect(
+      ELEMENT_DEFINITIONS.find(({ type }) => type === "scatter-plot")
+        ?.defaultProps,
+    ).toMatchObject({ showTrendline: false });
+    expect(
+      ELEMENT_DEFINITIONS.find(({ type }) => type === "box-plot")?.defaultProps,
+    ).toMatchObject({ showOutliers: true });
+    expect(
+      ELEMENT_DEFINITIONS.find(({ type }) => type === "summary-statistics")
+        ?.defaultProps,
+    ).toMatchObject({
+      precision: 2,
+      showCount: true,
+      showMean: true,
+      showMedian: true,
+      showStdDev: true,
+      showMin: true,
+      showMax: true,
+    });
   });
 });
