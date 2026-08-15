@@ -16,7 +16,7 @@ describe("WebEditor first frontend slice", () => {
     const minus = screen.getByRole("button", { name: "글꼴 크기 줄이기" });
     const size = screen.getByRole("status", { name: "현재 글꼴 크기" });
     const plus = screen.getByRole("button", { name: "글꼴 크기 늘리기" });
-    const theme = screen.getByRole("combobox", { name: "테마 선택" });
+    const theme = screen.getByRole("button", { name: /테마 선택/ });
 
     expect(
       minus.compareDocumentPosition(size) & Node.DOCUMENT_POSITION_FOLLOWING,
@@ -38,9 +38,10 @@ describe("WebEditor first frontend slice", () => {
       screen.getByRole("status", { name: "현재 글꼴 크기" }),
     ).toHaveTextContent("13px");
 
-    await user.selectOptions(
-      screen.getByRole("combobox", { name: "테마 선택" }),
-      "dark-polar-night",
+    await user.click(screen.getByRole("button", { name: /테마 선택/ }));
+    await user.click(screen.getByRole("tab", { name: /다크/ }));
+    await user.click(
+      screen.getByRole("option", { name: "Polar Night 테마 적용" }),
     );
     const app = container.querySelector(".webeditor-app");
     expect(app).toHaveAttribute("data-theme-id", "dark-polar-night");

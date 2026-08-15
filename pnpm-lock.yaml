@@ -71,6 +71,9 @@ importers:
       "@shadcn/react":
         specifier: ^0.3.0
         version: 0.3.0(@types/react@19.2.18)(react@19.2.8)
+      "@webeditor/theme-core":
+        specifier: workspace:*
+        version: link:../../packages/theme-core
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -164,6 +167,15 @@ importers:
         version: 4.1.10(@types/node@26.2.0)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12))
 
   packages/domain:
+    devDependencies:
+      typescript:
+        specifier: 6.0.3
+        version: 6.0.3
+      vitest:
+        specifier: 4.1.10
+        version: 4.1.10(@types/node@26.2.0)(jsdom@30.0.1)(vite@8.2.1(@types/node@26.2.0)(esbuild@0.28.2)(jiti@2.7.0)(terser@5.50.0)(tsx@4.23.12))
+
+  packages/theme-core:
     devDependencies:
       typescript:
         specifier: 6.0.3

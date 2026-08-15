@@ -7,3 +7,4 @@ data
 webeditor_codex_spec_v3.txt
 webeditor_project_corpus_v3.json
 webeditor_theme_presets_v3.json
+packages/theme-core/src/presets/webeditor-theme-presets.v3.json

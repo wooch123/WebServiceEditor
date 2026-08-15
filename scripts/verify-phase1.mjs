@@ -91,6 +91,7 @@ const DESIGN_SYSTEM_SOURCE = "apps/web/src/DesignSystemGallery.tsx";
 const APP_SOURCE = "apps/web/src/App.tsx";
 const STYLE_SOURCE = "apps/web/src/styles.css";
 const THEME_SOURCE = "apps/web/src/theme.ts";
+const THEME_PICKER_SOURCE = "apps/web/src/ThemePicker.tsx";
 const MOBILE_HOOK_SOURCE = "apps/web/src/hooks/use-mobile.ts";
 const PRODUCT_SOURCE_EXTENSIONS = new Set([
   ".css",
@@ -251,7 +252,11 @@ function extractHeaderControlsSource(appSource) {
 export function inspectHeaderControlStructure(appSource, stylesSource) {
   const componentSource = extractHeaderControlsSource(appSource);
   const fontIndex = componentSource.indexOf('className="font-size-control"');
-  const themeIndex = componentSource.indexOf('className="theme-control"');
+  const themeIndexes = [
+    componentSource.indexOf('className="theme-control"'),
+    componentSource.indexOf("<ThemePicker"),
+  ].filter((index) => index >= 0);
+  const themeIndex = themeIndexes.length > 0 ? Math.min(...themeIndexes) : -1;
   const minusIndex = componentSource.indexOf("<Minus");
   const outputIndex = componentSource.indexOf("<output");
   const plusIndex = componentSource.indexOf("<Plus");
@@ -508,6 +513,11 @@ export async function validatePhase1({
     THEME_SOURCE,
     validation,
   );
+  const themePickerSource = await readRequiredText(
+    repositoryRoot,
+    THEME_PICKER_SOURCE,
+    validation,
+  );
   const manifestThemes = Array.isArray(themeManifest.themes)
     ? themeManifest.themes
     : [];
@@ -530,20 +540,21 @@ export async function validatePhase1({
     );
   }
   validation.check(
-    /from\s+["']\.\.\/\.\.\/\.\.\/webeditor_theme_presets_v3\.json["']/u.test(
-      themeSource,
-    ),
+    themeSource.includes('from "@webeditor/theme-core"') ||
+      /from\s+["']\.\.\/\.\.\/\.\.\/webeditor_theme_presets_v3\.json["']/u.test(
+        themeSource,
+      ),
     "The application imports the canonical theme manifest",
   );
   validation.check(
-    /export\s+const\s+themes\s*=\s*\([^;]*themeManifest[^;]*\)\.themes\s*;/su.test(
-      themeSource,
-    ),
+    /export\s*\{[\s\S]*\bthemes\b[\s\S]*\}/u.test(themeSource) ||
+      /export\s+const\s+themes\s*=\s*\([^;]*themeManifest[^;]*\)\.themes\s*;/su.test(
+        themeSource,
+      ),
     "The application maps the complete canonical theme array",
   );
-  const headerControlsSource = extractHeaderControlsSource(appSource);
   const mappedThemeGroups = [
-    ...headerControlsSource.matchAll(/\bid:\s*["'](dark|gray|light)["']/gu),
+    ...themePickerSource.matchAll(/\bid:\s*["'](dark|gray|light)["']/gu),
   ].map((match) => match[1]);
   validateExactSet(
     validation,
@@ -552,9 +563,10 @@ export async function validatePhase1({
     "Header theme selector groups",
   );
   validation.check(
-    /themes\s*\.filter\s*\(\s*\(theme\)\s*=>\s*theme\.group\s*===\s*group\.id\s*\)\s*\.map\s*\(\s*\(theme\)\s*=>/su.test(
-      headerControlsSource,
-    ) && !headerControlsSource.includes(".slice("),
+    /themes\.filter\s*\(/u.test(themePickerSource) &&
+      /theme\.group\s*===\s*group/u.test(themePickerSource) &&
+      /visibleThemes\.map\s*\(/u.test(themePickerSource) &&
+      !themePickerSource.includes(".slice("),
     "Header theme selector maps every theme in every group without truncation",
   );
 

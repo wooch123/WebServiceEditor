@@ -63,10 +63,24 @@
       "id": "REQ-006",
       "title": "20 dark, 20 gray, 20 light themes",
       "phase": 2,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "packages/theme-core/src/theme.ts",
+        "packages/theme-core/src/theme-revision.ts",
+        "packages/theme-core/src/color-vision.ts",
+        "apps/web/src/ThemePicker.tsx",
+        "apps/web/src/theme.ts"
+      ],
+      "tests": [
+        "packages/theme-core/test/theme-core.test.ts",
+        "apps/web/src/theme.runtime.test.tsx",
+        "scripts/verify-themes.mjs",
+        "scripts/verify-phase2.mjs"
+      ],
+      "evidence": [
+        "artifacts/phase2/theme-runtime-validation.json",
+        "artifacts/phase2/theme-screenshot-baseline.json"
+      ]
     },
     {
       "id": "REQ-007",

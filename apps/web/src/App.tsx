@@ -18,7 +18,6 @@ import {
   Heart,
   LayoutDashboard,
   Minus,
-  Palette,
   Plus,
   Save,
   Search,
@@ -32,7 +31,14 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { CSSProperties } from "react";
-import { lazy, Suspense, useMemo, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -46,14 +52,8 @@ import {
   AlertDialogMedia,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { NativeSelect } from "@/components/ui/native-select";
-
-import {
-  defaultTheme,
-  themes,
-  themeToCssVariables,
-  type ThemeGroup,
-} from "./theme";
+import { ThemePicker } from "./ThemePicker";
+import { defaultTheme, themes, themeToCssVariables } from "./theme";
 
 const DesignSystemGallery = lazy(async () => {
   const gallery = await import("./DesignSystemGallery");
@@ -78,6 +78,7 @@ interface Project {
   elementCount: number;
   tableCount: number;
   trashedAt: string | null;
+  themeId: string;
 }
 
 interface HeaderControlsProps {
@@ -102,6 +103,7 @@ const initialProjects: Project[] = [
     elementCount: 24,
     tableCount: 4,
     trashedAt: null,
+    themeId: "light-clean-paper",
   },
   {
     id: "project-spc-center",
@@ -118,6 +120,7 @@ const initialProjects: Project[] = [
     elementCount: 19,
     tableCount: 3,
     trashedAt: null,
+    themeId: "dark-polar-night",
   },
   {
     id: "project-survey-workbench",
@@ -134,6 +137,7 @@ const initialProjects: Project[] = [
     elementCount: 11,
     tableCount: 2,
     trashedAt: null,
+    themeId: "gray-cool-steel",
   },
 ];
 
@@ -199,12 +203,6 @@ function HeaderControls({
   themeId,
   onThemeChange,
 }: HeaderControlsProps) {
-  const themeGroups: Array<{ id: ThemeGroup; label: string }> = [
-    { id: "dark", label: "다크" },
-    { id: "gray", label: "그레이" },
-    { id: "light", label: "라이트" },
-  ];
-
   return (
     <div className="header-controls" aria-label="화면 표시 설정">
       <div className="font-size-control" aria-label="글꼴 크기">
@@ -235,27 +233,7 @@ function HeaderControls({
         </Button>
       </div>
 
-      <label className="theme-control">
-        <Palette aria-hidden="true" />
-        <span className="sr-only">테마 선택</span>
-        <NativeSelect
-          aria-label="테마 선택"
-          value={themeId}
-          onChange={(event) => onThemeChange(event.target.value)}
-        >
-          {themeGroups.map((group) => (
-            <optgroup key={group.id} label={`${group.label} 20종`}>
-              {themes
-                .filter((theme) => theme.group === group.id)
-                .map((theme) => (
-                  <option key={theme.id} value={theme.id}>
-                    {theme.name}
-                  </option>
-                ))}
-            </optgroup>
-          ))}
-        </NativeSelect>
-      </label>
+      <ThemePicker themeId={themeId} onThemeChange={onThemeChange} />
     </div>
   );
 }
@@ -521,6 +499,7 @@ function HomeSurface({
       elementCount: 0,
       tableCount: 0,
       trashedAt: null,
+      themeId: controls.themeId,
     };
     setProjects([project, ...projects]);
     onOpenProject(project.id);
@@ -1157,12 +1136,49 @@ function ProductApp() {
     fontSize,
     onFontSizeChange: setFontSize,
     themeId,
-    onThemeChange: setThemeId,
+    onThemeChange: (nextThemeId) => {
+      setThemeId(nextThemeId);
+      if (surface === "editor") {
+        setProjects((currentProjects) =>
+          currentProjects.map((project) =>
+            project.id === selectedProjectId
+              ? { ...project, themeId: nextThemeId }
+              : project,
+          ),
+        );
+      }
+    },
   };
   const appStyle = {
     ...themeToCssVariables(selectedTheme),
     "--app-base-font-size": `${fontSize}px`,
   } as CSSProperties;
+
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const variables = themeToCssVariables(selectedTheme);
+    const previousValues = new Map(
+      Object.keys(variables).map((name) => [
+        name,
+        root.style.getPropertyValue(name),
+      ]),
+    );
+    const previousThemeId = root.dataset.webeditorThemeId;
+
+    for (const [name, value] of Object.entries(variables)) {
+      root.style.setProperty(name, value);
+    }
+    root.dataset.webeditorThemeId = selectedTheme.id;
+
+    return () => {
+      for (const [name, value] of previousValues) {
+        if (value) root.style.setProperty(name, value);
+        else root.style.removeProperty(name);
+      }
+      if (previousThemeId) root.dataset.webeditorThemeId = previousThemeId;
+      else delete root.dataset.webeditorThemeId;
+    };
+  }, [selectedTheme]);
 
   return (
     <div
@@ -1182,6 +1198,10 @@ function ProductApp() {
           setProjects={setProjects}
           onOpenProject={(projectId) => {
             setSelectedProjectId(projectId);
+            const project = projects.find(
+              (candidate) => candidate.id === projectId,
+            );
+            if (project) setThemeId(project.themeId);
             setSurface("editor");
           }}
           controls={controls}
