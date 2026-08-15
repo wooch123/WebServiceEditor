@@ -594,6 +594,10 @@ export class ProjectRepository {
       "layout_preset_instances",
       "layout_preset_instance_elements",
       "element_binding_placeholders",
+      "project_binding_states",
+      "bindings",
+      "binding_commands",
+      "binding_history_operations",
     ] as const;
     return tableNames.reduce((total, tableName) => {
       const projectColumn = tableName === "projects" ? "id" : "project_id";

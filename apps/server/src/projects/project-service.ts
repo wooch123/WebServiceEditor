@@ -18,6 +18,7 @@ import {
   type ProjectExportFile,
   type PublishedNavigationPageDto,
   type ProjectTombstoneDto,
+  type RelationshipBindingsExportDto,
   type PurgePlanDto,
   type PurgePlanRequest,
   type PurgeProjectRequest,
@@ -28,6 +29,8 @@ import {
 import { ApiError, assertApi } from "../errors.js";
 import { SchemaRepository } from "../data-schema/schema-repository.js";
 import { parseDataSchemaExport } from "../data-schema/schema-export.js";
+import { RelationshipRepository } from "../data-relationship/relationship-repository.js";
+import { parseRelationshipBindingsExport } from "../data-relationship/relationship-export.js";
 import { LayoutPresetRepository } from "../elements/layout-preset-repository.js";
 import {
   elementDefinition,
@@ -97,6 +100,7 @@ interface ImportableProjectExport {
   readonly publishedVersions: readonly ImportablePublishedVersion[];
   readonly layoutPresetInstances: LayoutPresetInstancesExportDto;
   readonly dataSchema: DataSchemaExportDto;
+  readonly bindings: RelationshipBindingsExportDto;
   readonly files: readonly ProjectExportFile[];
 }
 
@@ -1099,6 +1103,7 @@ export class ProjectService {
   readonly pageRepository: PageRepository;
   readonly elementRepository: LayoutPresetRepository;
   readonly schemaRepository: SchemaRepository;
+  readonly relationshipRepository: RelationshipRepository;
   readonly storage: ProjectStorage;
   readonly #clock: () => Date;
 
@@ -1109,6 +1114,9 @@ export class ProjectService {
       options.metadataDatabase,
     );
     this.schemaRepository = new SchemaRepository(options.metadataDatabase);
+    this.relationshipRepository = new RelationshipRepository(
+      options.metadataDatabase,
+    );
     this.storage = new ProjectStorage(
       options.storageRoot,
       options.failureInjector,
@@ -1352,6 +1360,7 @@ export class ProjectService {
           this.elementRepository.listExportableLayoutPresetInstances(projectId),
       },
       dataSchema: this.schemaRepository.exportDefinition(projectId),
+      bindings: this.relationshipRepository.exportDefinition(projectId),
       publishedVersions: this.pageRepository
         .listVersions(projectId)
         .map((version) => {
@@ -1410,6 +1419,7 @@ export class ProjectService {
     const tableIdMap = new Map<string, string>();
     const fieldIdMap = new Map<string, string>();
     const relationIdMap = new Map<string, string>();
+    const bindingIdMap = new Map<string, string>();
     for (const page of exportDto.pages) {
       pageIdMap.set(page.id, randomUUID());
     }
@@ -1434,6 +1444,9 @@ export class ProjectService {
     }
     for (const relation of exportDto.dataSchema.relations) {
       relationIdMap.set(relation.id, randomUUID());
+    }
+    for (const binding of exportDto.bindings.bindings) {
+      bindingIdMap.set(binding.id, randomUUID());
     }
     this.storage.stageFromExport(id, { ...project, themeId }, exportDto.files);
     const now = this.#now();
@@ -1474,6 +1487,16 @@ export class ProjectService {
             now,
           });
         }
+        this.relationshipRepository.insertImportedDefinition({
+          projectId: id,
+          source: exportDto.bindings,
+          bindingIdMap,
+          pageIdMap,
+          elementIdMap,
+          tableIdMap,
+          fieldIdMap,
+          now,
+        });
         for (const sourceInstance of exportDto.layoutPresetInstances
           .instances) {
           const instanceId = randomUUID();
@@ -1646,6 +1669,17 @@ export class ProjectService {
       manifest?.dataSchema,
       project.id as string,
     );
+    const bindings = parseRelationshipBindingsExport(
+      manifest?.bindings ?? {
+        schemaVersion: 1,
+        graphRevision: 0,
+        bindings: [],
+      },
+      project.id as string,
+      pages,
+      elements,
+      dataSchema,
+    );
     assertApi(
       Array.isArray(record.files) &&
         record.files.length > 0 &&
@@ -1763,6 +1797,7 @@ export class ProjectService {
       publishedVersions,
       layoutPresetInstances,
       dataSchema,
+      bindings,
       files,
     };
   }
@@ -2167,6 +2202,7 @@ export class ProjectService {
         this.repository.setPurgeTombstone(projectId, snapshot.checksum);
         this.repository.putTombstone(tombstone, operationId, plan.id);
         this.pageRepository.deleteOwnedDefinitions(projectId);
+        this.relationshipRepository.deleteOwnedDefinitions(projectId);
         this.schemaRepository.deleteOwnedDefinitions(projectId);
         this.repository.removeTrashManifest(projectId);
         this.repository.consumePurgePlan(plan.id, completedAt);
@@ -2925,7 +2961,7 @@ export class ProjectService {
     const counts: ProjectCounts = {
       pages: this.pageRepository.activeCount(row.id),
       elements: this.elementRepository.activeCountForProject(row.id),
-      bindings: 0,
+      bindings: this.relationshipRepository.activeCount(row.id),
       tables: this.schemaRepository.activeTableCount(row.id),
       assets:
         namespace === "active"
@@ -3115,8 +3151,27 @@ export class ProjectService {
   #definitionChecksum(projectId: string): string {
     const pageDefinition = this.pageRepository.definitionState(projectId);
     const elementDefinition = this.elementRepository.definitionState(projectId);
+    const relationshipDefinition =
+      this.relationshipRepository.definitionState(projectId);
     return createHash("sha256")
-      .update(stableJson({ pageDefinition, elementDefinition }))
+      .update(
+        stableJson({
+          pageDefinition,
+          elementDefinition,
+          relationshipDefinition,
+        }),
+      )
+      .digest("hex");
+  }
+
+  #elementDefinitionChecksum(projectId: string): string {
+    return createHash("sha256")
+      .update(
+        stableJson({
+          pageDefinition: this.pageRepository.definitionState(projectId),
+          elementDefinition: this.elementRepository.definitionState(projectId),
+        }),
+      )
       .digest("hex");
   }
 
@@ -3136,12 +3191,16 @@ export class ProjectService {
       readonly definitionChecksumVersion?: unknown;
     };
     const matches =
-      detail.definitionChecksumVersion === 2
+      detail.definitionChecksumVersion === 3
         ? typeof detail.definitionChecksum === "string" &&
           detail.definitionChecksum === this.#definitionChecksum(projectId)
-        : typeof detail.pageDefinitionChecksum === "string" &&
-          detail.pageDefinitionChecksum ===
-            this.#legacyPageDefinitionChecksum(projectId);
+        : detail.definitionChecksumVersion === 2
+          ? typeof detail.definitionChecksum === "string" &&
+            detail.definitionChecksum ===
+              this.#elementDefinitionChecksum(projectId)
+          : typeof detail.pageDefinitionChecksum === "string" &&
+            detail.pageDefinitionChecksum ===
+              this.#legacyPageDefinitionChecksum(projectId);
     assertApi(
       matches,
       409,
@@ -3213,12 +3272,12 @@ export class ProjectService {
         this.pageRepository.definitionState(project.id)
           .versions as readonly unknown[]
       ).length,
-      definitionChecksumVersion: 2,
+      definitionChecksumVersion: 3,
       definitionChecksum: this.#definitionChecksum(project.id),
       pageDefinitionChecksum: this.#legacyPageDefinitionChecksum(project.id),
       elementCount: this.elementRepository.activeCountForProject(project.id),
-      bindingCount: 0,
-      tableCount: 0,
+      bindingCount: this.relationshipRepository.activeCount(project.id),
+      tableCount: this.schemaRepository.activeTableCount(project.id),
       runtimeRowCount: 0,
       assetCount: snapshot.assetCount,
       files: snapshot.files,

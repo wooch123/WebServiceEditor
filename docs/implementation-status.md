@@ -6,30 +6,28 @@ Overall state: `IN PROGRESS`
 
 ## Current phase
 
-### PHASE 8 — Database Designer
+### PHASE 9 — Data Relationship Canvas
 
 State: `VERIFIED`
 
 Scope:
 
-- Create Table, Field, and Relation definitions through a GUI.
-- Keep editable display names separate from server-owned physical identifiers.
-- Apply an immutable migration plan only to the isolated Test runtime database.
-- Verify backup, row count, foreign keys, integrity, and rollback.
-- Preserve Production, clone/import, and Project lifecycle boundaries.
+- Project active Page, Element, Table, and Field metadata as graph nodes.
+- Enforce left-input and right-output port direction before persistence.
+- Create one durable Binding record from one server-owned connection preview.
+- Render each visual Edge directly from its Binding identity.
+- Preserve delete, Undo/Redo, clone/import, and Project lifecycle boundaries.
 
-Data risk: high. Runtime schema replacement can destroy rows. Physical changes
-require an impact plan, verified backup, explicit destructive confirmation,
-staging database validation, and atomic replacement.
+Data risk: medium. A malformed Binding can make the visual graph inconsistent.
+Preview scope, optimistic revisions, SQLite direction constraints, topology
+checks, and lifecycle-aware endpoint handling fail closed.
 
 Test plan:
 
-- Validate eight Field types, three templates, relation ownership, optimistic
-  revisions, idempotency, and physical-name request rejection.
-- Apply real SQLite schema changes while preserving compatible rows and the
-  byte-identical Production database.
-- Inject apply failures and restart interrupted journals from a verified backup.
-- Verify clone, export/import, trash, restart, restore, and purge ownership.
+- Validate exact Page, Element, and Table node inventories and port sides.
+- Reject reversed, stale, duplicate, incompatible, and orphaned connections.
+- Prove Preview-to-Binding-to-visual-Edge identity is exactly one-to-one.
+- Verify delete, Undo/Redo, restart, clone/import remap, trash, and restore.
 
 ## Phase ledger
 
@@ -44,7 +42,8 @@ Test plan:
 | 6     | VERIFIED    | Registry, Property Inspector, Runtime renderer, Undo/Redo     |
 | 7     | VERIFIED    | Statistical Elements and real Layout Preset instances         |
 | 8     | VERIFIED    | GUI schema design and isolated Test SQLite migration          |
-| 9–23  | NOT STARTED | Must follow sequentially                                      |
+| 9     | VERIFIED    | Directional ports and durable Binding-backed visual Edges     |
+| 10–23 | NOT STARTED | Must follow sequentially                                      |
 
 ## Phase 0 evidence
 
@@ -204,6 +203,27 @@ Test plan:
   display-name edits preserve physical names; relationship and Test apply PASS
 - Browser QA at 419px: document width remains 419px, same-level controls retain
   equal geometry, and the Field grid owns horizontal overflow
+
+## Phase 9 evidence
+
+- Static, behavioral, browser, and Phase 0–8 regression audit:
+  `artifacts/phase9/data-relationship-canvas-validation.json`
+- Metadata migration v8: Project graph revisions, Binding records, idempotent
+  commands, and durable Binding history
+- Domain unit: 12/12; Server unit: 36/36; Server integration: 63/63; Web:
+  137/137
+- Page, Element, and Table nodes expose deterministic left-input/right-output
+  ports; SQLite rejects reversed and duplicate active endpoints
+- Server-owned Preview creates one Binding and one labelled arrow Edge with the
+  same stable ID; forbidden directions leave the Binding count unchanged
+- Delete, Undo/Redo, restart, clone/import ID remap, trash, restore, soft endpoint
+  deletion, and fail-closed orphan detection PASS
+- Browser QA at 1280×720: three node types, twelve ports, equal four-action
+  toolbar, equal mode controls, equal dialog actions, and exact Edge identity
+- Browser QA at 419px: document width remains 419px, graph overflow stays local,
+  and all four actions remain reachable at equal 395×40 geometry
+- Project Home Backup label has the same left coordinate and alignment as all
+  sibling navigation items
 
 ## Deferred operational hardening
 

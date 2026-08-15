@@ -1,5 +1,6 @@
 import {
   ArrowLeft,
+  ArrowRight,
   Blocks,
   Check,
   ChevronRight,
@@ -18,7 +19,9 @@ import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { DatabaseDesigner } from "@/features/data-schema/DatabaseDesigner";
+import { RelationshipCanvas } from "@/features/data-relationship/RelationshipCanvas";
 import {
   CanvasControls,
   ElementCanvas,
@@ -166,6 +169,7 @@ function EditorSurface({
     Record<string, number>
   >({});
   const [saved, setSaved] = useState(true);
+  const [dataView, setDataView] = useState<"schema" | "relationship">("schema");
 
   const steps: Array<{
     id: EditorStep;
@@ -270,6 +274,22 @@ function EditorSurface({
               </div>
               {step === "page" ? (
                 <CanvasControls />
+              ) : step === "data" ? (
+                <ToggleGroup
+                  type="single"
+                  variant="outline"
+                  value={dataView}
+                  onValueChange={(value) => {
+                    if (value === "schema" || value === "relationship") {
+                      setDataView(value);
+                    }
+                  }}
+                  className="data-view-toggle"
+                  aria-label="데이터 화면"
+                >
+                  <ToggleGroupItem value="schema">스키마</ToggleGroupItem>
+                  <ToggleGroupItem value="relationship">관계</ToggleGroupItem>
+                </ToggleGroup>
               ) : (
                 <span className="zoom-indicator">100%</span>
               )}
@@ -283,8 +303,15 @@ function EditorSurface({
                   <span>빈 페이지 추가</span>
                 </div>
               ))}
-            {step === "data" && (
+            {step === "data" && dataView === "schema" && (
               <DatabaseDesigner
+                projectId={project.id}
+                projectRevision={project.revision}
+                onProjectRevisionChange={onProjectRevisionChange}
+              />
+            )}
+            {step === "data" && dataView === "relationship" && (
+              <RelationshipCanvas
                 projectId={project.id}
                 projectRevision={project.revision}
                 onProjectRevisionChange={onProjectRevisionChange}
@@ -302,13 +329,15 @@ function EditorSurface({
                   {step === "page"
                     ? "속성"
                     : step === "data"
-                      ? "연결 정보"
+                      ? dataView === "schema"
+                        ? "스키마"
+                        : "Binding"
                       : "검증 요약"}
                 </strong>
               </div>
             </div>
             {step === "page" && <ElementPropertyInspector />}
-            {step === "data" && (
+            {step === "data" && dataView === "schema" && (
               <div className="inspector-summary">
                 <span>
                   <Database aria-hidden="true" />
@@ -317,6 +346,18 @@ function EditorSurface({
                 <span>
                   <Waypoints aria-hidden="true" />
                   관계
+                </span>
+              </div>
+            )}
+            {step === "data" && dataView === "relationship" && (
+              <div className="inspector-summary">
+                <span>
+                  <Waypoints aria-hidden="true" />
+                  Page · Element · Table
+                </span>
+                <span>
+                  <ArrowRight aria-hidden="true" />
+                  Output → Input
                 </span>
               </div>
             )}

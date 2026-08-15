@@ -6,7 +6,7 @@ import { PROJECT_LIFECYCLE_STATUSES } from "@webeditor/domain";
 import Database from "better-sqlite3";
 
 const METADATA_APPLICATION_ID = 0x57454245;
-export const LATEST_METADATA_SCHEMA_VERSION = 7;
+export const LATEST_METADATA_SCHEMA_VERSION = 8;
 
 const lifecycleSqlValues = PROJECT_LIFECYCLE_STATUSES.map(
   (status) => `'${status}'`,
@@ -919,6 +919,146 @@ export const DATABASE_DESIGNER_SCHEMA_CHECKSUM = createHash("sha256")
   .update(databaseDesignerSchemaSql)
   .digest("hex");
 
+const dataRelationshipCanvasSchemaSql = `
+  CREATE TABLE project_binding_states (
+    project_id TEXT PRIMARY KEY NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    graph_revision INTEGER NOT NULL DEFAULT 0
+      CHECK (graph_revision >= 0 AND typeof(graph_revision) = 'integer'),
+    updated_at TEXT NOT NULL
+  );
+  INSERT INTO project_binding_states (project_id, updated_at)
+    SELECT id, updated_at FROM projects;
+  CREATE TRIGGER projects_initialize_binding_state
+    AFTER INSERT ON projects
+    BEGIN
+      INSERT INTO project_binding_states (project_id, updated_at)
+      VALUES (NEW.id, NEW.updated_at);
+    END;
+
+  CREATE TABLE bindings (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    binding_type TEXT NOT NULL CHECK (
+      binding_type IN (
+        'CONTAINS', 'READ', 'CREATE', 'UPDATE', 'DELETE',
+        'FILTER', 'NAVIGATE', 'RELATION'
+      )
+    ),
+    source_node_type TEXT NOT NULL CHECK (
+      source_node_type IN ('page', 'element', 'table')
+    ),
+    source_object_id TEXT NOT NULL,
+    source_node_id TEXT NOT NULL,
+    source_port_id TEXT NOT NULL,
+    source_port_role TEXT NOT NULL,
+    source_side TEXT NOT NULL CHECK (source_side = 'right'),
+    source_direction TEXT NOT NULL CHECK (source_direction = 'output'),
+    source_value_type TEXT NOT NULL,
+    target_node_type TEXT NOT NULL CHECK (
+      target_node_type IN ('page', 'element', 'table')
+    ),
+    target_object_id TEXT NOT NULL,
+    target_node_id TEXT NOT NULL,
+    target_port_id TEXT NOT NULL,
+    target_port_role TEXT NOT NULL,
+    target_side TEXT NOT NULL CHECK (target_side = 'left'),
+    target_direction TEXT NOT NULL CHECK (target_direction = 'input'),
+    target_value_type TEXT NOT NULL,
+    query_json TEXT NOT NULL CHECK (
+      json_valid(query_json) AND json_type(query_json) = 'object'
+    ),
+    mapping_json TEXT NOT NULL CHECK (
+      json_valid(mapping_json) AND json_type(mapping_json) = 'object'
+    ),
+    status TEXT NOT NULL CHECK (status IN ('READY', 'DISABLED')),
+    revision INTEGER NOT NULL DEFAULT 1
+      CHECK (revision >= 1 AND typeof(revision) = 'integer'),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT,
+    UNIQUE(id, project_id)
+  );
+  CREATE UNIQUE INDEX bindings_active_endpoints_idx
+    ON bindings(project_id, source_port_id, target_port_id)
+    WHERE deleted_at IS NULL;
+  CREATE INDEX bindings_project_active_idx
+    ON bindings(project_id, deleted_at, created_at, id);
+  CREATE INDEX bindings_source_active_idx
+    ON bindings(project_id, source_port_id, deleted_at);
+  CREATE INDEX bindings_target_active_idx
+    ON bindings(project_id, target_port_id, deleted_at);
+
+  CREATE TABLE binding_commands (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    binding_id TEXT NOT NULL,
+    command_type TEXT NOT NULL CHECK (
+      command_type IN ('CREATE_BINDING', 'UPDATE_BINDING', 'DELETE_BINDING')
+    ),
+    idempotency_key TEXT NOT NULL,
+    request_hash TEXT NOT NULL CHECK (
+      length(request_hash) = 64 AND request_hash = lower(request_hash) AND
+      request_hash NOT GLOB '*[^0-9a-f]*'
+    ),
+    before_json TEXT CHECK (before_json IS NULL OR json_valid(before_json)),
+    after_json TEXT CHECK (after_json IS NULL OR json_valid(after_json)),
+    response_status INTEGER NOT NULL CHECK (
+      response_status BETWEEN 200 AND 499 AND typeof(response_status) = 'integer'
+    ),
+    response_json TEXT NOT NULL CHECK (json_valid(response_json)),
+    before_graph_revision INTEGER NOT NULL CHECK (
+      before_graph_revision >= 0 AND typeof(before_graph_revision) = 'integer'
+    ),
+    after_graph_revision INTEGER NOT NULL CHECK (
+      after_graph_revision >= 0 AND typeof(after_graph_revision) = 'integer'
+    ),
+    history_state TEXT CHECK (
+      history_state IS NULL OR history_state IN ('APPLIED', 'UNDONE', 'DISCARDED')
+    ),
+    history_sequence INTEGER CHECK (
+      history_sequence IS NULL OR (
+        history_sequence >= 1 AND typeof(history_sequence) = 'integer'
+      )
+    ),
+    history_updated_at TEXT,
+    created_at TEXT NOT NULL,
+    UNIQUE(project_id, idempotency_key),
+    FOREIGN KEY (binding_id, project_id)
+      REFERENCES bindings(id, project_id) ON DELETE CASCADE
+  );
+  CREATE UNIQUE INDEX binding_commands_history_sequence_idx
+    ON binding_commands(project_id, history_sequence)
+    WHERE history_sequence IS NOT NULL;
+  CREATE INDEX binding_commands_history_idx
+    ON binding_commands(project_id, history_state, history_sequence, id);
+
+  CREATE TABLE binding_history_operations (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    command_id TEXT,
+    requested_command_id TEXT NOT NULL,
+    operation_type TEXT NOT NULL CHECK (operation_type IN ('UNDO', 'REDO')),
+    idempotency_key TEXT NOT NULL,
+    request_hash TEXT NOT NULL CHECK (
+      length(request_hash) = 64 AND request_hash = lower(request_hash) AND
+      request_hash NOT GLOB '*[^0-9a-f]*'
+    ),
+    response_status INTEGER NOT NULL CHECK (
+      response_status BETWEEN 200 AND 499 AND typeof(response_status) = 'integer'
+    ),
+    response_json TEXT NOT NULL CHECK (json_valid(response_json)),
+    created_at TEXT NOT NULL,
+    UNIQUE(project_id, idempotency_key),
+    FOREIGN KEY (command_id) REFERENCES binding_commands(id) ON DELETE SET NULL
+  );
+  CREATE INDEX binding_history_operations_project_idx
+    ON binding_history_operations(project_id, created_at, id);
+`;
+
+export const DATA_RELATIONSHIP_CANVAS_SCHEMA_CHECKSUM = createHash("sha256")
+  .update(dataRelationshipCanvasSchemaSql)
+  .digest("hex");
+
 const metadataMigrations = [
   {
     checksum: INITIAL_METADATA_SCHEMA_CHECKSUM,
@@ -961,6 +1101,12 @@ const metadataMigrations = [
     name: "database-designer-runtime-schema",
     sql: databaseDesignerSchemaSql,
     version: 7,
+  },
+  {
+    checksum: DATA_RELATIONSHIP_CANVAS_SCHEMA_CHECKSUM,
+    name: "data-relationship-canvas",
+    sql: dataRelationshipCanvasSchemaSql,
+    version: 8,
   },
 ] as const;
 

@@ -6,6 +6,7 @@ import {
   SchemaService,
   type SchemaFailurePoint,
 } from "./data-schema/schema-service.js";
+import { RelationshipService } from "./data-relationship/relationship-service.js";
 import {
   ElementService,
   type ElementFailureInjector,
@@ -24,6 +25,7 @@ import { registerLayoutPresetRoutes } from "./routes/layout-presets.js";
 import { registerPageRoutes } from "./routes/pages.js";
 import { registerSystemRoutes } from "./routes/system.js";
 import { registerDataSchemaRoutes } from "./routes/data-schema.js";
+import { registerDataRelationshipRoutes } from "./routes/data-relationship.js";
 
 export interface BuildServerOptions {
   readonly logger?: boolean;
@@ -79,6 +81,10 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
     ...(options.schemaFailureInjector === undefined
       ? {}
       : { failureInjector: options.schemaFailureInjector }),
+    ...(options.clock === undefined ? {} : { clock: options.clock }),
+  });
+  const relationshipService = new RelationshipService({
+    metadataDatabase,
     ...(options.clock === undefined ? {} : { clock: options.clock }),
   });
 
@@ -141,6 +147,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   void app.register(registerElementRoutes, { elementService });
   void app.register(registerLayoutPresetRoutes, { layoutPresetService });
   void app.register(registerDataSchemaRoutes, { schemaService });
+  void app.register(registerDataRelationshipRoutes, { relationshipService });
 
   return app;
 }

@@ -4411,3 +4411,361 @@ svg {
     transition: none !important;
   }
 }
+
+/* Phase 9: Data Relationship Canvas */
+.data-view-toggle {
+  display: grid;
+  width: 12rem;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.data-view-toggle [data-slot="toggle-group-item"] {
+  width: 100%;
+  min-height: var(--control-height);
+  border-radius: var(--control-radius);
+}
+
+.relationship-workspace {
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  height: 100%;
+  grid-template-rows: auto auto minmax(0, 1fr) auto;
+  gap: 0.75rem;
+  padding: 1rem;
+  overflow: hidden;
+  background: var(--background);
+}
+
+.relationship-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+}
+
+.relationship-toolbar > div:first-child {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.relationship-toolbar > div:first-child span {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+.relationship-toolbar-actions {
+  display: grid;
+  width: min(100%, 31rem);
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.relationship-toolbar-actions > *,
+.relationship-dialog-actions > * {
+  width: 100%;
+  min-height: var(--control-height);
+  border-radius: var(--control-radius);
+}
+
+.relationship-loading {
+  display: flex;
+  min-height: 18rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  color: var(--muted-foreground);
+}
+
+.relationship-loading svg {
+  width: 1rem;
+  height: 1rem;
+  animation: spin 0.8s linear infinite;
+}
+
+.relationship-viewport {
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background:
+    linear-gradient(var(--canvas-grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--canvas-grid) 1px, transparent 1px),
+    var(--canvas);
+  background-size: 24px 24px;
+  overscroll-behavior: contain;
+}
+
+.relationship-canvas {
+  position: relative;
+  isolation: isolate;
+}
+
+.relationship-edges {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.relationship-edges marker path {
+  fill: var(--edge);
+}
+
+.relationship-edge {
+  outline: none;
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+.relationship-edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+}
+
+.relationship-edge-line,
+.relationship-edge-preview {
+  fill: none;
+  stroke: var(--edge);
+  stroke-width: 2;
+  stroke-linejoin: round;
+}
+
+.relationship-edge-preview {
+  stroke: var(--edge-selected);
+  stroke-dasharray: 7 5;
+  pointer-events: none;
+}
+
+.relationship-edge text {
+  fill: var(--foreground);
+  stroke: var(--canvas);
+  stroke-width: 4px;
+  paint-order: stroke;
+  font-size: 11px;
+  font-weight: 700;
+  text-anchor: middle;
+}
+
+.relationship-edge:hover .relationship-edge-line,
+.relationship-edge:focus-visible .relationship-edge-line,
+.relationship-edge.is-selected .relationship-edge-line {
+  stroke: var(--edge-selected);
+  stroke-width: 3;
+}
+
+.relationship-node {
+  position: absolute;
+  z-index: 1;
+  overflow: visible;
+  border-color: var(--node-border);
+  background: var(--node);
+  color: var(--node-foreground);
+  box-shadow: var(--shadow-sm);
+}
+
+.relationship-node [data-slot="card-header"] {
+  display: grid;
+  min-height: 4rem;
+  grid-template-columns: 2rem minmax(0, 1fr);
+  grid-template-rows: auto auto;
+  align-items: center;
+  gap: 0.1rem 0.5rem;
+}
+
+.relationship-node [data-slot="card-title"],
+.relationship-node [data-slot="card-description"] {
+  grid-column: 2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.relationship-node-icon {
+  display: inline-flex;
+  width: 2rem;
+  height: 2rem;
+  grid-row: 1 / span 2;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-md);
+  background: var(--muted);
+}
+
+.relationship-node-icon svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+.relationship-port-content {
+  position: relative;
+  min-height: 3.5rem;
+  padding: 0;
+}
+
+.relationship-port-column {
+  position: absolute;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.relationship-port-column.is-input {
+  left: -0.7rem;
+  align-items: flex-start;
+}
+
+.relationship-port-column.is-output {
+  right: -0.7rem;
+  align-items: flex-end;
+}
+
+.relationship-port {
+  display: flex;
+  min-width: 5.5rem;
+  height: 1.6rem;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.25rem;
+  border: 1px solid var(--node-border);
+  border-radius: 999px;
+  padding: 0.15rem 0.35rem;
+  color: var(--node-foreground);
+  background: var(--node);
+  font-size: 0.64rem;
+  white-space: nowrap;
+}
+
+.relationship-port.is-compatible,
+.relationship-port.is-active,
+.relationship-port:focus-visible {
+  border-color: var(--selection);
+  outline: 2px solid var(--selection);
+  outline-offset: 1px;
+}
+
+.relationship-port-marker {
+  display: inline-flex;
+  width: 0.8rem;
+  flex: 0 0 0.8rem;
+  align-items: center;
+  justify-content: center;
+  color: var(--primary);
+  font-size: 0.62rem;
+}
+
+.relationship-port-marker::before {
+  width: 0;
+  height: 0;
+  border-top: 0.28rem solid transparent;
+  border-bottom: 0.28rem solid transparent;
+  content: "";
+}
+
+.relationship-port.is-input .relationship-port-marker::before {
+  border-right: 0.42rem solid currentcolor;
+}
+
+.relationship-port.is-output .relationship-port-marker::before {
+  border-left: 0.42rem solid currentcolor;
+}
+
+.relationship-selection {
+  display: grid;
+  min-height: var(--control-height);
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 7rem;
+  align-items: center;
+  gap: 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.5rem;
+  background: var(--card);
+}
+
+.relationship-selection > div,
+.relationship-selection > span {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.relationship-selection > span {
+  color: var(--muted-foreground);
+}
+
+.relationship-selection svg {
+  width: 1rem;
+  height: 1rem;
+  flex: 0 0 auto;
+}
+
+.relationship-selection [data-slot="button"] {
+  width: 100%;
+  min-height: var(--control-height);
+}
+
+.relationship-dialog-actions {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+@media (max-width: 900px) {
+  .relationship-workspace {
+    min-height: 42rem;
+    overflow: auto;
+  }
+
+  .relationship-toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .relationship-toolbar-actions {
+    width: 100%;
+  }
+
+  .relationship-viewport {
+    min-height: 30rem;
+  }
+}
+
+@media (max-width: 520px) {
+  .data-view-toggle {
+    width: min(100%, 12rem);
+  }
+
+  .relationship-workspace {
+    padding: 0.75rem;
+  }
+
+  .relationship-toolbar-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .relationship-toolbar-actions > * {
+    width: 100%;
+  }
+
+  .relationship-selection {
+    grid-template-columns: 1fr;
+  }
+
+  .relationship-selection > * {
+    width: 100%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .relationship-loading svg,
+  .relationship-edge-preview {
+    animation: none;
+  }
+}
