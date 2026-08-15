@@ -1,0 +1,37 @@
+{
+  "name": "webeditor",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.19.0",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel --filter @webeditor/server --filter @webeditor/web dev",
+    "build": "pnpm -r --if-present build",
+    "format": "prettier --check .",
+    "format:write": "prettier --write .",
+    "lint": "eslint .",
+    "typecheck": "pnpm -r --if-present typecheck",
+    "unit": "pnpm -r --if-present test:unit",
+    "integration": "pnpm --filter @webeditor/server test:integration",
+    "component": "pnpm --filter @webeditor/web test:component",
+    "e2e": "playwright test",
+    "test": "pnpm format && pnpm lint && pnpm typecheck && pnpm unit && pnpm integration && pnpm component && pnpm build",
+    "verify:phase0": "pnpm test && node scripts/verify-phase0.mjs",
+    "verify:themes": "node scripts/verify-themes.mjs",
+    "verify:corpus": "node scripts/verify-corpus.mjs",
+    "verify:release": "node scripts/verify-release.mjs"
+  },
+  "devDependencies": {
+    "@eslint/js": "10.0.1",
+    "@playwright/test": "1.62.1",
+    "@types/node": "26.2.0",
+    "eslint": "10.8.1",
+    "globals": "17.11.0",
+    "prettier": "3.9.6",
+    "typescript": "6.0.3",
+    "typescript-eslint": "8.67.0"
+  }
+}

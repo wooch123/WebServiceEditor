@@ -1,0 +1,149 @@
+﻿WEBEDITOR CODEX SPECIFICATION v3.0
+CHANGE SUMMARY
+
+작성 기준일: 2026-08-15
+기준 원문: Web Server 설계.txt
+통합 대상: 원문 요구사항 + 대화에서 접수된 추가 요구사항 10개
+최종 명세서: webeditor_codex_spec_v3.txt
+
+======================================================================
+1. 핵심 변경
+======================================================================
+
+1) 운영 화면의 Page Navigation을 왼쪽에 고정
+- Editor Page 순서, 이름, Lucide Icon을 Published Runtime의 왼쪽 Navigation과 동기화
+- Active/Selected, Collapse, Deep Link, Browser History 포함
+
+2) Node 연결 방향과 Port 위치 확정
+- 왼쪽: Input/Target Port
+- 오른쪽: Output/Source Port
+- 허용 방향 사전 검증
+- Arrow, Edge Label, 선택 흐름으로 방향 시각화
+
+3) Page Icon과 검색형 Icon Picker
+- 각 Page 이름 왼쪽에 Lucide Icon
+- Editor에서 Icon 클릭 시 Popup
+- 검색, Keyboard 이동, Virtualized Grid, 저장, Runtime 반영
+
+4) Editor Theme와 Runtime Theme 연동
+- Editor Theme 변경은 검증된 Published Theme Revision으로 운영 화면에 반영
+- Runtime 사용자는 허용 Theme 중 개인 선택
+- Project/Browser/Profile별 Local Preference 유지
+- 삭제·비허용 Theme는 Project Default로 Fallback
+
+5) Node Edge 형상
+- 수평·수직 직교 Segment 중심
+- Bend에 작은 Corner Radius
+- Node Avoidance, 불필요한 Bend 최소화, Node 이동 후 Re-route
+
+6) Element 배치 Preview
+- Drop 전 실제 Grid 위치와 기본 크기 표시
+- Collision Resolution 결과를 Preview에 반영
+- Preview와 Commit이 동일 Placement Candidate를 사용
+- x/y/w/h 및 가능/불가능 상태 검증
+
+7) 60개 Research-driven Theme
+- Dark 20 / Gray 20 / Light 20
+- Nord, Solarized, Catppuccin, Dracula, GitHub Primer, IBM Carbon,
+  Material 3, Radix Colors, Gruvbox, Tokyo Night, Rosé Pine,
+  Everforest, Ayu, Night Owl, One Dark/Light, Kanagawa 등을 참고
+- 원본 Pixel Copy가 아니라 WebEditor Semantic Token으로 재설계
+- License/Attribution은 구현 시 공식 Source 기준 재검토
+- 별도 JSON Manifest 제공
+
+8) 전수 검증
+- Requirement, Page, Layout, Element, Property, Event, Binding, Port,
+  Theme, Lifecycle, API, Browser/Viewport Inventory 생성
+- 필수 Inventory Coverage 100%
+- 필수 FAIL/BLOCKED/SKIP/TODO/EXPECTED FAIL 0
+- 자동 Test와 수동 시각·사용성 검증 병행
+
+9) 정확히 100개 실제 Project 운용 검증
+- 8개 Category, 100개 고유 Structure Fingerprint
+- 60개 Theme, 모든 Page/Layout/Element/Binding Coverage
+- 각 Project Create/Edit/Save/Reload/Restart/Preview/Publish/Runtime/
+  Data/Navigation/Theme/Trash/Restore 검증
+- 100/100 PASS, Cross-project Leak 0, Orphan 0
+- 별도 JSON Corpus Manifest 제공
+
+10) Project Recycle Bin
+- 일반 삭제는 Soft Delete
+- Active 목록에서 제거, Runtime 차단
+- Recycle Bin에서 완전 Restore
+- 이름/Slug Conflict 처리
+- Permanent Purge는 Recycle Bin에서만 강한 확인 후 실행
+- Lifecycle Journal, Manifest, Checksum, Audit, Startup Recovery
+- Trash와 Backup 분리
+
+======================================================================
+2. 요구사항 및 구현 구조
+======================================================================
+
+통합 Requirement: REQ-001 ~ REQ-037
+Codex Phase: PHASE 0 ~ PHASE 23
+최종 완료 상태: OPERATIONALLY VERIFIED 또는 RELEASED
+완료 Gate:
+- Requirement Coverage 100%
+- Required Inventory Coverage 100%
+- Theme 60/60 PASS
+- Project Corpus 100/100 PASS
+- Critical/High Defect 0
+- Required FAIL/BLOCKED/SKIP 0
+- Windows Deployment/Recovery PASS
+
+======================================================================
+3. Theme Manifest 검증 요약
+======================================================================
+
+Theme 수: 60
+Dark/Gray/Light: 20/20/20
+고유 Token Hash: 60
+Theme Manifest SHA-256: 219f50d70b57fe7d94243a3b53dd9d5d061c10523ce1eaac4013bde338074272
+
+자동 산출 최소값:
+- Background 일반 Text Contrast: 10.82:1
+- Muted Text Contrast: 4.50:1
+- Primary Text Contrast: 4.71:1
+- Focus Ring Contrast: 3.00:1
+- Input Boundary Contrast: 3.01:1
+- Chart Series 최소 Background Contrast: 3.00:1
+
+주의:
+- 위 값은 Manifest 생성 단계의 자동 계산 결과다.
+- 실제 Browser Rendering, Font Weight, 상태 조합, 색각 시뮬레이션은 구현 후 전수 검증한다.
+
+======================================================================
+4. 100 Project Corpus 검증 요약
+======================================================================
+
+Project 수: 100
+고유 Structure Fingerprint: 100
+Corpus Manifest SHA-256: c5b07adde2715c4a2977b13287ce670eec1b6d33277d8199c78d45edfa3e57bb
+
+Category:
+- Minimal: 10
+- Dashboard: 20
+- Statistics: 20
+- CRUD: 15
+- Navigation: 15
+- Complex Graph: 10
+- Accessibility: 5
+- Stress/Recovery: 5
+
+Coverage:
+- Theme: 60/60
+- Page Type: 12/12
+- Layout Preset: 22/22
+- Element Type: 55/55
+- Binding Type: 11/11
+
+======================================================================
+5. 제공 파일
+======================================================================
+
+- webeditor_codex_spec_v3.txt
+- webeditor_theme_presets_v3.json
+- webeditor_project_corpus_v3.json
+- webeditor_v3_change_summary.txt
+- webeditor_codex_spec_v3.sha256.txt
+- webeditor_codex_spec_v3.zip

@@ -1,0 +1,339 @@
+{
+  "schemaVersion": 1,
+  "generatedFor": "WebEditor v3.0",
+  "requirements": [
+    {
+      "id": "REQ-001",
+      "title": "Statistics visual web-service builder",
+      "phase": 0,
+      "status": "IN PROGRESS",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-002",
+      "title": "shadcn/ui product UI",
+      "phase": 1,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-003",
+      "title": "Repository shadcn skill",
+      "phase": 1,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-004",
+      "title": "Lucide-only general icons",
+      "phase": 1,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-005",
+      "title": "Top-right theme control",
+      "phase": 1,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-006",
+      "title": "20 dark, 20 gray, 20 light themes",
+      "phase": 2,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-007",
+      "title": "Font size control",
+      "phase": 1,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-008",
+      "title": "Guided three-step workflow",
+      "phase": 4,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-009",
+      "title": "Double-click page rename",
+      "phase": 4,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-010",
+      "title": "Page drag reorder and dangling overlay",
+      "phase": 4,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-011",
+      "title": "Red page trash control",
+      "phase": 4,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-012",
+      "title": "Statistical layout presets",
+      "phase": 7,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-013",
+      "title": "Palette drag and grid snap",
+      "phase": 5,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-014",
+      "title": "Eight-direction element resize",
+      "phase": 5,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-015",
+      "title": "Right property inspector",
+      "phase": 6,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-016",
+      "title": "Class-diagram data designer",
+      "phase": 9,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-017",
+      "title": "Movable graph nodes and auto layout",
+      "phase": 10,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-018",
+      "title": "Real sample-data I/O validation",
+      "phase": 11,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-019",
+      "title": "Local PC HTTPS deployment",
+      "phase": 22,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-020",
+      "title": "Published runtime left navigation",
+      "phase": 4,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-021",
+      "title": "Page Lucide icons",
+      "phase": 4,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-022",
+      "title": "Searchable page icon picker",
+      "phase": 4,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-023",
+      "title": "Left input/right output ports",
+      "phase": 9,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-024",
+      "title": "Directional edge visualization",
+      "phase": 9,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-025",
+      "title": "Orthogonal rounded edges",
+      "phase": 10,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-026",
+      "title": "Pre-drop position and size preview",
+      "phase": 5,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-027",
+      "title": "Validated editor-to-runtime theme revision",
+      "phase": 15,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-028",
+      "title": "Runtime theme selection",
+      "phase": 15,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-029",
+      "title": "Browser-local runtime theme preference",
+      "phase": 15,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-030",
+      "title": "Research-driven theme provenance",
+      "phase": 2,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-031",
+      "title": "Exhaustive feature inventory verification",
+      "phase": 19,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-032",
+      "title": "100-project operational verification",
+      "phase": 21,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-033",
+      "title": "Project soft delete to recycle bin",
+      "phase": 3,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-034",
+      "title": "Full project restore",
+      "phase": 3,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-035",
+      "title": "Recycle-bin-only permanent purge",
+      "phase": 3,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-036",
+      "title": "Persistent lifecycle audit and recovery",
+      "phase": 3,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    },
+    {
+      "id": "REQ-037",
+      "title": "No mock, placeholder, TODO, or disabled completion",
+      "phase": 23,
+      "status": "NOT STARTED",
+      "implementation": [],
+      "tests": [],
+      "evidence": []
+    }
+  ]
+}

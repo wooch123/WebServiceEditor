@@ -1,0 +1,14 @@
+﻿WEBEDITOR v3.0 ARTIFACT SHA-256
+Generated: 2026-08-15
+
+e63196785f71e134a895aae2efde9e15954beccf330a4cc7f3cfacebcd18f76b  webeditor_codex_spec_v3.txt  (216942 bytes)
+3c015925c48318b25ee1adb61021b924306f07c859efbbbb396bde4c69b2bb98  webeditor_theme_presets_v3.json  (172303 bytes)
+fcbd357c5fe98b21c80ba26e96337864d08c3561849e1300109820ec62680fce  webeditor_project_corpus_v3.json  (209800 bytes)
+904c8477f5cebdc0d21381de0709041e18d0c7da4ed6f98cc3baea5b7eeeee45  webeditor_v3_change_summary.txt  (5326 bytes)
+f3e3a66dd57e4da7fbc49dc156f3c9b2b43c85593a9e35af3150b6d28c029896  source_web_server_design.txt  (3099 bytes)
+
+Specification lines: 6599
+Requirement IDs: 37
+Theme presets: 60 (20 dark / 20 gray / 20 light)
+Project corpus: 100
+Unique project fingerprints: 100
