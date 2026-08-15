@@ -1,4 +1,5 @@
 import themeManifestSource from "./presets/webeditor-theme-presets.v3.json" with { type: "json" };
+import additionalThemeManifestSource from "./presets/webeditor-theme-presets.extension.v1.json" with { type: "json" };
 
 export const THEME_GROUPS = ["dark", "gray", "light"] as const;
 
@@ -104,8 +105,20 @@ export interface ThemeManifest {
   readonly manifestSha256: string;
 }
 
+export interface AdditionalThemeManifest {
+  readonly schemaVersion: "1.0.0";
+  readonly generatedFor: string;
+  readonly generatedAt: string;
+  readonly themes: readonly WebEditorTheme[];
+  readonly manifestSha256: string;
+}
+
 export const themeManifest = themeManifestSource as unknown as ThemeManifest;
-export const themes = themeManifest.themes;
+export const canonicalThemes = themeManifest.themes;
+export const additionalThemeManifest =
+  additionalThemeManifestSource as unknown as AdditionalThemeManifest;
+export const additionalThemes = additionalThemeManifest.themes;
+export const themes = [...canonicalThemes, ...additionalThemes] as const;
 
 export const defaultTheme = (() => {
   const candidate =

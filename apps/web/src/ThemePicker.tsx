@@ -117,7 +117,9 @@ export function ThemePicker({
             {themeGroups.map((item) => (
               <TabsTrigger key={item.id} value={item.id}>
                 {item.label}
-                <span>20</span>
+                <span>
+                  {themes.filter((theme) => theme.group === item.id).length}
+                </span>
               </TabsTrigger>
             ))}
           </TabsList>

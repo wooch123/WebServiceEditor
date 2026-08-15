@@ -1,35 +1,35 @@
 # Implementation status
 
-Updated: 2026-08-15 (Asia/Seoul)
+Updated: 2026-08-16 (Asia/Seoul)
 
 Overall state: `IN PROGRESS`
 
 ## Current phase
 
-### PHASE 4 — Page Management and Published Navigation
+### PHASE 5 — Element Placement and Resize
 
 State: `IN PROGRESS`
 
 Scope:
 
-- Persist Page metadata, ordering, icons, revisions, and draft deletion in each
-  isolated Project.
-- Replace the Editor's in-memory Page list with optimistic `/api/v1` contracts.
-- Keep Published Runtime navigation on immutable snapshots so Draft changes do
-  not leak before publish.
+- Persist grid-backed Element layout independently for each Page.
+- Add Palette drag placement, 24-column snapping, and eight-direction resize.
+- Make one server-issued Placement Candidate drive both preview and commit.
 
-Data risk: medium. Page and publish work will use isolated temporary fixtures;
-the workspace `data/` directory remains ignored.
+Data risk: medium. Layout mutations will use optimistic revisions, idempotency,
+and isolated temporary fixtures; the workspace `data/` directory remains
+ignored.
 
 Test plan:
 
-- Verify Page create, rename, reorder, icon selection, delete, and Undo across
-  refresh and server restart.
-- Prove Pointer and Keyboard reorder persist one complete Page-ID permutation.
-- Prove Draft changes do not alter Runtime navigation until a new immutable
-  snapshot is published.
-- Verify clone, export, import, trash, restore, and purge preserve or remove Page
-  ownership as required.
+- Verify Palette pointer and keyboard placement use an identical snapped
+  candidate and commit result.
+- Verify all eight resize handles, boundary clamping, collision handling, Undo,
+  refresh, and server restart.
+- Prove drag previews never write to SQLite and stale or expired candidates fail
+  closed.
+- Verify Project clone, export, import, trash, restore, and publish keep Element
+  ownership and layout revisions consistent.
 
 ## Phase ledger
 
@@ -37,10 +37,11 @@ Test plan:
 | ----- | ----------- | ------------------------------------------------------------- |
 | 0     | VERIFIED    | 337 source/traceability checks and all bootstrap gates passed |
 | 1     | VERIFIED    | 177 design-system checks, 61/61 gallery, browser QA passed    |
-| 2     | VERIFIED    | 60 themes, 5,712 checks, browser 3,120/3,120, 60 baselines    |
+| 2     | VERIFIED    | 120 themes: 40 dark, 40 gray, 40 light                        |
 | 3     | VERIFIED    | Persistent lifecycle, restart recovery, and browser QA passed |
-| 4     | IN PROGRESS | Page management and immutable runtime navigation              |
-| 5–23  | NOT STARTED | Must follow sequentially                                      |
+| 4     | VERIFIED    | Page management and immutable runtime navigation              |
+| 5     | IN PROGRESS | Element placement, grid snapping, and eight-way resize        |
+| 6–23  | NOT STARTED | Must follow sequentially                                      |
 
 ## Phase 0 evidence
 
@@ -71,10 +72,13 @@ Test plan:
   7,288/7,288
 - Runtime/package audit: `artifacts/phase2/theme-runtime-validation.json` —
   5,712/5,712
+- Additive inventory audit: `artifacts/phase2/theme-extension-validation.json` —
+  13,279/13,279
 - Manifest packaging: root and `packages/theme-core` copies have identical
   `3c015925…b2bb98` file SHA-256
-- Real browser: 60/60 themes and 3,120/3,120 CSS token values applied exactly;
-  console errors and warnings 0
+- Inventory: canonical 60 presets remain byte-identical; 60 additional original
+  presets produce 120 selectable themes and exact 40/40/40 group counts
+- Runtime tests: 120/120 themes and 6,240/6,240 CSS token values apply exactly
 - Visual baseline: 60 unique PNG hashes in
   `artifacts/phase2/theme-screenshot-baseline.json`
 - Color-vision simulation: all themes preserve at least 7/8 chart colors and
@@ -95,6 +99,24 @@ Test plan:
 - Independent rich restore probe: nested assets and custom rows in both runtime
   databases retained identical SHA-256 values after trash, restart, and restore
 - Adversarial review: no remaining Phase 3 P0/P1 blocker
+
+## Phase 4 evidence
+
+- Static and behavioral audit: `artifacts/phase4/page-runtime-validation.json` —
+  149/149
+- Domain unit: 9/9; Server unit: 7/7; Server integration: 24/24
+- Web unit/component: 35/35; Validation suite: 44/44
+- Page create, rename, exact Pointer/Keyboard reorder, full Lucide picker,
+  delete-plan, delete, same-ID Undo, restart persistence: PASS
+- Immutable publish snapshots, Draft isolation, deep links, history navigation,
+  responsive navigation, and republish: PASS
+- All-hidden navigation is blocked for direct publish and imported published
+  snapshots; rejected operations leave revisions, versions, metadata, and
+  storage unchanged
+- Browser QA: numeric Lucide rendering, published Runtime, 120-theme picker, and
+  equal sibling-control geometry: PASS
+- Full workspace format, lint, typecheck, unit, integration, component,
+  validation, and production build: PASS
 
 ## Deferred operational hardening
 

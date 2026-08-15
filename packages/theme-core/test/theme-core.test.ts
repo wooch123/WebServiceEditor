@@ -4,7 +4,9 @@ import {
   COLOR_VISION_MODES,
   THEME_REVISION_STATUSES,
   THEME_TOKEN_NAMES,
+  additionalThemes,
   canTransitionThemeRevision,
+  canonicalThemes,
   createDraftThemeRevision,
   defaultTheme,
   simulateColorVision,
@@ -13,10 +15,19 @@ import {
 } from "../src/index.js";
 
 describe("canonical theme core", () => {
-  it("loads the exact manifest inventory and semantic token contract", () => {
-    expect(themes).toHaveLength(60);
+  it("preserves 60 canonical themes and exposes 60 additional presets", () => {
+    expect(canonicalThemes).toHaveLength(60);
+    expect(additionalThemes).toHaveLength(60);
+    expect(themes).toHaveLength(120);
+    for (const group of ["dark", "gray", "light"] as const) {
+      expect(themes.filter((theme) => theme.group === group)).toHaveLength(40);
+      expect(
+        additionalThemes.filter((theme) => theme.group === group),
+      ).toHaveLength(20);
+    }
     expect(THEME_TOKEN_NAMES).toHaveLength(52);
-    expect(new Set(themes.map((theme) => theme.tokenHash))).toHaveLength(60);
+    expect(new Set(themes.map((theme) => theme.id))).toHaveLength(120);
+    expect(new Set(themes.map((theme) => theme.tokenHash))).toHaveLength(120);
     expect(themeToCssVariables(defaultTheme)).toHaveProperty(
       "--chart-8",
       defaultTheme.tokens.chart8,

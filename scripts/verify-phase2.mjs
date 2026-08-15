@@ -250,7 +250,16 @@ export function inspectThemeResolverSource(source) {
     exposesCompleteManifestArray:
       /export\s+const\s+themeManifest\s*=\s*themeManifestSource\s+as\s+unknown\s+as\s+ThemeManifest\s*;[\s\S]*?export\s+const\s+themes\s*=\s*themeManifest\.themes\s*;/u.test(
         source,
-      ),
+      ) ||
+      (/export\s+const\s+canonicalThemes\s*=\s*themeManifest\.themes\s*;/u.test(
+        source,
+      ) &&
+        /export\s+const\s+additionalThemes\s*=\s*additionalThemeManifest\.themes\s*;/u.test(
+          source,
+        ) &&
+        /export\s+const\s+themes\s*=\s*\[\.\.\.canonicalThemes,\s*\.\.\.additionalThemes\]\s*as\s+const\s*;/u.test(
+          source,
+        )),
     resolvesDefaultFromCompleteArray:
       /themes\.find\(\s*\(theme\)\s*=>\s*theme\.id\s*===\s*["']light-clean-paper["']\s*\)\s*\?\?\s*themes\[0\]/su.test(
         source,

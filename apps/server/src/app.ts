@@ -3,9 +3,11 @@ import Fastify, { type FastifyInstance } from "fastify";
 import { resolveMetadataDatabasePath, resolveStorageRoot } from "./config.js";
 import { ApiError } from "./errors.js";
 import { MetadataDatabase } from "./metadata/database.js";
+import { PageService } from "./pages/page-service.js";
 import { ProjectService } from "./projects/project-service.js";
 import type { LifecycleFailureInjector } from "./projects/project-storage.js";
 import { registerProjectRoutes } from "./routes/projects.js";
+import { registerPageRoutes } from "./routes/pages.js";
 import { registerSystemRoutes } from "./routes/system.js";
 
 export interface BuildServerOptions {
@@ -35,6 +37,10 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
     metadataDatabase.close();
     throw error;
   }
+  const pageService = new PageService({
+    metadataDatabase,
+    ...(options.clock === undefined ? {} : { clock: options.clock }),
+  });
 
   app.setErrorHandler(async (error, _request, reply) => {
     if (error instanceof ApiError) {
@@ -91,6 +97,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   });
   void app.register(registerSystemRoutes, { metadataDatabase, projectService });
   void app.register(registerProjectRoutes, { projectService });
+  void app.register(registerPageRoutes, { pageService });
 
   return app;
 }

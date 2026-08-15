@@ -19,8 +19,12 @@ import {
 import type { LucideIcon } from "lucide-react";
 import type { CSSProperties } from "react";
 import { lazy, Suspense, useLayoutEffect, useState } from "react";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import { PageManager } from "@/features/pages/PageManager";
+import { PublishedRuntime } from "@/features/runtime/PublishedRuntime";
+import type { PageDto } from "@/services/pages-api";
 import { updateProject } from "@/services/projects-api";
 import type { ProjectDto } from "@/services/projects-api";
 import { ThemePicker } from "./ThemePicker";
@@ -95,12 +99,6 @@ function Brand() {
     </div>
   );
 }
-
-const editorPages = [
-  { id: "overview", name: "운영 개요", icon: LayoutDashboard, status: "완료" },
-  { id: "region", name: "지역별 비교", icon: BarChart3, status: "편집 중" },
-  { id: "records", name: "원자료 조회", icon: Table2, status: "연결 필요" },
-];
 
 function CanvasPreview({ title }: { title: string }) {
   return (
@@ -196,9 +194,9 @@ function DataDesignPreview() {
   );
 }
 
-function ValidationPreview() {
+function ValidationPreview({ pageExists }: { pageExists: boolean }) {
   const checks = [
-    ["페이지 구조", "3/3 통과"],
+    ["페이지 구조", pageExists ? "1/1 통과" : "페이지 필요"],
     ["데이터 연결", "2개 확인 필요"],
     ["샘플 입출력", "실행 대기"],
   ];
@@ -216,8 +214,12 @@ function ValidationPreview() {
       <div className="validation-list">
         {checks.map(([label, result], index) => (
           <div key={label}>
-            <span className={index === 0 ? "check-complete" : "check-pending"}>
-              {index === 0 ? (
+            <span
+              className={
+                index === 0 && pageExists ? "check-complete" : "check-pending"
+              }
+            >
+              {index === 0 && pageExists ? (
                 <Check aria-hidden="true" />
               ) : (
                 <Clock3 aria-hidden="true" />
@@ -235,15 +237,16 @@ function ValidationPreview() {
 function EditorSurface({
   project,
   onBack,
+  onProjectRevisionChange,
   controls,
 }: {
   project: ProjectDto;
   onBack: () => void;
+  onProjectRevisionChange: (revision: number) => void;
   controls: HeaderControlsProps;
 }) {
   const [step, setStep] = useState<EditorStep>("page");
-  const [pageId, setPageId] = useState("overview");
-  const [pageTitle, setPageTitle] = useState("지역 건강지표 개요");
+  const [selectedPage, setSelectedPage] = useState<PageDto | null>(null);
   const [saved, setSaved] = useState(true);
 
   const steps: Array<{
@@ -312,38 +315,12 @@ function EditorSurface({
 
       <div className="editor-workspace">
         <aside className="editor-left-panel">
-          <div className="panel-heading">
-            <div>
-              <strong>페이지</strong>
-            </div>
-            <button
-              className="icon-button"
-              type="button"
-              aria-label="새 페이지 추가"
-            >
-              <Plus aria-hidden="true" />
-            </button>
-          </div>
-          <div className="page-list">
-            {editorPages.map((page) => {
-              const PageIcon = page.icon;
-              return (
-                <button
-                  key={page.id}
-                  className={pageId === page.id ? "is-active" : ""}
-                  type="button"
-                  aria-current={pageId === page.id ? "page" : undefined}
-                  onClick={() => setPageId(page.id)}
-                >
-                  <PageIcon aria-hidden="true" />
-                  <span>
-                    <strong>{page.name}</strong>
-                    <small>{page.status}</small>
-                  </span>
-                </button>
-              );
-            })}
-          </div>
+          <PageManager
+            project={project}
+            selectedPageId={selectedPage?.id ?? null}
+            onSelectPage={setSelectedPage}
+            onProjectRevisionChange={onProjectRevisionChange}
+          />
           <div className="element-palette">
             <div className="panel-heading compact">
               <div>
@@ -375,15 +352,33 @@ function EditorSurface({
           <div className="canvas-toolbar">
             <div>
               <span className="canvas-breadcrumb">
-                {editorPages.find((page) => page.id === pageId)?.name}
+                {selectedPage?.name ?? "페이지 없음"}
               </span>
               <strong>{steps.find((item) => item.id === step)?.label}</strong>
             </div>
             <span className="zoom-indicator">100%</span>
           </div>
-          {step === "page" && <CanvasPreview title={pageTitle} />}
-          {step === "data" && <DataDesignPreview />}
-          {step === "validation" && <ValidationPreview />}
+          {step === "page" &&
+            (selectedPage ? (
+              <CanvasPreview title={selectedPage.name} />
+            ) : (
+              <div className="editor-empty-state" role="status">
+                <strong>페이지 없음</strong>
+                <span>빈 페이지 추가</span>
+              </div>
+            ))}
+          {step === "data" &&
+            (selectedPage ? (
+              <DataDesignPreview />
+            ) : (
+              <div className="editor-empty-state" role="status">
+                <strong>페이지 필요</strong>
+                <span>페이지 단계</span>
+              </div>
+            ))}
+          {step === "validation" && (
+            <ValidationPreview pageExists={selectedPage !== null} />
+          )}
         </main>
 
         <aside className="inspector-panel">
@@ -402,13 +397,7 @@ function EditorSurface({
             <div className="inspector-form">
               <label>
                 페이지 제목
-                <input
-                  value={pageTitle}
-                  onChange={(event) => {
-                    setPageTitle(event.target.value);
-                    setSaved(false);
-                  }}
-                />
+                <input value={selectedPage?.name ?? ""} readOnly />
               </label>
               <label>
                 캔버스 폭
@@ -422,25 +411,38 @@ function EditorSurface({
           )}
           {step === "data" && (
             <div className="inspector-summary">
-              <span>
-                <Database aria-hidden="true" />
-                SQLite 연결 1개
-              </span>
-              <span>
-                <Waypoints aria-hidden="true" />
-                실행 바인딩 2개
-              </span>
+              {selectedPage ? (
+                <>
+                  <span>
+                    <Database aria-hidden="true" />
+                    SQLite 연결 1개
+                  </span>
+                  <span>
+                    <Waypoints aria-hidden="true" />
+                    실행 바인딩 2개
+                  </span>
+                </>
+              ) : (
+                <span>
+                  <Clock3 aria-hidden="true" />
+                  페이지 필요
+                </span>
+              )}
             </div>
           )}
           {step === "validation" && (
             <div className="inspector-summary">
               <span>
-                <Check aria-hidden="true" />
-                통과 3
+                {selectedPage ? (
+                  <Check aria-hidden="true" />
+                ) : (
+                  <Clock3 aria-hidden="true" />
+                )}
+                통과 {selectedPage ? 1 : 0}
               </span>
               <span>
                 <Clock3 aria-hidden="true" />
-                확인 필요 2
+                확인 필요 {selectedPage ? 2 : 3}
               </span>
               <span>
                 <ShieldCheck aria-hidden="true" />
@@ -540,6 +542,11 @@ function ProductApp() {
         <EditorSurface
           project={selectedProject}
           onBack={() => setSurface("home")}
+          onProjectRevisionChange={(revision) =>
+            setSelectedProject((current) =>
+              current ? { ...current, revision } : current,
+            )
+          }
           controls={controls}
         />
       ) : (
@@ -581,6 +588,16 @@ export function App() {
       >
         <DesignSystemGallery />
       </Suspense>
+    );
+  }
+
+  if (pathname.startsWith("/runtime/")) {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route path="/runtime/:projectId/*" element={<PublishedRuntime />} />
+        </Routes>
+      </BrowserRouter>
     );
   }
 

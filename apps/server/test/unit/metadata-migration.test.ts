@@ -84,7 +84,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(2);
+      expect(migrated.assertReady().schemaVersion).toBe(3);
       expect(
         migrated.connection
           .prepare(
@@ -102,9 +102,63 @@ describe("metadata migration", () => {
         migrated.connection
           .prepare("SELECT version FROM metadata_migrations ORDER BY version")
           .all(),
-      ).toEqual([{ version: 1 }, { version: 2 }]);
+      ).toEqual([{ version: 1 }, { version: 2 }, { version: 3 }]);
+      expect(
+        migrated.connection
+          .prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('pages', 'page_commands', 'project_definition_operations', 'project_versions') ORDER BY name",
+          )
+          .all(),
+      ).toEqual([
+        { name: "page_commands" },
+        { name: "pages" },
+        { name: "project_definition_operations" },
+        { name: "project_versions" },
+      ]);
     } finally {
       migrated.close();
     }
+  });
+
+  it("fails closed on a future SQLite user_version", () => {
+    const directory = mkdtempSync(
+      join(tmpdir(), "webeditor-future-migration-"),
+    );
+    directories.push(directory);
+    const path = join(directory, "metadata.sqlite");
+    const future = new Database(path);
+    future.pragma("application_id = 1464156741");
+    future.pragma("user_version = 4");
+    future.close();
+
+    expect(() => new MetadataDatabase(path)).toThrow(
+      "Refusing unknown future metadata schema version 4",
+    );
+  });
+
+  it("fails closed on unknown or non-prefix migration history", () => {
+    const directory = mkdtempSync(
+      join(tmpdir(), "webeditor-unknown-migration-"),
+    );
+    directories.push(directory);
+    const path = join(directory, "metadata.sqlite");
+    const unknown = new Database(path);
+    unknown.pragma("application_id = 1464156741");
+    unknown.exec(`
+      CREATE TABLE metadata_migrations (
+        version INTEGER PRIMARY KEY NOT NULL,
+        name TEXT NOT NULL UNIQUE,
+        checksum TEXT NOT NULL,
+        applied_at TEXT NOT NULL
+      );
+      INSERT INTO metadata_migrations
+        (version, name, checksum, applied_at)
+      VALUES (4, 'future', 'unknown', '2026-08-15T00:00:00.000Z');
+    `);
+    unknown.close();
+
+    expect(() => new MetadataDatabase(path)).toThrow(
+      "Metadata migration history is not a known prefix",
+    );
   });
 });

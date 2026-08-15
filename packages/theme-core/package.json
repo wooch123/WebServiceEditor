@@ -9,13 +9,15 @@
       "development": "./src/index.ts",
       "import": "./dist/index.js"
     },
-    "./presets/webeditor-theme-presets.v3.json": "./dist/presets/webeditor-theme-presets.v3.json"
+    "./presets/webeditor-theme-presets.v3.json": "./dist/presets/webeditor-theme-presets.v3.json",
+    "./presets/webeditor-theme-presets.extension.v1.json": "./dist/presets/webeditor-theme-presets.extension.v1.json"
   },
   "files": [
     "dist"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",
+    "generate:themes": "node tools/generate-extended-theme-presets.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:unit": "vitest run test"
   },

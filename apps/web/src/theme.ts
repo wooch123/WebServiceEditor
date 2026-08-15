@@ -1,6 +1,8 @@
 import type { CSSProperties } from "react";
 
 import {
+  additionalThemes,
+  canonicalThemes,
   defaultTheme,
   themeToCssVariables as resolveThemeCssVariables,
   themes,
@@ -8,7 +10,14 @@ import {
   type WebEditorTheme,
 } from "@webeditor/theme-core";
 
-export { defaultTheme, themes, type ThemeGroup, type WebEditorTheme };
+export {
+  additionalThemes,
+  canonicalThemes,
+  defaultTheme,
+  themes,
+  type ThemeGroup,
+  type WebEditorTheme,
+};
 
 export function themeToCssVariables(
   theme: WebEditorTheme,

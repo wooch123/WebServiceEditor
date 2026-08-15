@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import type { ProjectDto } from "./services/projects-api";
+import type { PageDto } from "./services/pages-api";
 import { App } from "./App";
 import stylesCss from "./styles.css?raw";
 
@@ -161,6 +162,36 @@ function installMockApi(options: MockApiOptions = {}) {
 
       if (pathname === "/api/v1/recycle-bin/projects" && method === "GET") {
         return jsonResponse({ projects: recycle });
+      }
+
+      if (
+        /^\/api\/v1\/projects\/[^/]+\/pages$/.test(pathname) &&
+        method === "GET"
+      ) {
+        const editorProjectId = pathname.split("/")[4] ?? "project";
+        const editorProject = active.find(
+          (candidate) => candidate.id === editorProjectId,
+        );
+        const page: PageDto = {
+          id: `page-${editorProjectId}`,
+          projectId: editorProjectId,
+          schemaVersion: 1,
+          revision: 1,
+          name: "운영 개요",
+          route: "/overview",
+          pageType: "blank",
+          iconName: "LayoutDashboard",
+          iconCatalogVersion: "1.31.0",
+          navigationVisible: true,
+          navigationGroup: null,
+          sortOrder: 0,
+          deletedAt: null,
+        };
+        return jsonResponse({
+          pages: [page],
+          projectRevision: editorProject?.revision ?? 1,
+          publishedVersionId: null,
+        });
       }
 
       if (pathname === "/api/v1/projects" && method === "POST") {

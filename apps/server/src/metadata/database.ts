@@ -6,7 +6,7 @@ import { PROJECT_LIFECYCLE_STATUSES } from "@webeditor/domain";
 import Database from "better-sqlite3";
 
 const METADATA_APPLICATION_ID = 0x57454245;
-export const LATEST_METADATA_SCHEMA_VERSION = 2;
+export const LATEST_METADATA_SCHEMA_VERSION = 3;
 
 const lifecycleSqlValues = PROJECT_LIFECYCLE_STATUSES.map(
   (status) => `'${status}'`,
@@ -142,6 +142,85 @@ const lifecycleFoundationSchemaChecksum = createHash("sha256")
   .update(lifecycleFoundationSchemaSql)
   .digest("hex");
 
+const pageManagementSchemaSql = `
+  CREATE TABLE pages (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    schema_version INTEGER NOT NULL DEFAULT 1 CHECK (schema_version = 1),
+    revision INTEGER NOT NULL DEFAULT 1 CHECK (revision >= 1),
+    name TEXT NOT NULL CHECK (length(trim(name)) BETWEEN 1 AND 99),
+    route TEXT NOT NULL CHECK (
+      length(route) BETWEEN 1 AND 200 AND substr(route, 1, 1) = '/'
+    ),
+    page_type TEXT NOT NULL CHECK (page_type = 'blank'),
+    icon_name TEXT NOT NULL CHECK (length(icon_name) BETWEEN 1 AND 120),
+    icon_catalog_version TEXT NOT NULL CHECK (icon_catalog_version = '1.31.0'),
+    navigation_visible INTEGER NOT NULL DEFAULT 1 CHECK (navigation_visible IN (0, 1)),
+    navigation_group TEXT CHECK (
+      navigation_group IS NULL OR length(trim(navigation_group)) BETWEEN 1 AND 100
+    ),
+    sort_order INTEGER NOT NULL CHECK (sort_order >= 0),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT
+  );
+  CREATE UNIQUE INDEX pages_active_route_unique_idx
+    ON pages(project_id, route COLLATE NOCASE) WHERE deleted_at IS NULL;
+  CREATE UNIQUE INDEX pages_active_sort_order_unique_idx
+    ON pages(project_id, sort_order) WHERE deleted_at IS NULL;
+  CREATE INDEX pages_project_deleted_sort_idx
+    ON pages(project_id, deleted_at, sort_order);
+
+  CREATE TABLE page_commands (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    page_id TEXT NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
+    command_type TEXT NOT NULL CHECK (command_type = 'DELETE'),
+    snapshot_json TEXT NOT NULL,
+    impact_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    undone_at TEXT
+  );
+  CREATE INDEX page_commands_project_created_idx
+    ON page_commands(project_id, created_at);
+
+  CREATE TABLE project_definition_operations (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    operation_type TEXT NOT NULL CHECK (
+      operation_type IN ('PAGE_CREATE', 'PAGE_REORDER', 'PAGE_DELETE', 'PAGE_UNDO', 'PUBLISH')
+    ),
+    idempotency_key TEXT NOT NULL,
+    request_hash TEXT NOT NULL,
+    response_status INTEGER NOT NULL CHECK (response_status BETWEEN 200 AND 299),
+    response_json TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    UNIQUE(project_id, idempotency_key)
+  );
+
+  CREATE TABLE project_versions (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    schema_version INTEGER NOT NULL DEFAULT 1 CHECK (schema_version = 1),
+    sequence INTEGER NOT NULL CHECK (sequence >= 1),
+    source_project_revision INTEGER NOT NULL CHECK (source_project_revision >= 1),
+    snapshot_json TEXT NOT NULL,
+    published_at TEXT NOT NULL,
+    UNIQUE(project_id, sequence)
+  );
+  CREATE INDEX project_versions_project_published_idx
+    ON project_versions(project_id, sequence DESC);
+  CREATE TRIGGER project_versions_immutable_update
+    BEFORE UPDATE ON project_versions
+    BEGIN
+      SELECT RAISE(ABORT, 'project_versions are immutable');
+    END;
+`;
+
+const pageManagementSchemaChecksum = createHash("sha256")
+  .update(pageManagementSchemaSql)
+  .digest("hex");
+
 const metadataMigrations = [
   {
     checksum: INITIAL_METADATA_SCHEMA_CHECKSUM,
@@ -154,6 +233,12 @@ const metadataMigrations = [
     name: "project-lifecycle-foundation",
     sql: lifecycleFoundationSchemaSql,
     version: 2,
+  },
+  {
+    checksum: pageManagementSchemaChecksum,
+    name: "page-management-and-published-navigation",
+    sql: pageManagementSchemaSql,
+    version: 3,
   },
 ] as const;
 
@@ -188,8 +273,14 @@ export class MetadataDatabase {
 
   #initialize(): void {
     const applicationId = this.#numberPragma("application_id");
+    const userVersion = this.#numberPragma("user_version");
     if (applicationId !== 0 && applicationId !== METADATA_APPLICATION_ID) {
       throw new Error("Refusing to initialize a non-WebEditor SQLite database");
+    }
+    if (userVersion > LATEST_METADATA_SCHEMA_VERSION) {
+      throw new Error(
+        `Refusing unknown future metadata schema version ${userVersion}`,
+      );
     }
 
     const migrate = this.#database.transaction(() => {
@@ -217,6 +308,19 @@ export class MetadataDatabase {
       const appliedByVersion = new Map(
         rows.map((row) => [row.version, row.checksum]),
       );
+      const recordedVersions = rows.map((row) => row.version);
+      const highestRecordedVersion = recordedVersions.at(-1) ?? 0;
+      if (
+        recordedVersions.some(
+          (version, index) =>
+            version !== index + 1 || version > LATEST_METADATA_SCHEMA_VERSION,
+        )
+      ) {
+        throw new Error("Metadata migration history is not a known prefix");
+      }
+      if (userVersion !== highestRecordedVersion) {
+        throw new Error("Metadata user_version and migration history disagree");
+      }
 
       for (const migration of metadataMigrations) {
         const appliedChecksum = appliedByVersion.get(migration.version);

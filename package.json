@@ -24,7 +24,9 @@
     "verify:phase1": "pnpm test && node scripts/verify-phase1.mjs",
     "verify:phase2": "pnpm test && node scripts/verify-phase2.mjs",
     "verify:phase3": "pnpm test && node scripts/verify-phase3.mjs",
+    "verify:phase4": "pnpm test && node scripts/verify-phase4.mjs",
     "verify:themes": "node scripts/verify-themes.mjs",
+    "verify:theme-extension": "node scripts/verify-theme-extension.mjs",
     "verify:corpus": "node scripts/verify-corpus.mjs",
     "verify:release": "node scripts/verify-release.mjs"
   },

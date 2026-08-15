@@ -1,22 +1,28 @@
 import { createHash, randomUUID } from "node:crypto";
 
-import type {
-  CreateProjectRequest,
-  PatchProjectRequest,
-  ProjectCounts,
-  ProjectDto,
-  ProjectExportDto,
-  ProjectExportFile,
-  ProjectTombstoneDto,
-  PurgePlanDto,
-  PurgePlanRequest,
-  PurgeProjectRequest,
-  RestoreProjectRequest,
-  TrashProjectRequest,
+import {
+  LUCIDE_ICON_CATALOG_VERSION,
+  PUBLISH_VALIDATION_CODES,
+  type CreateProjectRequest,
+  type PageDto,
+  type PatchProjectRequest,
+  type ProjectCounts,
+  type ProjectDto,
+  type ProjectExportDto,
+  type ProjectExportFile,
+  type PublishedNavigationPageDto,
+  type ProjectTombstoneDto,
+  type PurgePlanDto,
+  type PurgePlanRequest,
+  type PurgeProjectRequest,
+  type RestoreProjectRequest,
+  type TrashProjectRequest,
 } from "@webeditor/domain";
 
 import { ApiError, assertApi } from "../errors.js";
+import { LUCIDE_ICON_CATALOG } from "../icons/lucide-icon-catalog.generated.js";
 import type { MetadataDatabase } from "../metadata/database.js";
+import { PageRepository } from "../pages/page-repository.js";
 import {
   type LifecycleOperationRow,
   ProjectRepository,
@@ -34,7 +40,12 @@ const PROJECT_ID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 const SLUG_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
 const THEME_ID_PATTERN = /^[a-z0-9]+(?:-[a-z0-9]+)*$/;
+const PAGE_ROUTE_PATTERN =
+  /^\/(?:[a-z0-9]+(?:-[a-z0-9]+)*(?:\/[a-z0-9]+(?:-[a-z0-9]+)*)*)?$/;
 const PURGE_PLAN_TTL_MILLISECONDS = 5 * 60 * 1000;
+const lucideIconNames = new Set(
+  LUCIDE_ICON_CATALOG.map((icon) => icon.name as string),
+);
 
 export interface ProjectServiceOptions {
   readonly metadataDatabase: MetadataDatabase;
@@ -61,7 +72,17 @@ interface ImportableProjectExport {
     readonly description: string | null;
     readonly themeId: string;
   };
+  readonly pages: readonly PageDto[];
+  readonly publishedVersions: readonly ImportablePublishedVersion[];
   readonly files: readonly ProjectExportFile[];
+}
+
+interface ImportablePublishedVersion {
+  readonly id: string;
+  readonly sequence: number;
+  readonly sourceProjectRevision: number;
+  readonly publishedAt: string;
+  readonly pages: readonly PublishedNavigationPageDto[];
 }
 
 function stableJson(value: unknown): string {
@@ -159,6 +180,268 @@ function validateThemeId(value: unknown): string {
   return value;
 }
 
+function isCanonicalIsoDate(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const timestamp = Date.parse(value);
+  return (
+    Number.isFinite(timestamp) && new Date(timestamp).toISOString() === value
+  );
+}
+
+function parseImportPages(
+  manifestValue: unknown,
+  sourceProjectId: unknown,
+): readonly PageDto[] {
+  if (manifestValue === undefined) return [];
+  assertApi(
+    typeof manifestValue === "object" &&
+      manifestValue !== null &&
+      !Array.isArray(manifestValue),
+    400,
+    "INVALID_PROJECT_DEFINITION",
+    "Project definition manifest is invalid",
+  );
+  const manifest = manifestValue as Record<string, unknown>;
+  if (manifest.pages === undefined) return [];
+  assertApi(
+    manifest.definitionSchemaVersion === 1 &&
+      Array.isArray(manifest.pages) &&
+      manifest.pages.length <= 100,
+    400,
+    "INVALID_PROJECT_PAGES",
+    "Project pages are invalid",
+  );
+  assertApi(
+    typeof sourceProjectId === "string" &&
+      PROJECT_ID_PATTERN.test(sourceProjectId),
+    400,
+    "INVALID_PROJECT_PAGE_OWNERSHIP",
+    "Project page ownership is invalid",
+  );
+  const seenIds = new Set<string>();
+  const seenRoutes = new Set<string>();
+  const pages = manifest.pages.map((value, index): PageDto => {
+    assertApi(
+      typeof value === "object" && value !== null && !Array.isArray(value),
+      400,
+      "INVALID_PROJECT_PAGE",
+      "Project page is invalid",
+      { index },
+    );
+    const page = value as Record<string, unknown>;
+    assertApi(
+      typeof page.id === "string" &&
+        PROJECT_ID_PATTERN.test(page.id) &&
+        !seenIds.has(page.id),
+      400,
+      "INVALID_PROJECT_PAGE_ID",
+      "Project page ID is invalid",
+      { index },
+    );
+    seenIds.add(page.id);
+    assertApi(
+      typeof page.name === "string" &&
+        page.name.trim().length >= 1 &&
+        page.name.trim().length <= 99,
+      400,
+      "INVALID_PROJECT_PAGE_NAME",
+      "Project page name is invalid",
+      { index },
+    );
+    assertApi(
+      typeof page.route === "string" &&
+        page.route.length <= 200 &&
+        PAGE_ROUTE_PATTERN.test(page.route) &&
+        !seenRoutes.has(page.route.toLocaleLowerCase()),
+      400,
+      "INVALID_PROJECT_PAGE_ROUTE",
+      "Project page route is invalid",
+      { index },
+    );
+    seenRoutes.add(page.route.toLocaleLowerCase());
+    assertApi(
+      page.schemaVersion === 1 &&
+        Number.isInteger(page.revision) &&
+        (page.revision as number) >= 1 &&
+        page.pageType === "blank" &&
+        typeof page.iconName === "string" &&
+        lucideIconNames.has(page.iconName) &&
+        page.iconCatalogVersion === LUCIDE_ICON_CATALOG_VERSION &&
+        typeof page.navigationVisible === "boolean" &&
+        (page.navigationGroup === null ||
+          (typeof page.navigationGroup === "string" &&
+            page.navigationGroup.trim().length >= 1 &&
+            page.navigationGroup.trim().length <= 100)) &&
+        page.sortOrder === index &&
+        page.deletedAt === null,
+      400,
+      "INVALID_PROJECT_PAGE",
+      "Project page fields are invalid",
+      { index },
+    );
+    assertApi(
+      page.projectId === sourceProjectId,
+      400,
+      "PROJECT_PAGE_OWNERSHIP_MISMATCH",
+      "Project page belongs to another project",
+      { index },
+    );
+    return {
+      id: page.id,
+      projectId: page.projectId as string,
+      schemaVersion: 1,
+      revision: page.revision as number,
+      name: page.name.trim(),
+      route: page.route,
+      pageType: "blank",
+      iconName: page.iconName,
+      iconCatalogVersion: LUCIDE_ICON_CATALOG_VERSION,
+      navigationVisible: page.navigationVisible,
+      navigationGroup:
+        page.navigationGroup === null ? null : page.navigationGroup.trim(),
+      sortOrder: page.sortOrder,
+      deletedAt: null,
+    };
+  });
+  return pages;
+}
+
+function parseImportPublishedVersions(
+  manifestValue: unknown,
+  sourceProjectId: unknown,
+): readonly ImportablePublishedVersion[] {
+  if (
+    typeof manifestValue !== "object" ||
+    manifestValue === null ||
+    Array.isArray(manifestValue)
+  ) {
+    return [];
+  }
+  const manifest = manifestValue as Record<string, unknown>;
+  if (manifest.publishedVersions === undefined) return [];
+  assertApi(
+    Array.isArray(manifest.publishedVersions) &&
+      manifest.publishedVersions.length <= 1_000,
+    400,
+    "INVALID_PROJECT_VERSIONS",
+    "Published versions are invalid",
+  );
+  assertApi(
+    typeof sourceProjectId === "string" &&
+      PROJECT_ID_PATTERN.test(sourceProjectId),
+    400,
+    "INVALID_PROJECT_VERSION_OWNERSHIP",
+    "Published version ownership is invalid",
+  );
+  const versionIds = new Set<string>();
+  return manifest.publishedVersions.map(
+    (value, versionIndex): ImportablePublishedVersion => {
+      assertApi(
+        typeof value === "object" && value !== null && !Array.isArray(value),
+        400,
+        "INVALID_PROJECT_VERSION",
+        "Published version is invalid",
+        { versionIndex },
+      );
+      const version = value as Record<string, unknown>;
+      assertApi(
+        typeof version.id === "string" &&
+          PROJECT_ID_PATTERN.test(version.id) &&
+          !versionIds.has(version.id) &&
+          version.schemaVersion === 1 &&
+          version.sequence === versionIndex + 1 &&
+          Number.isInteger(version.sourceProjectRevision) &&
+          (version.sourceProjectRevision as number) >= 1 &&
+          isCanonicalIsoDate(version.publishedAt) &&
+          Array.isArray(version.pages) &&
+          version.pages.length <= 100,
+        400,
+        "INVALID_PROJECT_VERSION",
+        "Published version fields are invalid",
+        { versionIndex },
+      );
+      versionIds.add(version.id);
+      assertApi(
+        version.projectId === sourceProjectId,
+        400,
+        "PROJECT_VERSION_OWNERSHIP_MISMATCH",
+        "Published version belongs to another project",
+        { versionIndex },
+      );
+      const pageIds = new Set<string>();
+      const routes = new Set<string>();
+      const pages = version.pages.map(
+        (pageValue, pageIndex): PublishedNavigationPageDto => {
+          assertApi(
+            typeof pageValue === "object" &&
+              pageValue !== null &&
+              !Array.isArray(pageValue),
+            400,
+            "INVALID_PROJECT_VERSION_PAGE",
+            "Published navigation page is invalid",
+            { versionIndex, pageIndex },
+          );
+          const page = pageValue as Record<string, unknown>;
+          assertApi(
+            typeof page.id === "string" &&
+              PROJECT_ID_PATTERN.test(page.id) &&
+              !pageIds.has(page.id) &&
+              typeof page.name === "string" &&
+              page.name.trim().length >= 1 &&
+              page.name.trim().length <= 99 &&
+              typeof page.route === "string" &&
+              page.route.length <= 200 &&
+              PAGE_ROUTE_PATTERN.test(page.route) &&
+              !routes.has(page.route.toLocaleLowerCase()) &&
+              page.sortOrder === pageIndex &&
+              typeof page.iconName === "string" &&
+              lucideIconNames.has(page.iconName) &&
+              page.iconCatalogVersion === LUCIDE_ICON_CATALOG_VERSION &&
+              typeof page.navigationVisible === "boolean" &&
+              (page.navigationGroup === null ||
+                (typeof page.navigationGroup === "string" &&
+                  page.navigationGroup.trim().length >= 1 &&
+                  page.navigationGroup.trim().length <= 100)),
+            400,
+            "INVALID_PROJECT_VERSION_PAGE",
+            "Published navigation page fields are invalid",
+            { versionIndex, pageIndex },
+          );
+          pageIds.add(page.id);
+          routes.add(page.route.toLocaleLowerCase());
+          return {
+            id: page.id,
+            name: page.name.trim(),
+            route: page.route,
+            sortOrder: page.sortOrder,
+            iconName: page.iconName,
+            iconCatalogVersion: LUCIDE_ICON_CATALOG_VERSION,
+            navigationVisible: page.navigationVisible,
+            navigationGroup:
+              page.navigationGroup === null
+                ? null
+                : page.navigationGroup.trim(),
+          };
+        },
+      );
+      assertApi(
+        pages.length === 0 || pages.some((page) => page.navigationVisible),
+        400,
+        "INVALID_PROJECT_VERSION_NAVIGATION",
+        "Published version must show a page in navigation",
+        { versionIndex, errors: [PUBLISH_VALIDATION_CODES[0]] },
+      );
+      return {
+        id: version.id,
+        sequence: version.sequence as number,
+        sourceProjectRevision: version.sourceProjectRevision as number,
+        publishedAt: version.publishedAt,
+        pages,
+      };
+    },
+  );
+}
+
 function assertProjectId(projectId: string): void {
   assertApi(
     PROJECT_ID_PATTERN.test(projectId),
@@ -209,11 +492,13 @@ function assertSafeImportPath(path: string, index: number): void {
 
 export class ProjectService {
   readonly repository: ProjectRepository;
+  readonly pageRepository: PageRepository;
   readonly storage: ProjectStorage;
   readonly #clock: () => Date;
 
   constructor(options: ProjectServiceOptions) {
     this.repository = new ProjectRepository(options.metadataDatabase);
+    this.pageRepository = new PageRepository(options.metadataDatabase);
     this.storage = new ProjectStorage(
       options.storageRoot,
       options.failureInjector,
@@ -418,7 +703,7 @@ export class ProjectService {
       request.slug ?? `${source.slug}-copy-${randomUUID().slice(0, 6)}`,
     );
     this.#assertNoConflicts(name, slug);
-    const exportDto = this.export(projectId);
+    const exportDto = this.#parseProjectExport(this.export(projectId));
     return this.#importExport(
       exportDto,
       { name, slug },
@@ -439,9 +724,27 @@ export class ProjectService {
       "PROJECT_MANIFEST_MISSING",
       "Project manifest is missing",
     );
-    const manifest = JSON.parse(
+    const storageManifest = JSON.parse(
       Buffer.from(manifestFile.contentBase64, "base64").toString("utf8"),
     ) as Record<string, unknown>;
+    const manifest: Record<string, unknown> = {
+      ...storageManifest,
+      definitionSchemaVersion: 1,
+      pages: this.pageRepository
+        .listActive(projectId)
+        .map((page) => this.pageRepository.toDto(page)),
+      publishedVersions: this.pageRepository
+        .listVersions(projectId)
+        .map((version) => ({
+          id: version.id,
+          projectId: version.project_id,
+          schemaVersion: version.schema_version,
+          sequence: version.sequence,
+          sourceProjectRevision: version.source_project_revision,
+          publishedAt: version.published_at,
+          pages: this.pageRepository.toRuntimeNavigation(version).pages,
+        })),
+    };
     return { format: "webeditor-project-v1", project, manifest, files };
   }
 
@@ -467,12 +770,21 @@ export class ProjectService {
     this.#assertNoConflicts(project.name, project.slug);
     const id = randomUUID();
     const themeId = validateThemeId(exportDto.project.themeId);
+    const pageIdMap = new Map<string, string>();
+    for (const page of exportDto.pages) {
+      pageIdMap.set(page.id, randomUUID());
+    }
+    for (const version of exportDto.publishedVersions) {
+      for (const page of version.pages) {
+        if (!pageIdMap.has(page.id)) pageIdMap.set(page.id, randomUUID());
+      }
+    }
     this.storage.stageFromExport(id, { ...project, themeId }, exportDto.files);
     const now = this.#now();
     let row: ProjectRow;
     try {
       row = this.repository.metadataDatabase.transaction(() => {
-        const inserted = this.repository.insert({
+        this.repository.insert({
           id,
           name: project.name,
           slug: project.slug,
@@ -481,15 +793,40 @@ export class ProjectService {
           themeId,
           now,
         });
+        for (const page of exportDto.pages) {
+          this.pageRepository.insertImported(
+            page,
+            id,
+            pageIdMap.get(page.id) as string,
+            now,
+          );
+        }
+        for (const version of exportDto.publishedVersions) {
+          this.pageRepository.insertImportedVersion({
+            id: randomUUID(),
+            projectId: id,
+            sequence: version.sequence,
+            sourceProjectRevision: version.sourceProjectRevision,
+            publishedAt: version.publishedAt,
+            snapshot: version.pages.map((page) => ({
+              ...page,
+              id: pageIdMap.get(page.id) as string,
+            })),
+          });
+        }
+        if (exportDto.publishedVersions.length > 0) {
+          this.pageRepository.markProjectPublished(id);
+        }
+        const imported = this.repository.getRequired(id);
         this.repository.writeAudit({
           projectId: id,
           action: auditAction,
           before: sourceProjectId === undefined ? null : { sourceProjectId },
-          after: this.repository.toDto(inserted),
+          after: this.repository.toDto(imported),
           correlationId: randomUUID(),
           now,
         });
-        return inserted;
+        return imported;
       });
     } catch (error) {
       this.storage.discardStagedProject(id);
@@ -530,6 +867,11 @@ export class ProjectService {
       description: validateDescription(project.description),
       themeId: validateThemeId(project.themeId),
     };
+    const pages = parseImportPages(record.manifest, project.id);
+    const publishedVersions = parseImportPublishedVersions(
+      record.manifest,
+      project.id,
+    );
     assertApi(
       Array.isArray(record.files) &&
         record.files.length > 0 &&
@@ -637,7 +979,7 @@ export class ProjectService {
         "Imported project manifest is invalid",
       );
     }
-    return { project: parsedProject, files };
+    return { project: parsedProject, pages, publishedVersions, files };
   }
 
   trash(projectId: string, request: TrashProjectRequest): ProjectDto {
@@ -778,6 +1120,7 @@ export class ProjectService {
 
     const desired = this.#resolveRestoreIdentity(before, request);
     const manifest = this.#getTrashManifest(projectId);
+    this.#assertDefinitionChecksumMatchesManifest(projectId, manifest);
     const snapshot = this.storage.snapshot("trash", projectId);
     this.#assertSnapshotMatchesManifest(snapshot, manifest);
     const operationId = randomUUID();
@@ -1038,6 +1381,7 @@ export class ProjectService {
         );
         this.repository.setPurgeTombstone(projectId, snapshot.checksum);
         this.repository.putTombstone(tombstone, operationId, plan.id);
+        this.pageRepository.deleteOwnedDefinitions(projectId);
         this.repository.removeTrashManifest(projectId);
         this.repository.consumePurgePlan(plan.id, completedAt);
         this.repository.writeAudit({
@@ -1341,6 +1685,11 @@ export class ProjectService {
       operation.operation_type === "RESTORE" &&
       project.lifecycle_status === "RESTORING"
     ) {
+      const definitionManifest = this.#getTrashManifest(project.id);
+      this.#assertDefinitionChecksumMatchesManifest(
+        project.id,
+        definitionManifest,
+      );
       if (activeExists && !trashExists) {
         const manifest = this.#getTrashManifest(project.id);
         const desired = this.#restoreDesiredForOperation(operation.id, project);
@@ -1788,7 +2137,7 @@ export class ProjectService {
 
   #dto(row: ProjectRow, namespace: "active" | "trash"): ProjectDto {
     const counts: ProjectCounts = {
-      pages: 0,
+      pages: this.pageRepository.activeCount(row.id),
       elements: 0,
       bindings: 0,
       tables: 0,
@@ -1977,6 +2326,28 @@ export class ProjectService {
     );
   }
 
+  #definitionChecksum(projectId: string): string {
+    return createHash("sha256")
+      .update(stableJson(this.pageRepository.definitionState(projectId)))
+      .digest("hex");
+  }
+
+  #assertDefinitionChecksumMatchesManifest(
+    projectId: string,
+    manifest: TrashManifestRow,
+  ): void {
+    const detail = JSON.parse(manifest.manifest_json) as {
+      readonly pageDefinitionChecksum?: unknown;
+    };
+    assertApi(
+      typeof detail.pageDefinitionChecksum === "string" &&
+        detail.pageDefinitionChecksum === this.#definitionChecksum(projectId),
+      409,
+      "TRASH_PAGE_DEFINITION_CHECKSUM_MISMATCH",
+      "Page metadata no longer matches the trash manifest",
+    );
+  }
+
   #assertRestoredSnapshotMatchesManifest(
     snapshot: StorageSnapshot,
     manifest: TrashManifestRow,
@@ -2032,9 +2403,15 @@ export class ProjectService {
       deletedReason: reason,
       projectRevision: project.revision,
       lifecycleRevision: project.lifecycle_revision,
-      publishedRevision: null,
+      publishedRevision:
+        this.pageRepository.latestVersion(project.id)?.id ?? null,
       themeRevision: project.theme_id,
-      pageCount: 0,
+      pageCount: this.pageRepository.activeCount(project.id),
+      pageVersionCount: (
+        this.pageRepository.definitionState(project.id)
+          .versions as readonly unknown[]
+      ).length,
+      pageDefinitionChecksum: this.#definitionChecksum(project.id),
       elementCount: 0,
       bindingCount: 0,
       tableCount: 0,

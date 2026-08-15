@@ -6,7 +6,12 @@ import themeManifest from "../../../webeditor_theme_presets_v3.json";
 
 import { App } from "./App";
 import type { ProjectDto } from "./services/projects-api";
-import { themes, themeToCssVariables } from "./theme";
+import {
+  additionalThemes,
+  canonicalThemes,
+  themes,
+  themeToCssVariables,
+} from "./theme";
 
 const originalFetch = globalThis.fetch;
 
@@ -176,11 +181,13 @@ const canonicalTokenNames = Object.keys(
 ) as CanonicalTokenName[];
 
 describe("canonical theme runtime", () => {
-  it("keeps the 60-theme inventory, 20/20/20 groups, and all 52 source values exact", () => {
+  it("keeps all 60 canonical source themes byte-exact and adds 60 presets", () => {
     expect(themeManifest.themes).toHaveLength(60);
-    expect(themes).toHaveLength(60);
-    expect(themes.map((theme) => theme.id)).toStrictEqual(
-      themeManifest.themes.map((theme) => theme.id),
+    expect(canonicalThemes).toHaveLength(60);
+    expect(additionalThemes).toHaveLength(60);
+    expect(themes).toHaveLength(120);
+    expect(JSON.stringify(canonicalThemes)).toBe(
+      JSON.stringify(themeManifest.themes),
     );
     expect(canonicalTokenNames).toHaveLength(52);
 
@@ -191,7 +198,15 @@ describe("canonical theme runtime", () => {
       }),
       { dark: 0, gray: 0, light: 0 },
     );
-    expect(groupCounts).toStrictEqual({ dark: 20, gray: 20, light: 20 });
+    expect(groupCounts).toStrictEqual({ dark: 40, gray: 40, light: 40 });
+
+    let mappedValueCount = 0;
+    for (const runtimeTheme of themes) {
+      const cssVariables = themeToCssVariables(runtimeTheme);
+      expect(Object.keys(cssVariables), runtimeTheme.id).toHaveLength(52);
+      mappedValueCount += Object.keys(cssVariables).length;
+    }
+    expect(mappedValueCount).toBe(6_240);
 
     for (const sourceTheme of themeManifest.themes) {
       const runtimeTheme = themes.find((theme) => theme.id === sourceTheme.id);
@@ -253,7 +268,7 @@ describe("canonical theme runtime", () => {
     await user.click(themeTrigger);
     expect(
       screen.getAllByRole("tab").map((tab) => tab.textContent),
-    ).toStrictEqual(["다크20", "그레이20", "라이트20"]);
+    ).toStrictEqual(["다크40", "그레이40", "라이트40"]);
 
     for (const [group, label] of [
       ["dark", "다크"],
@@ -268,14 +283,15 @@ describe("canonical theme runtime", () => {
         .getAllByRole("option")
         .map((option) => option.getAttribute("data-theme-id"));
       expect(optionIds).toStrictEqual(
-        themeManifest.themes
+        themes
           .filter((theme) => theme.group === group)
           .map((theme) => theme.id),
       );
+      expect(optionIds).toHaveLength(40);
     }
   });
 
-  it("selects and applies every canonical theme through the visible header control", async () => {
+  it("selects and applies every canonical and additional theme through the visible header control", async () => {
     const user = userEvent.setup();
     const { container } = render(<App />);
     const themeTrigger = await screen.findByRole("button", {
@@ -291,7 +307,7 @@ describe("canonical theme runtime", () => {
     await user.click(themeTrigger);
     let currentGroup = "light";
 
-    for (const sourceTheme of themeManifest.themes) {
+    for (const sourceTheme of themes) {
       if (sourceTheme.group !== currentGroup) {
         currentGroup = sourceTheme.group;
         const groupLabel =
@@ -323,7 +339,7 @@ describe("canonical theme runtime", () => {
         ).toBe(sourceTheme.tokens[tokenName]);
       }
     }
-  }, 30_000);
+  }, 60_000);
 
   it("uses and retains the selected project default while editing", async () => {
     const user = userEvent.setup();

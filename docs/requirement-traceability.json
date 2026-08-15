@@ -61,24 +61,30 @@
     },
     {
       "id": "REQ-006",
-      "title": "20 dark, 20 gray, 20 light themes",
+      "title": "40 dark, 40 gray, 40 light themes",
       "phase": 2,
       "status": "VERIFIED",
       "implementation": [
         "packages/theme-core/src/theme.ts",
         "packages/theme-core/src/theme-revision.ts",
         "packages/theme-core/src/color-vision.ts",
+        "packages/theme-core/src/presets/webeditor-theme-presets.extension.v1.json",
+        "packages/theme-core/tools/generate-extended-theme-presets.mjs",
         "apps/web/src/ThemePicker.tsx",
         "apps/web/src/theme.ts"
       ],
       "tests": [
         "packages/theme-core/test/theme-core.test.ts",
+        "apps/web/src/theme.unit.test.ts",
         "apps/web/src/theme.runtime.test.tsx",
         "scripts/verify-themes.mjs",
-        "scripts/verify-phase2.mjs"
+        "scripts/verify-phase2.mjs",
+        "scripts/verify-theme-extension.mjs",
+        "tests/validation/theme-extension-validation.test.mjs"
       ],
       "evidence": [
         "artifacts/phase2/theme-runtime-validation.json",
+        "artifacts/phase2/theme-extension-validation.json",
         "artifacts/phase2/theme-screenshot-baseline.json"
       ]
     },
@@ -95,37 +101,71 @@
       "id": "REQ-008",
       "title": "Guided three-step workflow",
       "phase": 4,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "apps/web/src/App.tsx",
+        "apps/web/src/features/pages/PageManager.tsx",
+        "apps/server/src/pages/page-service.ts"
+      ],
+      "tests": [
+        "apps/web/src/App.test.tsx",
+        "apps/web/src/features/pages/PageManager.test.tsx",
+        "apps/server/test/integration/page-management.test.ts",
+        "scripts/verify-phase4.mjs"
+      ],
+      "evidence": ["artifacts/phase4/page-runtime-validation.json"]
     },
     {
       "id": "REQ-009",
       "title": "Double-click page rename",
       "phase": 4,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "apps/web/src/features/pages/PageManager.tsx",
+        "apps/web/src/services/pages-api.ts",
+        "apps/server/src/pages/page-service.ts"
+      ],
+      "tests": [
+        "apps/web/src/features/pages/PageManager.test.tsx",
+        "apps/server/test/integration/page-management.test.ts",
+        "scripts/verify-phase4.mjs"
+      ],
+      "evidence": ["artifacts/phase4/page-runtime-validation.json"]
     },
     {
       "id": "REQ-010",
       "title": "Page drag reorder and dangling overlay",
       "phase": 4,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "apps/web/src/features/pages/PageManager.tsx",
+        "apps/web/src/styles.css",
+        "apps/server/src/pages/page-repository.ts",
+        "apps/server/src/pages/page-service.ts"
+      ],
+      "tests": [
+        "apps/web/src/features/pages/PageManager.test.tsx",
+        "apps/server/test/integration/page-management.test.ts",
+        "scripts/verify-phase4.mjs"
+      ],
+      "evidence": ["artifacts/phase4/page-runtime-validation.json"]
     },
     {
       "id": "REQ-011",
       "title": "Red page trash control",
       "phase": 4,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "packages/domain/src/page.ts",
+        "apps/server/src/pages/page-service.ts",
+        "apps/web/src/features/pages/PageManager.tsx"
+      ],
+      "tests": [
+        "apps/server/test/integration/page-management.test.ts",
+        "apps/web/src/features/pages/PageManager.test.tsx",
+        "scripts/verify-phase4.mjs"
+      ],
+      "evidence": ["artifacts/phase4/page-runtime-validation.json"]
     },
     {
       "id": "REQ-012",
@@ -203,28 +243,54 @@
       "id": "REQ-020",
       "title": "Published runtime left navigation",
       "phase": 4,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "apps/server/src/pages/page-service.ts",
+        "apps/server/src/routes/pages.ts",
+        "apps/web/src/features/runtime/PublishedRuntime.tsx",
+        "apps/web/src/styles.css"
+      ],
+      "tests": [
+        "apps/server/test/integration/page-management.test.ts",
+        "apps/web/src/features/runtime/PublishedRuntime.test.tsx",
+        "scripts/verify-phase4.mjs"
+      ],
+      "evidence": ["artifacts/phase4/page-runtime-validation.json"]
     },
     {
       "id": "REQ-021",
       "title": "Page Lucide icons",
       "phase": 4,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "apps/server/src/icons/lucide-icon-catalog.generated.ts",
+        "apps/server/src/pages/page-service.ts",
+        "apps/web/src/features/pages/DynamicLucideIcon.tsx"
+      ],
+      "tests": [
+        "apps/server/test/unit/icon-catalog.test.ts",
+        "apps/server/test/integration/page-management.test.ts",
+        "apps/web/src/features/pages/PageManager.test.tsx",
+        "scripts/verify-phase4.mjs"
+      ],
+      "evidence": ["artifacts/phase4/page-runtime-validation.json"]
     },
     {
       "id": "REQ-022",
       "title": "Searchable page icon picker",
       "phase": 4,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "apps/server/src/icons/lucide-icon-catalog.generated.ts",
+        "apps/server/src/routes/pages.ts",
+        "apps/web/src/features/pages/IconPicker.tsx"
+      ],
+      "tests": [
+        "apps/server/test/unit/icon-catalog.test.ts",
+        "apps/web/src/features/pages/PageManager.test.tsx",
+        "scripts/verify-phase4.mjs"
+      ],
+      "evidence": ["artifacts/phase4/page-runtime-validation.json"]
     },
     {
       "id": "REQ-023",

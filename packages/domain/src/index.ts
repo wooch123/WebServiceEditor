@@ -24,3 +24,23 @@ export {
   type RestoreProjectRequest,
   type TrashProjectRequest,
 } from "./project.js";
+export {
+  LUCIDE_ICON_CATALOG_VERSION,
+  PAGE_SCHEMA_VERSION,
+  PAGE_TYPES,
+  PUBLISH_VALIDATION_CODES,
+  type CreatePageRequest,
+  type DeletePageImpact,
+  type DeletePageRequest,
+  type IconCatalogItemDto,
+  type PageDto,
+  type PageType,
+  type PatchPageIconRequest,
+  type PatchPageRequest,
+  type PublishedNavigationPageDto,
+  type PublishPlanDto,
+  type PublishValidationCode,
+  type ReorderPagesRequest,
+  type RuntimeNavigationDto,
+  type UndoPageCommandRequest,
+} from "./page.js";
