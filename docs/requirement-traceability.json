@@ -221,10 +221,31 @@
       "id": "REQ-015",
       "title": "Right property inspector",
       "phase": 6,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "docs/adr/0007-element-registry-properties-and-history.md",
+        "packages/domain/src/element.ts",
+        "apps/server/src/metadata/database.ts",
+        "apps/server/src/elements/element-registry.ts",
+        "apps/server/src/elements/element-service.ts",
+        "apps/server/src/routes/elements.ts",
+        "apps/web/src/features/elements/ElementPropertyInspector.tsx",
+        "apps/web/src/features/elements/ElementRenderer.tsx",
+        "apps/web/src/features/runtime/RuntimeElementRenderer.tsx",
+        "apps/web/src/features/runtime/PublishedRuntime.tsx"
+      ],
+      "tests": [
+        "packages/domain/test/element-contract.test.ts",
+        "apps/server/test/integration/element-properties-history.test.ts",
+        "apps/web/src/features/elements/ElementPropertyInspector.test.tsx",
+        "apps/web/src/features/elements/ElementRenderers.test.tsx",
+        "apps/web/src/features/runtime/PublishedRuntime.test.tsx",
+        "scripts/verify-phase6.mjs"
+      ],
+      "evidence": [
+        "artifacts/phase6/element-registry-inspector-validation.json",
+        "artifacts/phase6/browser-inspector-validation.json"
+      ]
     },
     {
       "id": "REQ-016",

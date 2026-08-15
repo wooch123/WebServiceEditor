@@ -206,4 +206,10 @@ export async function registerPageRoutes(
     "/api/v1/runtime/:projectId/navigation",
     async (request) => service.runtimeNavigation(request.params.projectId),
   );
+
+  server.get<{ Params: { projectId: string; pageId: string } }>(
+    "/api/v1/runtime/:projectId/pages/:pageId",
+    async (request) =>
+      service.runtimePage(request.params.projectId, request.params.pageId),
+  );
 }

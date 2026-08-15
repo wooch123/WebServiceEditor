@@ -6,10 +6,12 @@ import {
   type CreatePageRequest,
   type DeletePageImpact,
   type DeletePageRequest,
+  type ElementEntryDto,
   type IconCatalogItemDto,
   type PageDto,
   type PatchPageIconRequest,
   type PatchPageRequest,
+  type PublishedRuntimePageDto,
   type PublishPlanDto,
   type PublishedNavigationPageDto,
   type ReorderPagesRequest,
@@ -20,6 +22,10 @@ import {
 import { ApiError, assertApi } from "../errors.js";
 import { LUCIDE_ICON_CATALOG } from "../icons/lucide-icon-catalog.generated.js";
 import { ElementRepository } from "../elements/element-repository.js";
+import {
+  elementDefinition,
+  validateElementStoredState,
+} from "../elements/element-registry.js";
 import type { MetadataDatabase } from "../metadata/database.js";
 import {
   PageRepository,
@@ -866,6 +872,105 @@ export class PageService {
       "Project is not published",
     );
     return this.repository.toRuntimeNavigation(version);
+  }
+
+  runtimePage(projectId: string, pageId: string): PublishedRuntimePageDto {
+    assertUuid(projectId, "INVALID_PROJECT_ID", "Project ID");
+    assertUuid(pageId, "INVALID_PAGE_ID", "Page ID");
+    const project = this.projectRepository.get(projectId);
+    assertApi(
+      project !== undefined,
+      404,
+      "PROJECT_NOT_FOUND",
+      "Project was not found",
+    );
+    assertApi(
+      project.lifecycle_status === "ACTIVE",
+      409,
+      "PROJECT_NOT_ACTIVE",
+      "Project is not active",
+    );
+    const version = this.repository.latestVersion(projectId);
+    assertApi(
+      version !== undefined,
+      404,
+      "PROJECT_NOT_PUBLISHED",
+      "Project is not published",
+    );
+    const snapshot = this.repository.versionSnapshot(version);
+    const page = snapshot.pages.find((candidate) => candidate.id === pageId);
+    assertApi(
+      page !== undefined,
+      404,
+      "RUNTIME_PAGE_NOT_FOUND",
+      "Published page was not found",
+    );
+    const elements = (snapshot.elements ?? [])
+      .map((entry) => {
+        assertApi(
+          typeof entry === "object" && entry !== null && !Array.isArray(entry),
+          500,
+          "PUBLISHED_SNAPSHOT_INVALID",
+          "Published Element snapshot is invalid",
+        );
+        const candidate = entry as {
+          readonly element?: {
+            readonly pageId?: unknown;
+            readonly projectId?: unknown;
+            readonly type?: unknown;
+            readonly typeVersion?: unknown;
+            readonly hidden?: unknown;
+          };
+        };
+        assertApi(
+          typeof candidate.element === "object" &&
+            candidate.element !== null &&
+            candidate.element.projectId === projectId &&
+            candidate.element.typeVersion === 1 &&
+            typeof candidate.element.hidden === "boolean",
+          500,
+          "PUBLISHED_SNAPSHOT_INVALID",
+          "Published Element ownership is invalid",
+        );
+        const typedEntry = entry as ElementEntryDto;
+        let state: ReturnType<typeof validateElementStoredState>;
+        try {
+          const definition = elementDefinition(candidate.element.type);
+          state = validateElementStoredState(definition, {
+            props: typedEntry.element.props,
+            style: typedEntry.element.style,
+            events: typedEntry.element.events,
+          });
+        } catch (error) {
+          if (error instanceof ApiError && error.statusCode === 400) {
+            throw new ApiError(
+              500,
+              "PUBLISHED_SNAPSHOT_INVALID",
+              "Published Element Registry state is invalid",
+            );
+          }
+          throw error;
+        }
+        return {
+          ...typedEntry,
+          element: {
+            ...typedEntry.element,
+            props: state.props,
+            style: state.style,
+            events: state.events,
+          },
+        };
+      })
+      .filter(
+        (entry) => entry.element.pageId === pageId && !entry.element.hidden,
+      );
+    return {
+      projectId,
+      versionId: version.id,
+      publishedAt: version.published_at,
+      page,
+      elements,
+    };
   }
 
   listIcons(query: Record<string, unknown>): {

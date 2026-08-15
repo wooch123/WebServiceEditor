@@ -29,18 +29,28 @@ import {
   createPlacementCandidate,
   deleteElement,
   ElementsApiError,
+  getElementDetail,
+  getElementHistory,
   listElements,
+  listElementRegistry,
+  mutateElementHistory,
   updateElement,
   type CanvasPointerDto,
   type ElementChangeDto,
+  type ElementDefinitionDto,
+  type ElementDetailDto,
   type ElementEntryDto,
+  type ElementHistoryDto,
   type ElementLayoutDto,
+  type ElementPropertyValue,
+  type ElementRegistryDto,
   type ElementType,
   type PlacementCandidateDto,
   type ResizeHandle,
 } from "@/services/elements-api";
 import { ElementPalette, PaletteDragOverlay } from "./ElementPalette";
-import { canvasElementDefinitionByType } from "./element-definitions";
+import { elementDefinitionMap } from "./element-definitions";
+import { assertEditorRendererDefinitions } from "./ElementRenderer";
 import {
   CANVAS_PADDING,
   GRID_GAP,
@@ -59,6 +69,14 @@ interface RevisionPair {
   layoutRevision: number;
 }
 
+export interface ElementPropertyUpdateTarget {
+  readonly entry: ElementEntryDto;
+  readonly pageId: string;
+  readonly expectedLayoutRevision: number;
+  readonly expectedProjectRevision: number;
+  readonly idempotencyKey: string;
+}
+
 export interface CompleteCanvasLayoutItem {
   i: string;
   x: number;
@@ -68,13 +86,27 @@ export interface CompleteCanvasLayoutItem {
 }
 
 interface ElementWorkspaceContextValue {
+  projectId: string;
   pageId: string | null;
+  registry: ElementRegistryDto | null;
+  registryLoading: boolean;
+  registryError: string;
+  definitions: readonly ElementDefinitionDto[];
+  definitionByType: ReadonlyMap<ElementType, ElementDefinitionDto>;
   entries: ElementEntryDto[];
   loading: boolean;
   mutating: boolean;
   candidateLoading: boolean;
   error: string;
   lastCommandId: string | null;
+  selectedDetail: ElementDetailDto | null;
+  detailLoading: boolean;
+  detailError: string;
+  propertySaving: boolean;
+  propertyDraftPending: boolean;
+  history: ElementHistoryDto | null;
+  historyLoading: boolean;
+  historyMutating: boolean;
   candidate: PlacementCandidateDto | null;
   activeElementType: ElementType | null;
   keyboardPlacement: boolean;
@@ -87,6 +119,18 @@ interface ElementWorkspaceContextValue {
   setZoom: (zoom: number) => void;
   toggleGridVisible: () => void;
   retry: () => Promise<void>;
+  retryRegistry: () => Promise<void>;
+  retryDetail: () => Promise<void>;
+  setPropertyDraftPending: (pending: boolean) => void;
+  captureElementPropertyTarget: (
+    elementId: string,
+  ) => ElementPropertyUpdateTarget | null;
+  updateElementProperties: (
+    target: ElementPropertyUpdateTarget,
+    values: Readonly<Record<string, ElementPropertyValue>>,
+  ) => Promise<ElementPropertyUpdateTarget | null>;
+  undoElementCommand: () => Promise<void>;
+  redoElementCommand: () => Promise<void>;
   beginKeyboardPlacement: (elementType: ElementType) => Promise<void>;
   commitPlacement: () => Promise<void>;
   cancelPlacement: () => void;
@@ -121,13 +165,11 @@ export function useElementWorkspace(): ElementWorkspaceContextValue {
   return value;
 }
 
-function isElementType(value: unknown): value is ElementType {
-  return (
-    value === "text" ||
-    value === "button" ||
-    value === "container" ||
-    value === "kpi-card"
-  );
+function isElementType(
+  value: unknown,
+  definitions: ReadonlyMap<ElementType, ElementDefinitionDto>,
+): value is ElementType {
+  return typeof value === "string" && definitions.has(value as ElementType);
 }
 
 function clientPoint(event: DragMoveEvent | DragEndEvent): {
@@ -171,6 +213,7 @@ function failureCopy(reason: unknown): string {
 }
 
 export function ElementWorkspaceProvider({
+  projectId,
   pageId,
   projectRevision,
   layoutRevision,
@@ -178,6 +221,7 @@ export function ElementWorkspaceProvider({
   onLayoutRevisionChange,
   children,
 }: {
+  projectId: string;
   pageId: string | null;
   projectRevision: number;
   layoutRevision: number;
@@ -185,12 +229,25 @@ export function ElementWorkspaceProvider({
   onLayoutRevisionChange: (pageId: string, revision: number) => void;
   children: ReactNode;
 }) {
+  const [registry, setRegistry] = useState<ElementRegistryDto | null>(null);
+  const [registryLoading, setRegistryLoading] = useState(true);
+  const [registryError, setRegistryError] = useState("");
   const [entries, setEntries] = useState<ElementEntryDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [mutating, setMutating] = useState(false);
   const [candidateLoading, setCandidateLoading] = useState(false);
   const [error, setError] = useState("");
   const [lastCommandId, setLastCommandId] = useState<string | null>(null);
+  const [selectedDetail, setSelectedDetail] = useState<ElementDetailDto | null>(
+    null,
+  );
+  const [detailLoading, setDetailLoading] = useState(false);
+  const [detailError, setDetailError] = useState("");
+  const [propertySaving, setPropertySaving] = useState(false);
+  const [propertyDraftPending, setPropertyDraftPending] = useState(false);
+  const [history, setHistory] = useState<ElementHistoryDto | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyMutating, setHistoryMutating] = useState(false);
   const [candidate, setCandidate] = useState<PlacementCandidateDto | null>(
     null,
   );
@@ -215,9 +272,13 @@ export function ElementWorkspaceProvider({
   });
   const revisionPageIdRef = useRef(pageId);
   const pageIdRef = useRef(pageId);
+  const projectIdRef = useRef(projectId);
   const onProjectRevisionChangeRef = useRef(onProjectRevisionChange);
   const onLayoutRevisionChangeRef = useRef(onLayoutRevisionChange);
   const listAbortRef = useRef<AbortController | null>(null);
+  const registryAbortRef = useRef<AbortController | null>(null);
+  const detailAbortRef = useRef<AbortController | null>(null);
+  const historyAbortRef = useRef<AbortController | null>(null);
   const candidateAbortRef = useRef<AbortController | null>(null);
   const candidateSequenceRef = useRef(0);
   const candidateRef = useRef<PlacementCandidateDto | null>(null);
@@ -228,8 +289,16 @@ export function ElementWorkspaceProvider({
     pending: boolean;
   } | null>(null);
   const activeElementTypeRef = useRef<ElementType | null>(null);
+  const entriesRef = useRef(entries);
+  const definitionByType = useMemo(
+    () => elementDefinitionMap(registry?.definitions ?? []),
+    [registry],
+  );
+  const definitionByTypeRef = useRef(definitionByType);
   const hasEnteredCanvasRef = useRef(false);
   const dragJustEndedRef = useRef(false);
+  const propertyQueueRef = useRef<Promise<unknown>>(Promise.resolve());
+  const propertySaveCountRef = useRef(0);
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
   );
@@ -237,6 +306,18 @@ export function ElementWorkspaceProvider({
   useEffect(() => {
     pageIdRef.current = pageId;
   }, [pageId]);
+
+  useEffect(() => {
+    projectIdRef.current = projectId;
+  }, [projectId]);
+
+  useEffect(() => {
+    entriesRef.current = entries;
+  }, [entries]);
+
+  useEffect(() => {
+    definitionByTypeRef.current = definitionByType;
+  }, [definitionByType]);
 
   useEffect(() => {
     const pageChanged = revisionPageIdRef.current !== pageId;
@@ -280,6 +361,29 @@ export function ElementWorkspaceProvider({
     [],
   );
 
+  const applyPageAwareRevisions = useCallback(
+    (
+      nextProjectRevision: number,
+      nextLayoutRevision: number,
+      mutationPageId: string,
+    ) => {
+      const current = revisionRef.current;
+      const currentPageId = pageIdRef.current;
+      revisionRef.current = {
+        projectRevision: Math.max(current.projectRevision, nextProjectRevision),
+        layoutRevision:
+          currentPageId === mutationPageId
+            ? Math.max(current.layoutRevision, nextLayoutRevision)
+            : current.layoutRevision,
+      };
+      if (nextProjectRevision >= current.projectRevision) {
+        onProjectRevisionChangeRef.current(nextProjectRevision);
+      }
+      onLayoutRevisionChangeRef.current(mutationPageId, nextLayoutRevision);
+    },
+    [],
+  );
+
   const clearCandidate = useCallback(() => {
     candidateAbortRef.current?.abort();
     candidateAbortRef.current = null;
@@ -315,11 +419,64 @@ export function ElementWorkspaceProvider({
     };
   }, [cancelPlacement, keyboardPlacement]);
 
+  const loadRegistry = useCallback(async () => {
+    registryAbortRef.current?.abort();
+    const controller = new AbortController();
+    registryAbortRef.current = controller;
+    setRegistryLoading(true);
+    setRegistryError("");
+    try {
+      const payload = await listElementRegistry(controller.signal);
+      assertEditorRendererDefinitions(payload.definitions);
+      if (!controller.signal.aborted) setRegistry(payload);
+    } catch (reason) {
+      if (reason instanceof DOMException && reason.name === "AbortError")
+        return;
+      setRegistryError(reason instanceof Error ? reason.message : "목록 오류");
+    } finally {
+      if (!controller.signal.aborted) setRegistryLoading(false);
+    }
+  }, []);
+
+  const loadHistory = useCallback(async () => {
+    const currentProjectId = projectIdRef.current;
+    historyAbortRef.current?.abort();
+    const controller = new AbortController();
+    historyAbortRef.current = controller;
+    setHistoryLoading(true);
+    try {
+      const payload = await getElementHistory(
+        currentProjectId,
+        controller.signal,
+      );
+      if (!controller.signal.aborted) setHistory(payload);
+    } catch (reason) {
+      if (reason instanceof DOMException && reason.name === "AbortError")
+        return;
+      setError(failureCopy(reason));
+    } finally {
+      if (!controller.signal.aborted) setHistoryLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    void loadRegistry();
+    return () => registryAbortRef.current?.abort();
+  }, [loadRegistry]);
+
+  useEffect(() => {
+    setHistory(null);
+    void loadHistory();
+    return () => historyAbortRef.current?.abort();
+  }, [loadHistory, projectId]);
+
   const load = useCallback(async () => {
     const currentPageId = pageIdRef.current;
     listAbortRef.current?.abort();
     cancelPlacement();
     setSelectedElementIds(new Set());
+    setSelectedDetail(null);
+    setDetailError("");
     setLastCommandId(null);
     if (!currentPageId) {
       setEntries([]);
@@ -352,8 +509,60 @@ export function ElementWorkspaceProvider({
     return () => {
       listAbortRef.current?.abort();
       candidateAbortRef.current?.abort();
+      detailAbortRef.current?.abort();
     };
   }, [load, pageId]);
+
+  const selectedElementId = useMemo(() => {
+    if (selectedElementIds.size !== 1) return null;
+    return selectedElementIds.values().next().value ?? null;
+  }, [selectedElementIds]);
+  const selectedElementRevision = selectedElementId
+    ? entries.find((entry) => entry.element.id === selectedElementId)?.element
+        .revision
+    : undefined;
+
+  const loadSelectedDetail = useCallback(async () => {
+    if (!selectedElementId) {
+      detailAbortRef.current?.abort();
+      setSelectedDetail(null);
+      setDetailError("");
+      setDetailLoading(false);
+      return;
+    }
+    detailAbortRef.current?.abort();
+    const controller = new AbortController();
+    detailAbortRef.current = controller;
+    setSelectedDetail((current) =>
+      current?.entry.element.id === selectedElementId ? current : null,
+    );
+    setDetailLoading(true);
+    setDetailError("");
+    try {
+      const payload = await getElementDetail(
+        selectedElementId,
+        controller.signal,
+      );
+      if (
+        controller.signal.aborted ||
+        payload.entry.element.id !== selectedElementId
+      ) {
+        return;
+      }
+      setSelectedDetail(payload);
+    } catch (reason) {
+      if (reason instanceof DOMException && reason.name === "AbortError")
+        return;
+      setDetailError(failureCopy(reason));
+    } finally {
+      if (!controller.signal.aborted) setDetailLoading(false);
+    }
+  }, [selectedElementId]);
+
+  useEffect(() => {
+    void loadSelectedDetail();
+    return () => detailAbortRef.current?.abort();
+  }, [loadSelectedDetail, selectedElementRevision]);
 
   const handleFailure = useCallback(
     async (reason: unknown) => {
@@ -409,13 +618,13 @@ export function ElementWorkspaceProvider({
       const currentPageId = pageIdRef.current;
       if (!currentPageId) return Promise.resolve(null);
       const currentRevision = revisionRef.current;
-      const definition = canvasElementDefinitionByType.get(elementType);
+      const definition = definitionByTypeRef.current.get(elementType);
       if (!definition) return Promise.resolve(null);
       const { column, row } = snapPlacementCell({
         correctedCanvasX: pointer.correctedCanvasX,
         correctedCanvasY: pointer.correctedCanvasY,
         canvasWidth: canvasWidthRef.current,
-        defaultW: definition.defaultW,
+        defaultW: definition.layout.defaultW,
       });
       const boundary =
         pointer.correctedCanvasX < 0
@@ -560,6 +769,7 @@ export function ElementWorkspaceProvider({
         setSelectedElementIds(new Set([payload.entry.element.id]));
         setLastCommandId(payload.commandId);
         applyRevisions(payload.projectRevision, payload.layoutRevision);
+        void loadHistory();
         cancelPlacement();
         requestAnimationFrame(() => {
           document
@@ -574,7 +784,7 @@ export function ElementWorkspaceProvider({
         setMutating(false);
       }
     },
-    [applyRevisions, cancelPlacement, handleFailure, mutating],
+    [applyRevisions, cancelPlacement, handleFailure, loadHistory, mutating],
   );
 
   const commitPlacement = useCallback(async () => {
@@ -696,6 +906,7 @@ export function ElementWorkspaceProvider({
         setEntries((current) => upsertEntry(current, payload.entry));
         setLastCommandId(payload.commandId);
         applyRevisions(payload.projectRevision, payload.layoutRevision);
+        void loadHistory();
       } catch (reason) {
         if (!(reason instanceof ElementsApiError && reason.status === 409)) {
           setEntries((current) => upsertEntry(current, entry));
@@ -705,8 +916,212 @@ export function ElementWorkspaceProvider({
         setMutating(false);
       }
     },
-    [applyRevisions, handleFailure, mutating],
+    [applyRevisions, handleFailure, loadHistory, mutating],
   );
+
+  const captureElementPropertyTarget = useCallback(
+    (elementId: string): ElementPropertyUpdateTarget | null => {
+      const entry = entriesRef.current.find(
+        (candidateEntry) => candidateEntry.element.id === elementId,
+      );
+      const currentPageId = pageIdRef.current;
+      if (!entry || !currentPageId || entry.element.pageId !== currentPageId) {
+        return null;
+      }
+      return {
+        entry,
+        pageId: currentPageId,
+        expectedLayoutRevision: revisionRef.current.layoutRevision,
+        expectedProjectRevision: revisionRef.current.projectRevision,
+        idempotencyKey: `element-properties:${elementId}:${crypto.randomUUID()}`,
+      };
+    },
+    [],
+  );
+
+  const updateElementProperties = useCallback(
+    (
+      target: ElementPropertyUpdateTarget,
+      values: Readonly<Record<string, ElementPropertyValue>>,
+    ): Promise<ElementPropertyUpdateTarget | null> => {
+      const run = async () => {
+        if (Object.keys(values).length === 0) return null;
+        propertySaveCountRef.current += 1;
+        setPropertySaving(true);
+        setError("");
+        try {
+          const payload = await updateElement({
+            entry: target.entry,
+            expectedLayoutRevision: target.expectedLayoutRevision,
+            expectedProjectRevision: Math.max(
+              target.expectedProjectRevision,
+              revisionRef.current.projectRevision,
+            ),
+            idempotencyKey: target.idempotencyKey,
+            change: { kind: "PROPERTIES", values },
+          });
+          if (pageIdRef.current === payload.entry.element.pageId) {
+            const nextEntries = upsertEntry(entriesRef.current, payload.entry);
+            entriesRef.current = nextEntries;
+            setEntries(nextEntries);
+            setSelectedDetail((current) =>
+              current?.entry.element.id === payload.entry.element.id
+                ? {
+                    ...current,
+                    entry: payload.entry,
+                    propertyValues: {
+                      ...current.propertyValues,
+                      ...values,
+                    },
+                  }
+                : current,
+            );
+          }
+          setLastCommandId(payload.commandId);
+          applyPageAwareRevisions(
+            payload.projectRevision,
+            payload.layoutRevision,
+            payload.entry.element.pageId,
+          );
+          await loadHistory();
+          return {
+            entry: payload.entry,
+            pageId: payload.entry.element.pageId,
+            expectedLayoutRevision: payload.layoutRevision,
+            expectedProjectRevision: payload.projectRevision,
+            idempotencyKey: `element-properties:${payload.entry.element.id}:${crypto.randomUUID()}`,
+          };
+        } catch (reason) {
+          if (pageIdRef.current === target.pageId) {
+            await handleFailure(reason);
+            await loadSelectedDetail();
+          } else {
+            setError(failureCopy(reason));
+          }
+          return null;
+        } finally {
+          propertySaveCountRef.current -= 1;
+          if (propertySaveCountRef.current === 0) setPropertySaving(false);
+        }
+      };
+      const queued = propertyQueueRef.current.then(run, run);
+      propertyQueueRef.current = queued.then(
+        () => undefined,
+        () => undefined,
+      );
+      return queued;
+    },
+    [applyPageAwareRevisions, handleFailure, loadHistory, loadSelectedDetail],
+  );
+
+  const mutateHistory = useCallback(
+    async (operation: "undo" | "redo") => {
+      const command =
+        operation === "undo" ? history?.undoCommand : history?.redoCommand;
+      if (
+        !command ||
+        historyMutating ||
+        propertyDraftPending ||
+        propertySaving ||
+        mutating
+      ) {
+        return;
+      }
+      setHistoryMutating(true);
+      setError("");
+      try {
+        const payload = await mutateElementHistory({
+          projectId: projectIdRef.current,
+          operation,
+          expectedProjectRevision: revisionRef.current.projectRevision,
+          expectedCommandId: command.id,
+        });
+        if (pageIdRef.current === payload.pageId) {
+          const deletedIds = new Set(payload.deletedElementIds);
+          let nextEntries = entriesRef.current.filter(
+            (entry) => !deletedIds.has(entry.element.id),
+          );
+          for (const entry of payload.entries) {
+            nextEntries = upsertEntry(nextEntries, entry);
+          }
+          entriesRef.current = nextEntries;
+          setEntries(nextEntries);
+          setSelectedElementIds(
+            (current) =>
+              new Set([...current].filter((id) => !deletedIds.has(id))),
+          );
+        }
+        setLastCommandId(payload.commandId);
+        applyPageAwareRevisions(
+          payload.projectRevision,
+          payload.layoutRevision,
+          payload.pageId,
+        );
+        setHistory((current) =>
+          current
+            ? {
+                ...current,
+                canUndo: payload.canUndo,
+                canRedo: payload.canRedo,
+              }
+            : current,
+        );
+        await loadHistory();
+      } catch (reason) {
+        await handleFailure(reason);
+      } finally {
+        setHistoryMutating(false);
+      }
+    },
+    [
+      applyPageAwareRevisions,
+      handleFailure,
+      history,
+      historyMutating,
+      loadHistory,
+      mutating,
+      propertySaving,
+      propertyDraftPending,
+    ],
+  );
+
+  const undoElementCommand = useCallback(
+    () => mutateHistory("undo"),
+    [mutateHistory],
+  );
+  const redoElementCommand = useCallback(
+    () => mutateHistory("redo"),
+    [mutateHistory],
+  );
+
+  useEffect(() => {
+    function handleHistoryKey(event: globalThis.KeyboardEvent) {
+      if (
+        !(event.ctrlKey || event.metaKey) ||
+        event.key.toLowerCase() !== "z"
+      ) {
+        return;
+      }
+      const target = event.target;
+      if (
+        target instanceof HTMLElement &&
+        target.closest(
+          'input, textarea, select, [contenteditable="true"], [role="textbox"], [role="spinbutton"]',
+        )
+      ) {
+        return;
+      }
+      const command = event.shiftKey
+        ? history?.redoCommand
+        : history?.undoCommand;
+      if (!command) return;
+      event.preventDefault();
+      if (event.shiftKey) void redoElementCommand();
+      else void undoElementCommand();
+    }
+    document.addEventListener("keydown", handleHistoryKey);
+    return () => document.removeEventListener("keydown", handleHistoryKey);
+  }, [history, redoElementCommand, undoElementCommand]);
 
   const persistCompleteLayout = useCallback(
     async (layout: readonly CompleteCanvasLayoutItem[]) => {
@@ -767,6 +1182,7 @@ export function ElementWorkspaceProvider({
         setEntries(payload.entries);
         setLastCommandId(payload.commandId);
         applyRevisions(payload.projectRevision, payload.layoutRevision);
+        void loadHistory();
       } catch (reason) {
         if (!(reason instanceof ElementsApiError && reason.status === 409)) {
           setEntries(snapshot);
@@ -776,7 +1192,7 @@ export function ElementWorkspaceProvider({
         setMutating(false);
       }
     },
-    [applyRevisions, entries, handleFailure, mutating],
+    [applyRevisions, entries, handleFailure, loadHistory, mutating],
   );
 
   const moveElement = useCallback(
@@ -848,13 +1264,14 @@ export function ElementWorkspaceProvider({
         });
         setLastCommandId(payload.commandId);
         applyRevisions(payload.projectRevision, payload.layoutRevision);
+        void loadHistory();
       } catch (reason) {
         await handleFailure(reason);
       } finally {
         setMutating(false);
       }
     },
-    [applyRevisions, handleFailure, mutating],
+    [applyRevisions, handleFailure, loadHistory, mutating],
   );
 
   const removeSelectedElements = useCallback(async () => {
@@ -889,6 +1306,7 @@ export function ElementWorkspaceProvider({
       );
       setSelectedElementIds(new Set());
       setLastCommandId(lastCommandId);
+      void loadHistory();
     } catch (reason) {
       // Multiple DELETEs have no batch route; reload authoritative state if a
       // later request fails after an earlier request committed.
@@ -897,7 +1315,14 @@ export function ElementWorkspaceProvider({
     } finally {
       setMutating(false);
     }
-  }, [applyRevisions, entries, load, mutating, selectedElementIds]);
+  }, [
+    applyRevisions,
+    entries,
+    load,
+    loadHistory,
+    mutating,
+    selectedElementIds,
+  ]);
 
   const selectElement = useCallback((elementId: string, additive: boolean) => {
     setSelectedElementIds((current) => {
@@ -915,7 +1340,7 @@ export function ElementWorkspaceProvider({
 
   function handleDragStart(event: DragStartEvent) {
     const elementType = event.active.data.current?.elementType;
-    if (!isElementType(elementType)) return;
+    if (!isElementType(elementType, definitionByTypeRef.current)) return;
     hasEnteredCanvasRef.current = false;
     activeElementTypeRef.current = elementType;
     setActiveElementType(elementType);
@@ -987,13 +1412,27 @@ export function ElementWorkspaceProvider({
 
   const value = useMemo<ElementWorkspaceContextValue>(
     () => ({
+      projectId,
       pageId,
+      registry,
+      registryLoading,
+      registryError,
+      definitions: registry?.definitions ?? [],
+      definitionByType,
       entries,
       loading,
       mutating,
       candidateLoading,
       error,
       lastCommandId,
+      selectedDetail,
+      detailLoading,
+      detailError,
+      propertySaving,
+      propertyDraftPending,
+      history,
+      historyLoading,
+      historyMutating,
       candidate,
       activeElementType,
       keyboardPlacement,
@@ -1009,6 +1448,13 @@ export function ElementWorkspaceProvider({
       setZoom,
       toggleGridVisible,
       retry: load,
+      retryRegistry: loadRegistry,
+      retryDetail: loadSelectedDetail,
+      setPropertyDraftPending,
+      captureElementPropertyTarget,
+      updateElementProperties,
+      undoElementCommand,
+      redoElementCommand,
       beginKeyboardPlacement,
       commitPlacement,
       cancelPlacement,
@@ -1026,29 +1472,48 @@ export function ElementWorkspaceProvider({
       activeElementType,
       beginKeyboardPlacement,
       cancelPlacement,
+      captureElementPropertyTarget,
       candidate,
       candidateLoading,
       clearSelection,
       commitPlacement,
+      definitionByType,
+      detailError,
+      detailLoading,
       entries,
       error,
       gridVisible,
       handleCandidateKeyDown,
+      history,
+      historyLoading,
+      historyMutating,
       keyboardPlacement,
       lastCommandId,
       load,
+      loadRegistry,
+      loadSelectedDetail,
       loading,
       moveElement,
       mutating,
       pageId,
+      projectId,
+      propertySaving,
+      propertyDraftPending,
+      redoElementCommand,
+      registry,
+      registryError,
+      registryLoading,
       persistCompleteLayout,
       removeElement,
       removeSelectedElements,
       resizeElement,
       selectElement,
       selectedElementIds,
+      selectedDetail,
       toggleElementLock,
       toggleGridVisible,
+      undoElementCommand,
+      updateElementProperties,
       zoom,
     ],
   );
@@ -1065,8 +1530,10 @@ export function ElementWorkspaceProvider({
       >
         {children}
         <DragOverlay dropAnimation={{ duration: 140, easing: "ease-out" }}>
-          {activeElementType ? (
-            <PaletteDragOverlay elementType={activeElementType} />
+          {activeElementType && definitionByType.get(activeElementType) ? (
+            <PaletteDragOverlay
+              definition={definitionByType.get(activeElementType)!}
+            />
           ) : null}
         </DragOverlay>
       </DndContext>
@@ -1082,7 +1549,17 @@ export function WorkspaceElementPalette({
   const workspace = useElementWorkspace();
   return (
     <ElementPalette
-      disabled={disabled || !workspace.pageId || workspace.mutating}
+      definitions={workspace.definitions}
+      loading={workspace.registryLoading}
+      error={workspace.registryError}
+      onRetry={() => void workspace.retryRegistry()}
+      disabled={
+        disabled ||
+        !workspace.pageId ||
+        workspace.mutating ||
+        workspace.registryLoading ||
+        Boolean(workspace.registryError)
+      }
       onKeyboardPlace={(elementType) => {
         void workspace.beginKeyboardPlacement(elementType);
       }}

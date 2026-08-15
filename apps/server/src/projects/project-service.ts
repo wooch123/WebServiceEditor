@@ -25,6 +25,7 @@ import { ElementRepository } from "../elements/element-repository.js";
 import {
   elementDefinition,
   rectanglesOverlap,
+  validateElementStoredState,
 } from "../elements/element-registry.js";
 import { LUCIDE_ICON_CATALOG } from "../icons/lucide-icon-catalog.generated.js";
 import type { MetadataDatabase } from "../metadata/database.js";
@@ -391,6 +392,11 @@ function parseElementEntries(
       { ...detail, index },
     );
     const definition = elementDefinition(element.type);
+    const validatedState = validateElementStoredState(definition, {
+      props: element.props,
+      style: element.style,
+      events: element.events,
+    });
     assertApi(
       layout.elementId === element.id &&
         layout.breakpoint === "desktop" &&
@@ -423,9 +429,9 @@ function parseElementEntries(
         type: definition.type,
         typeVersion: 1,
         name: element.name.trim(),
-        props: element.props as Record<string, unknown>,
-        style: element.style as Record<string, unknown>,
-        events: element.events,
+        props: validatedState.props,
+        style: validatedState.style,
+        events: validatedState.events,
         locked: element.locked,
         hidden: element.hidden,
         revision: element.revision as number,
@@ -959,6 +965,8 @@ export class ProjectService {
         .listVersions(projectId)
         .map((version) => {
           const snapshot = this.pageRepository.versionSnapshot(version);
+          const pageIds = new Set(snapshot.pages.map(({ id }) => id));
+          const detail = { versionSequence: version.sequence };
           return {
             id: version.id,
             projectId: version.project_id,
@@ -967,8 +975,17 @@ export class ProjectService {
             sourceProjectRevision: version.source_project_revision,
             publishedAt: version.published_at,
             pages: snapshot.pages,
-            elements: snapshot.elements ?? [],
-            layoutRevisions: snapshot.layoutRevisions ?? [],
+            elements: parseElementEntries(
+              snapshot.elements,
+              projectId,
+              pageIds,
+              detail,
+            ),
+            layoutRevisions: parseLayoutRevisions(
+              snapshot.layoutRevisions,
+              pageIds,
+              detail,
+            ),
           };
         }),
     };

@@ -1,10 +1,11 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ELEMENT_DEFINITIONS } from "@webeditor/domain";
 
 import type {
   ElementLayoutDto,
   PlacementCandidateDto,
 } from "@/services/elements-api";
-import { canvasElementDefinitions } from "./element-definitions";
+import { elementDefinitionSizeLabel } from "./element-definitions";
 import {
   CANVAS_PADDING,
   CANVAS_ZOOM_LEVELS,
@@ -33,15 +34,17 @@ describe("Phase 5 canvas contract", () => {
     }).toEqual({ columns: 24, rowHeight: 8, gap: 8, padding: 16 });
     expect(CANVAS_ZOOM_LEVELS).toEqual([0.5, 0.75, 1, 1.25, 1.5, 2]);
     expect(
-      canvasElementDefinitions.map(({ type, defaultSizeLabel }) => ({
-        type,
-        defaultSizeLabel,
+      ELEMENT_DEFINITIONS.map((definition) => ({
+        type: definition.type,
+        defaultSizeLabel: elementDefinitionSizeLabel(definition),
       })),
     ).toEqual([
       { type: "text", defaultSizeLabel: "6 × 5" },
       { type: "button", defaultSizeLabel: "4 × 5" },
       { type: "container", defaultSizeLabel: "12 × 12" },
       { type: "kpi-card", defaultSizeLabel: "6 × 10" },
+      { type: "number-input", defaultSizeLabel: "6 × 7" },
+      { type: "data-table", defaultSizeLabel: "12 × 16" },
     ]);
   });
 

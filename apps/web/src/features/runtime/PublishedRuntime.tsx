@@ -47,8 +47,20 @@ import {
   type RuntimeNavigationDto,
   type RuntimePageDto,
 } from "@/services/pages-api";
+import {
+  getPublishedRuntimePage,
+  listElementRegistry,
+  type ElementDefinitionDto,
+  type ElementRegistryDto,
+  type ElementType,
+  type PublishedRuntimePageDto,
+} from "@/services/elements-api";
 import { defaultTheme, themes, themeToCssVariables } from "@/theme";
 import { DynamicLucideIcon } from "@/features/pages/DynamicLucideIcon";
+import {
+  assertRuntimeRendererDefinitions,
+  RuntimeElementRenderer,
+} from "./RuntimeElementRenderer";
 
 const SEARCH_THRESHOLD = 30;
 
@@ -227,10 +239,18 @@ function RuntimeControls({
 function RuntimeShell({
   navigation,
   activePage,
+  runtimePage,
+  runtimePageLoading,
+  runtimePageError,
+  definitionByType,
   onNavigate,
 }: {
   navigation: RuntimeNavigationDto;
   activePage: RuntimePageDto | null;
+  runtimePage: PublishedRuntimePageDto | null;
+  runtimePageLoading: boolean;
+  runtimePageError: string;
+  definitionByType: ReadonlyMap<ElementType, ElementDefinitionDto>;
   onNavigate: (page: RuntimePageDto) => void;
 }) {
   const isMobile = useIsMobile();
@@ -328,11 +348,50 @@ function RuntimeShell({
         )}
         <main className="runtime-page" tabIndex={-1}>
           {activePage ? (
-            <article>
-              <DynamicLucideIcon iconName={activePage.iconName} />
-              <h1>{activePage.name}</h1>
-              {!activePage.navigationVisible && <p>직접 링크</p>}
-            </article>
+            runtimePageError ? (
+              <div className="runtime-not-found" role="alert">
+                <h1>페이지 오류</h1>
+                <p>{runtimePageError}</p>
+              </div>
+            ) : runtimePageLoading || !runtimePage ? (
+              <div className="runtime-page-loading" role="status">
+                <Skeleton className="h-8 w-48" />
+                <Skeleton className="h-64 w-full" />
+              </div>
+            ) : (
+              <article>
+                <header className="runtime-page-heading">
+                  <DynamicLucideIcon iconName={runtimePage.page.iconName} />
+                  <h1>{runtimePage.page.name}</h1>
+                  {!runtimePage.page.navigationVisible && <p>직접 링크</p>}
+                </header>
+                <div
+                  className="runtime-elements"
+                  role="region"
+                  aria-label="게시 엘리먼트"
+                >
+                  {runtimePage.elements.map((entry) => {
+                    const definition = definitionByType.get(entry.element.type);
+                    if (!definition) return null;
+                    return (
+                      <div
+                        className="runtime-element-grid-item"
+                        style={{
+                          gridColumn: `${entry.layout.x + 1} / span ${entry.layout.w}`,
+                          gridRow: `${entry.layout.y + 1} / span ${entry.layout.h}`,
+                        }}
+                        key={entry.element.id}
+                      >
+                        <RuntimeElementRenderer
+                          entry={entry}
+                          definition={definition}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </article>
+            )
           ) : (
             <div className="runtime-not-found" role="alert">
               <h1>페이지 없음</h1>
@@ -353,25 +412,38 @@ export function PublishedRuntime() {
   const [navigation, setNavigation] = useState<RuntimeNavigationDto | null>(
     null,
   );
+  const [registry, setRegistry] = useState<ElementRegistryDto | null>(null);
+  const [runtimePage, setRuntimePage] =
+    useState<PublishedRuntimePageDto | null>(null);
+  const [runtimePageLoading, setRuntimePageLoading] = useState(false);
+  const [runtimePageError, setRuntimePageError] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
-    let active = true;
+    const controller = new AbortController();
     setError("");
-    void getRuntimeNavigation(projectId)
-      .then((payload) => {
-        if (active)
+    void Promise.all([
+      getRuntimeNavigation(projectId),
+      listElementRegistry(controller.signal),
+    ])
+      .then(([navigationPayload, registryPayload]) => {
+        assertRuntimeRendererDefinitions(registryPayload.definitions);
+        if (!controller.signal.aborted) {
           setNavigation({
-            ...payload,
-            pages: [...payload.pages].sort((a, b) => a.sortOrder - b.sortOrder),
+            ...navigationPayload,
+            pages: [...navigationPayload.pages].sort(
+              (a, b) => a.sortOrder - b.sortOrder,
+            ),
           });
+          setRegistry(registryPayload);
+        }
       })
       .catch((reason: unknown) => {
-        if (active)
+        if (!controller.signal.aborted)
           setError(reason instanceof Error ? reason.message : "런타임 오류");
       });
     return () => {
-      active = false;
+      controller.abort();
     };
   }, [projectId]);
 
@@ -386,6 +458,38 @@ export function PublishedRuntime() {
     if (first) navigate(runtimePath(projectId, first.route), { replace: true });
   }, [navigate, navigation, projectId, route]);
 
+  useEffect(() => {
+    if (!navigation || !activePage) {
+      setRuntimePage(null);
+      setRuntimePageError("");
+      setRuntimePageLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    setRuntimePage(null);
+    setRuntimePageError("");
+    setRuntimePageLoading(true);
+    void getPublishedRuntimePage(projectId, activePage.id, controller.signal)
+      .then((payload) => {
+        if (controller.signal.aborted) return;
+        if (payload.versionId !== navigation.versionId) {
+          throw new Error("게시 버전 불일치");
+        }
+        setRuntimePage(payload);
+      })
+      .catch((reason: unknown) => {
+        if (!controller.signal.aborted) {
+          setRuntimePageError(
+            reason instanceof Error ? reason.message : "페이지 오류",
+          );
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setRuntimePageLoading(false);
+      });
+    return () => controller.abort();
+  }, [activePage, navigation, projectId]);
+
   if (error)
     return (
       <main className="runtime-load-state" role="alert">
@@ -393,7 +497,7 @@ export function PublishedRuntime() {
         <p>{error}</p>
       </main>
     );
-  if (!navigation)
+  if (!navigation || !registry)
     return (
       <main className="runtime-load-state" role="status">
         <Skeleton className="h-8 w-48" />
@@ -405,6 +509,17 @@ export function PublishedRuntime() {
     <RuntimeShell
       navigation={navigation}
       activePage={activePage}
+      runtimePage={runtimePage}
+      runtimePageLoading={runtimePageLoading}
+      runtimePageError={runtimePageError}
+      definitionByType={
+        new Map(
+          registry.definitions.map((definition) => [
+            definition.type,
+            definition,
+          ]),
+        )
+      }
       onNavigate={(page) => {
         const next = runtimePath(projectId, page.route);
         if (next !== location.pathname) navigate(next);

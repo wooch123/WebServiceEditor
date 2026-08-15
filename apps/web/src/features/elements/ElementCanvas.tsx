@@ -50,7 +50,10 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { ElementEntryDto, ResizeHandle } from "@/services/elements-api";
-import { canvasElementDefinitionByType } from "./element-definitions";
+import {
+  DynamicLucideIcon,
+  iconNameToDynamicName,
+} from "@/features/pages/DynamicLucideIcon";
 import {
   CANVAS_PADDING,
   CANVAS_ZOOM_LEVELS,
@@ -146,8 +149,7 @@ function CandidatePlaceholder({ canvasWidth }: { canvasWidth: number }) {
   const workspace = useElementWorkspace();
   const candidate = workspace.candidate;
   if (!candidate) return null;
-  const definition = canvasElementDefinitionByType.get(candidate.elementType);
-  const Icon = definition?.icon;
+  const definition = workspace.definitionByType.get(candidate.elementType);
   const rect = gridToPixelRect(candidate, canvasWidth);
   const style = {
     left: rect.left,
@@ -187,7 +189,12 @@ function CandidatePlaceholder({ canvasWidth }: { canvasWidth: number }) {
       }}
     >
       <div className="placement-placeholder-copy">
-        {Icon && <Icon aria-hidden="true" />}
+        {definition && (
+          <DynamicLucideIcon
+            iconName={definition.iconName}
+            dynamicName={iconNameToDynamicName(definition.iconName)}
+          />
+        )}
         <strong>{definition?.label ?? candidate.elementType}</strong>
         <span>
           X {candidate.x} · Y {candidate.y} · W {candidate.w} · H {candidate.h}
@@ -251,6 +258,7 @@ const PlacedElement = forwardRef<HTMLDivElement, PlacedElementProps>(
   ) {
     const workspace = useElementWorkspace();
     const selected = workspace.selectedElementIds.has(entry.element.id);
+    const definition = workspace.definitionByType.get(entry.element.type);
     const resizing = resizePreview?.elementId === entry.element.id;
     const additivePointerRef = useRef(false);
 
@@ -376,7 +384,21 @@ const PlacedElement = forwardRef<HTMLDivElement, PlacedElementProps>(
           </Button>
         </div>
         <div className="element-render-surface">
-          <ElementRenderer entry={entry} compact={resizing} />
+          {definition ? (
+            <ElementRenderer
+              entry={entry}
+              definition={definition}
+              compact={resizing}
+              {...(workspace.selectedDetail?.entry.element.id ===
+              entry.element.id
+                ? {
+                    renderState: workspace.selectedDetail.renderState.state,
+                  }
+                : {})}
+            />
+          ) : (
+            <Skeleton className="h-full w-full" />
+          )}
         </div>
         {resizing && resizePreview && (
           <output

@@ -1,6 +1,7 @@
-import { LockKeyhole } from "lucide-react";
+import { CircleAlert, Database, EyeOff, LockKeyhole } from "lucide-react";
 import type { ComponentType } from "react";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -10,88 +11,317 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import type { ElementEntryDto, ElementType } from "@/services/elements-api";
+import {
+  Empty,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
+import type {
+  ElementDefinitionDto,
+  ElementEntryDto,
+  ElementRenderState,
+  ElementType,
+} from "@/services/elements-api";
+import { elementPresentation } from "./element-presentation";
 
 interface CanvasRendererProps {
   entry: ElementEntryDto;
+  definition: ElementDefinitionDto;
   compact: boolean;
+  renderState?: ElementRenderState;
 }
 
-function textValue(
-  props: Readonly<Record<string, unknown>>,
+function stringValue(
+  source: Readonly<Record<string, unknown>>,
   key: string,
   fallback: string,
 ): string {
-  return typeof props[key] === "string" && props[key].trim()
-    ? props[key]
-    : fallback;
+  const value = source[key];
+  if (typeof value === "string" && value.trim()) return value;
+  if (typeof value === "number") return String(value);
+  return fallback;
 }
 
-function TextRenderer({ entry, compact }: CanvasRendererProps) {
+function finiteNumber(value: unknown): number | undefined {
+  return typeof value === "number" && Number.isFinite(value)
+    ? value
+    : undefined;
+}
+
+function dataDensity(entry: ElementEntryDto) {
+  const value = entry.element.style.density;
+  return value === "compact" || value === "comfortable" || value === "spacious"
+    ? value
+    : "comfortable";
+}
+
+function TextRenderer({ entry, definition, compact }: CanvasRendererProps) {
   return (
     <div className="canvas-text-element">
-      <p>{textValue(entry.element.props, "text", entry.element.name)}</p>
-      {!compact && <small>텍스트</small>}
+      <p>{stringValue(entry.element.props, "text", entry.element.name)}</p>
+      {!compact && <small>{definition.label}</small>}
     </div>
   );
 }
 
 function ButtonRenderer({ entry }: CanvasRendererProps) {
+  const presentation = elementPresentation(entry);
   return (
     <div className="canvas-button-element">
-      <Button className="element-interactive" type="button">
-        {textValue(entry.element.props, "label", entry.element.name)}
+      <Button
+        className="element-interactive"
+        type="button"
+        disabled={presentation.disabled}
+        title={presentation.title}
+        aria-label={presentation.accessibilityLabel}
+      >
+        {stringValue(entry.element.props, "label", entry.element.name)}
       </Button>
     </div>
   );
 }
 
-function ContainerRenderer({ entry, compact }: CanvasRendererProps) {
+function ContainerRenderer({
+  entry,
+  definition,
+  compact,
+}: CanvasRendererProps) {
   return (
     <Card className="canvas-container-element">
       <CardHeader>
-        <CardTitle>{entry.element.name}</CardTitle>
-        {!compact && <CardDescription>컨테이너</CardDescription>}
+        <CardTitle>
+          {stringValue(entry.element.props, "label", entry.element.name)}
+        </CardTitle>
+        {!compact && <CardDescription>{definition.label}</CardDescription>}
       </CardHeader>
-      {!compact && <CardContent>콘텐츠 영역</CardContent>}
+      {!compact && <CardContent>콘텐츠</CardContent>}
     </Card>
   );
 }
 
-function KpiRenderer({ entry, compact }: CanvasRendererProps) {
+function KpiRenderer({ entry, compact, renderState }: CanvasRendererProps) {
+  if (renderState === "LOADING") {
+    return (
+      <div className="element-data-loading" role="status" aria-label="로딩">
+        <Skeleton className="h-5 w-full" />
+        <Skeleton className="h-8 w-1/2" />
+      </div>
+    );
+  }
+  if (renderState === "ERROR") {
+    return (
+      <Alert className="element-data-error" variant="destructive">
+        <CircleAlert />
+        <AlertTitle>데이터 오류</AlertTitle>
+        <AlertDescription>연결 확인</AlertDescription>
+      </Alert>
+    );
+  }
+  if (renderState !== "DATA") {
+    return <EmptyData label="값 없음" />;
+  }
   return (
     <Card className="canvas-kpi-element">
       <CardHeader>
         <CardDescription>
-          {textValue(entry.element.props, "label", entry.element.name)}
+          {stringValue(entry.element.props, "label", entry.element.name)}
         </CardDescription>
-        <CardTitle>{textValue(entry.element.props, "value", "0")}</CardTitle>
+        <CardTitle>
+          {stringValue(entry.element.props, "value", "0")}
+          {stringValue(entry.element.props, "suffix", "")}
+        </CardTitle>
       </CardHeader>
       {!compact && (
         <CardContent>
-          {textValue(entry.element.props, "detail", "지표")}
+          {stringValue(entry.element.props, "detail", "지표")}
         </CardContent>
       )}
     </Card>
   );
 }
 
-const rendererByType: Record<
-  ElementType,
-  ComponentType<CanvasRendererProps>
+function NumberInputRenderer({ entry }: CanvasRendererProps) {
+  const presentation = elementPresentation(entry);
+  return (
+    <div className="canvas-input-element">
+      <label htmlFor={`canvas-input-${entry.element.id}`}>
+        {stringValue(entry.element.props, "label", entry.element.name)}
+      </label>
+      <Input
+        id={`canvas-input-${entry.element.id}`}
+        className="element-interactive"
+        type="number"
+        value={stringValue(entry.element.props, "defaultValue", "0")}
+        placeholder={stringValue(entry.element.props, "placeholder", "숫자")}
+        disabled={presentation.disabled}
+        required={entry.element.props.required === true}
+        min={finiteNumber(entry.element.props.minimum)}
+        max={finiteNumber(entry.element.props.maximum)}
+        step={finiteNumber(entry.element.props.step)}
+        title={presentation.title}
+        aria-label={presentation.accessibilityLabel}
+        readOnly
+      />
+    </div>
+  );
+}
+
+function EmptyData({
+  label,
+  ariaLabel,
+}: {
+  label: string;
+  ariaLabel?: string;
+}) {
+  return (
+    <Empty className="element-data-state" aria-label={ariaLabel}>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <Database />
+        </EmptyMedia>
+        <EmptyTitle>{label}</EmptyTitle>
+        <EmptyDescription>미연결</EmptyDescription>
+      </EmptyHeader>
+    </Empty>
+  );
+}
+
+function DataTableRenderer({
+  entry,
+  compact,
+  renderState,
+}: CanvasRendererProps) {
+  const title = stringValue(entry.element.props, "title", entry.element.name);
+  if (renderState === "LOADING") {
+    return (
+      <div className="element-data-loading" role="status" aria-label="로딩">
+        <Skeleton className="h-5 w-full" />
+        <Skeleton className="h-5 w-full" />
+        <Skeleton className="h-5 w-3/4" />
+      </div>
+    );
+  }
+  if (renderState === "ERROR") {
+    return (
+      <Alert className="element-data-error" variant="destructive">
+        <CircleAlert />
+        <AlertTitle>데이터 오류</AlertTitle>
+        <AlertDescription>연결 확인</AlertDescription>
+      </Alert>
+    );
+  }
+  if (renderState !== "DATA") {
+    return (
+      <EmptyData
+        label={stringValue(entry.element.props, "emptyLabel", "데이터 없음")}
+        ariaLabel={title}
+      />
+    );
+  }
+
+  const columns = Array.isArray(entry.element.props.columns)
+    ? entry.element.props.columns.filter(
+        (column): column is string => typeof column === "string",
+      )
+    : [];
+  const rows = Array.isArray(entry.element.props.rows)
+    ? entry.element.props.rows.filter(
+        (row): row is Record<string, unknown> =>
+          typeof row === "object" && row !== null && !Array.isArray(row),
+      )
+    : [];
+  if (columns.length === 0 || rows.length === 0) {
+    return (
+      <EmptyData
+        label={stringValue(entry.element.props, "emptyLabel", "데이터 없음")}
+        ariaLabel={title}
+      />
+    );
+  }
+  return (
+    <Table aria-label={title} data-density={dataDensity(entry)}>
+      <TableHeader>
+        <TableRow>
+          {columns.map((column) => (
+            <TableHead key={column}>{column}</TableHead>
+          ))}
+        </TableRow>
+      </TableHeader>
+      {!compact && (
+        <TableBody>
+          {rows.map((row, index) => (
+            <TableRow key={index}>
+              {columns.map((column) => (
+                <TableCell key={column}>{String(row[column] ?? "")}</TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      )}
+    </Table>
+  );
+}
+
+export const editorRendererByKey: Readonly<
+  Record<ElementType, ComponentType<CanvasRendererProps>>
 > = {
   text: TextRenderer,
   button: ButtonRenderer,
   container: ContainerRenderer,
   "kpi-card": KpiRenderer,
+  "number-input": NumberInputRenderer,
+  "data-table": DataTableRenderer,
 };
 
-export function ElementRenderer({ entry, compact }: CanvasRendererProps) {
-  const Renderer = rendererByType[entry.element.type];
+export function assertEditorRendererDefinitions(
+  definitions: readonly ElementDefinitionDto[],
+): void {
+  for (const definition of definitions) {
+    if (!Object.hasOwn(editorRendererByKey, definition.rendererKey)) {
+      throw new Error(`Editor renderer missing: ${definition.rendererKey}`);
+    }
+  }
+}
+
+export function ElementRenderer({
+  entry,
+  definition,
+  compact,
+  renderState,
+}: CanvasRendererProps) {
+  const Renderer = editorRendererByKey[definition.rendererKey];
+  const presentation = elementPresentation(entry);
+  const effectiveRenderState =
+    renderState ??
+    (definition.bindingPorts.some(
+      (port) => port.direction === "input" && port.required,
+    )
+      ? "EMPTY"
+      : "DATA");
   return (
     <div
       className="element-renderer"
+      style={presentation.style}
+      title={presentation.title}
+      aria-label={presentation.accessibilityLabel}
+      aria-disabled={presentation.disabled || undefined}
+      data-hidden={presentation.hidden || undefined}
       data-render-mode={compact ? "compact" : "full"}
+      data-render-state={effectiveRenderState}
+      data-element-type={definition.type}
+      data-renderer-key={definition.rendererKey}
     >
       {entry.element.locked && (
         <Badge className="element-lock-badge" variant="secondary">
@@ -99,7 +329,18 @@ export function ElementRenderer({ entry, compact }: CanvasRendererProps) {
           잠금
         </Badge>
       )}
-      <Renderer entry={entry} compact={compact} />
+      {presentation.hidden && (
+        <Badge className="element-hidden-badge" variant="secondary">
+          <EyeOff data-icon="inline-start" />
+          숨김
+        </Badge>
+      )}
+      <Renderer
+        entry={entry}
+        definition={definition}
+        compact={compact}
+        renderState={effectiveRenderState}
+      />
     </div>
   );
 }

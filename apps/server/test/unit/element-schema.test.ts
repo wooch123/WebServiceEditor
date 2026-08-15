@@ -56,7 +56,7 @@ function insertLayout(
     );
 }
 
-describe("SQLite v4 Element constraints and ownership", () => {
+describe("SQLite v5 Element constraints and ownership", () => {
   it("rejects cross-Project/Page ownership and non-integer or out-of-bound geometry", () => {
     const database = new MetadataDatabase(":memory:");
     const projects = new ProjectRepository(database);
@@ -195,6 +195,45 @@ describe("SQLite v4 Element constraints and ownership", () => {
           now,
         ),
       ).not.toThrow();
+      expect(
+        database.connection
+          .prepare(
+            `SELECT history_state, history_sequence, history_updated_at
+             FROM element_commands WHERE id = ?`,
+          )
+          .get("00000000-0000-4000-8000-000000000009"),
+      ).toEqual({
+        history_state: null,
+        history_sequence: null,
+        history_updated_at: null,
+      });
+    } finally {
+      database.close();
+    }
+  });
+
+  it("delegates Element type membership to the executable Registry while constraining history columns", () => {
+    const database = new MetadataDatabase(":memory:");
+    try {
+      const elementSql = (
+        database.connection
+          .prepare(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'elements'",
+          )
+          .get() as { sql: string }
+      ).sql;
+      const commandSql = (
+        database.connection
+          .prepare(
+            "SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'element_commands'",
+          )
+          .get() as { sql: string }
+      ).sql;
+      expect(elementSql).not.toMatch(/type\s+IN\s*\(/iu);
+      expect(elementSql).toContain("length(type) BETWEEN 1 AND 120");
+      expect(commandSql).toContain("'PROPERTIES'");
+      expect(commandSql).toContain("history_sequence");
+      expect(commandSql).toContain("'DISCARDED'");
     } finally {
       database.close();
     }

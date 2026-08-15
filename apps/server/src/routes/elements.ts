@@ -4,6 +4,7 @@ import type {
   CreateElementRequest,
   CreatePlacementCandidateRequest,
   DeleteElementRequest,
+  ElementHistoryMutationRequest,
   PatchElementRequest,
 } from "@webeditor/domain";
 import type { FastifyInstance } from "fastify";
@@ -69,6 +70,40 @@ export async function registerElementRoutes(
   options: ElementRoutesOptions,
 ): Promise<void> {
   const service = options.elementService;
+
+  server.get("/api/v1/elements/registry", async () => service.registry());
+
+  server.get<{ Params: { elementType: string } }>(
+    "/api/v1/elements/registry/:elementType",
+    async (request) => service.registryDefinition(request.params.elementType),
+  );
+
+  server.get<{ Params: { elementId: string } }>(
+    "/api/v1/elements/:elementId",
+    async (request) => service.inspect(request.params.elementId),
+  );
+
+  server.get<{ Params: { projectId: string } }>(
+    "/api/v1/projects/:projectId/element-history",
+    async (request) => service.history(request.params.projectId),
+  );
+
+  for (const operation of ["undo", "redo"] as const) {
+    server.post<{ Params: { projectId: string } }>(
+      `/api/v1/projects/:projectId/element-history/${operation}`,
+      async (request) => {
+        const body = exactBody(request.body, [
+          "expectedProjectRevision",
+          "expectedCommandId",
+          "idempotencyKey",
+        ]);
+        return service[operation](
+          request.params.projectId,
+          body as unknown as ElementHistoryMutationRequest,
+        );
+      },
+    );
+  }
 
   server.get<{ Params: { pageId: string } }>(
     "/api/v1/pages/:pageId/elements",
@@ -142,8 +177,13 @@ export async function registerElementRoutes(
             ? ["kind", "handle", "x", "y", "w", "h"]
             : change.kind === "LOCK"
               ? ["kind", "locked"]
-              : ["kind"];
+              : change.kind === "PROPERTIES"
+                ? ["kind", "values"]
+                : ["kind"];
       exactBody(change, allowedChangeKeys);
+      if (change.kind === "PROPERTIES") {
+        bodyRecord(change.values);
+      }
       return service.patch(
         request.params.elementId,
         body as unknown as PatchElementRequest,

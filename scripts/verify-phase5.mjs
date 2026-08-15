@@ -37,6 +37,12 @@ export const CANONICAL_PHASE5_ROUTES = Object.freeze([
   },
 ]);
 
+const PHASE5_COMPATIBLE_ADDITIVE_ROUTES = new Set([
+  "GET /api/v1/elements/:elementId",
+  "GET /api/v1/elements/registry",
+  "GET /api/v1/elements/registry/:elementType",
+]);
+
 export const REQUIRED_ELEMENT_TABLES = Object.freeze({
   page_layout_revisions: [
     "page_id",
@@ -309,7 +315,9 @@ export function inspectCanonicalRouteContract(files) {
     (route) => !actualKeys.has(routeKey(route)),
   );
   const unexpectedRoutes = elementRoutes.filter(
-    (route) => !canonicalKeys.has(routeKey(route)),
+    (route) =>
+      !canonicalKeys.has(routeKey(route)) &&
+      !PHASE5_COMPATIBLE_ADDITIVE_ROUTES.has(routeKey(route)),
   );
   const unversionedRoutes = actualRoutes.filter((route) =>
     /^\/(?:elements|pages\/[^/]+\/(?:elements|placement-candidates))(?:\/|$)/u.test(
@@ -379,11 +387,13 @@ export function inspectElementSchema(source) {
   const commands = tables.element_commands.block;
   const migrationContext =
     /canvas-element-layout-kernel[\s\S]{0,16000}/iu.exec(source)?.[0] ?? "";
+  const latestSchemaVersion = Number(
+    /LATEST_METADATA_SCHEMA_VERSION\s*=\s*(\d+)\b/u.exec(source)?.[1] ?? -1,
+  );
   return {
     tables,
-    schemaVersionFour:
-      /LATEST_METADATA_SCHEMA_VERSION\s*=\s*4\b/u.test(source) &&
-      /version\s*:\s*4\b/u.test(migrationContext),
+    schemaVersionAtLeastFour:
+      latestSchemaVersion >= 4 && /version\s*:\s*4\b/u.test(migrationContext),
     migrationNamed: /canvas-element-layout-kernel/iu.test(source),
     futureVersionFailClosed:
       /userVersion\s*>\s*LATEST_METADATA_SCHEMA_VERSION/u.test(source) &&
@@ -721,6 +731,9 @@ export function inspectLayoutProtocol(files) {
       ) ||
       /(?:MOVE|RESIZE)[\s\S]{0,800}locked[\s\S]{0,800}(?:409|423|LOCKED|assertApi)/iu.test(
         patch,
+      ) ||
+      /current\.locked\s*===\s*0[\s\S]{0,240}["']ELEMENT_LOCKED["']/u.test(
+        elementService,
       ),
     patchTransactional:
       /\.transaction\s*\(|BEGIN\s+(?:IMMEDIATE\s+)?TRANSACTION/iu.test(patch) &&
@@ -1971,7 +1984,10 @@ export async function validatePhase5({
     );
   }
   for (const [property, message] of [
-    ["schemaVersionFour", "metadata migration advances exactly to schema v4"],
+    [
+      "schemaVersionAtLeastFour",
+      "metadata history retains the canonical schema v4 migration",
+    ],
     ["migrationNamed", "the v4 migration has the accepted stable name"],
     ["futureVersionFailClosed", "unknown future metadata versions fail closed"],
     [

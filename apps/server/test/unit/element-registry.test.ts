@@ -3,22 +3,41 @@ import { describe, expect, it } from "vitest";
 import {
   clampMove,
   elementDefinition,
+  elementBindingStatus,
+  elementPropertyValues,
+  elementRegistry,
   normalizeResize,
   rectanglesOverlap,
   resizeHandle,
+  validateElementStoredState,
 } from "../../src/elements/element-registry.js";
 
 describe("element registry and grid geometry", () => {
-  it("exposes only the four real Phase 5 kernel elements", () => {
-    expect(elementDefinition("text").defaultProps).toEqual({ text: "Text" });
-    expect(elementDefinition("button").defaultProps).toEqual({
+  it("exposes the deterministic six-type Phase 6 Registry", () => {
+    expect(elementRegistry().definitions.map(({ type }) => type)).toEqual([
+      "text",
+      "button",
+      "container",
+      "kpi-card",
+      "number-input",
+      "data-table",
+    ]);
+    expect(elementRegistry().checksum).toMatch(/^[0-9a-f]{64}$/);
+    expect(elementDefinition("text").defaultProps).toMatchObject({
+      internalName: "text",
+      text: "Text",
+    });
+    expect(elementDefinition("button").defaultProps).toMatchObject({
+      internalName: "button",
       label: "Button",
     });
     expect(elementDefinition("container").type).toBe("container");
-    expect(elementDefinition("kpi-card").defaultProps).toEqual({
+    expect(elementDefinition("kpi-card").defaultProps).toMatchObject({
       label: "Value",
       value: "0",
     });
+    expect(elementDefinition("number-input").category).toBe("input");
+    expect(elementDefinition("data-table").category).toBe("data");
     expect(() => elementDefinition("chart")).toThrow("Element type is invalid");
   });
 
@@ -78,5 +97,82 @@ describe("element registry and grid geometry", () => {
     expect(
       rectanglesOverlap({ x: 0, y: 0, w: 4, h: 4 }, { x: 3, y: 3, w: 4, h: 4 }),
     ).toBe(true);
+  });
+
+  it("keeps optional output ports unconnected without a false validation warning", () => {
+    const button = elementDefinition("button");
+    const table = elementDefinition("data-table");
+    const entry = (definition: typeof button) => ({
+      element: {
+        id: "00000000-0000-4000-8000-000000000001",
+        projectId: "00000000-0000-4000-8000-000000000002",
+        pageId: "00000000-0000-4000-8000-000000000003",
+        type: definition.type,
+        typeVersion: 1 as const,
+        name: definition.defaultName,
+        props: definition.defaultProps,
+        style: definition.defaultStyle,
+        events: [],
+        locked: false,
+        hidden: false,
+        revision: 1,
+      },
+      layout: {
+        elementId: "00000000-0000-4000-8000-000000000001",
+        breakpoint: "desktop" as const,
+        x: 0,
+        y: 0,
+        w: definition.layout.defaultW,
+        h: definition.layout.defaultH,
+        minW: definition.layout.minW,
+        minH: definition.layout.minH,
+        maxW: definition.layout.maxW,
+        maxH: definition.layout.maxH,
+      },
+    });
+    expect(elementBindingStatus(button).status).toBe("UNCONNECTED");
+    expect(
+      elementPropertyValues(entry(button), button)["validation.status"],
+    ).toBe("PASS");
+    expect(
+      elementPropertyValues(entry(table), table)["validation.status"],
+    ).toBe("WARNING");
+  });
+
+  it("normalizes sparse v4 state and rejects unregistered or impossible persisted properties", () => {
+    const text = elementDefinition("text");
+    const normalized = validateElementStoredState(text, {
+      props: { text: "Legacy" },
+      style: {},
+      events: [],
+    });
+    expect(normalized).toMatchObject({
+      props: {
+        internalName: "text",
+        text: "Legacy",
+        disabled: false,
+      },
+      style: {
+        padding: 8,
+        margin: 0,
+        backgroundToken: "card",
+        textColorToken: "foreground",
+      },
+      events: [],
+    });
+    expect(() =>
+      validateElementStoredState(text, {
+        props: { rows: [{ id: 1 }] },
+        style: {},
+        events: [],
+      }),
+    ).toThrow("not declared by the Registry");
+    expect(() =>
+      validateElementStoredState(elementDefinition("number-input"), {
+        props: { defaultValue: 0, minimum: 100 },
+        style: {},
+        events: [],
+      }),
+    ).toThrow("default value must be within");
   });
 });

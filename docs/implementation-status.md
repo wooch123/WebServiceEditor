@@ -6,30 +6,33 @@ Overall state: `IN PROGRESS`
 
 ## Current phase
 
-### PHASE 5 — Element Placement and Resize
+### PHASE 6 — Element Registry and Property Inspector
 
 State: `VERIFIED`
 
 Scope:
 
-- Persist grid-backed Element layout independently for each Page.
-- Add Palette drag placement, 24-column snapping, and eight-direction resize.
-- Make one server-issued Placement Candidate drive both preview and commit.
+- Replace duplicated Element metadata with a deterministic Registry contract.
+- Generate the right Property Inspector from persisted Property Schema.
+- Add real input and data-display Elements with truthful binding/render states.
+- Add durable command history with Undo/Redo and Redo-branch invalidation.
+- Render immutable published Element snapshots separately from the Editor.
 
-Data risk: medium. Layout mutations will use optimistic revisions, idempotency,
-and isolated temporary fixtures; the workspace `data/` directory remains
-ignored.
+Data risk: high. Migration v5 extends Element constraints and durable command
+history. All writes require optimistic revisions and idempotency, and all
+fixtures remain isolated from the workspace `data/` directory.
 
 Test plan:
 
-- Verify Palette pointer and keyboard placement use an identical snapped
-  candidate and commit result.
-- Verify all eight resize handles, boundary clamping, collision handling,
-  durable command records, refresh, and server restart.
-- Prove drag previews never write to SQLite and stale or expired candidates fail
-  closed.
-- Verify Project clone, export, import, trash, restore, and publish keep Element
-  ownership and layout revisions consistent.
+- Generate Palette, Inspector, Inventory, Editor, and Runtime coverage from
+  every Registry entry and Property field.
+- Verify every Property saves, debounces, flushes, retries, reloads, and survives
+  server restart without stale revision loss.
+- Verify all Element command types Undo/Redo exactly, discard a Redo branch on a
+  new edit, and preserve monotonic revisions and idempotent replay.
+- Prove Published Runtime reads immutable snapshots and never leaks Draft edits.
+- Verify clone, export, import, trash, restore, purge, checksum, and publish keep
+  Registry values and history ownership consistent.
 
 ## Phase ledger
 
@@ -41,7 +44,8 @@ Test plan:
 | 3     | VERIFIED    | Persistent lifecycle, restart recovery, and browser QA passed |
 | 4     | VERIFIED    | Page management and immutable runtime navigation              |
 | 5     | VERIFIED    | Element placement, grid snapping, and eight-way resize        |
-| 6–23  | NOT STARTED | Must follow sequentially                                      |
+| 6     | VERIFIED    | Registry, Property Inspector, Runtime renderer, Undo/Redo     |
+| 7–23  | NOT STARTED | Must follow sequentially                                      |
 
 ## Phase 0 evidence
 
@@ -137,6 +141,27 @@ Test plan:
   both scroll offsets are positive, and the 1280×720 document remains unchanged
 - Responsive QA at 419px: document width remains 419px and Editor workspace
   retains internal scrolling
+- Full workspace format, lint, typecheck, unit, integration, component,
+  validation, and production build: PASS
+
+## Phase 6 evidence
+
+- Static, behavioral, and browser audit:
+  `artifacts/phase6/element-registry-inspector-validation.json`
+- Deterministic Registry: 6 Element types, 190 Property fields, six canonical
+  tabs, and checksum `d4846ac7…785d6f`
+- Domain unit: 11/11; Server unit: 31/31; Server integration: 44/44
+- Web unit/component: 102/102; Phase 0–5 regression: PASS
+- Property drafts debounce, blur-flush, retry, and acknowledge only after the
+  server response; stale Page and revision responses cannot overwrite current UI
+- Durable project-scoped Undo/Redo survives restart, preserves IDs, invalidates
+  abandoned Redo branches, and excludes failed commands
+- Published Runtime renders immutable Element snapshots; Draft edits remain
+  isolated until republish and hidden Elements remain omitted
+- Browser QA at 1280×720: Inspector is right of Canvas; six tabs, Inspector
+  actions, and Undo/Redo controls retain equal sibling geometry
+- Browser QA at 419px: document width remains bounded and the stacked Inspector
+  is reachable through the Editor workspace scroll owner
 - Full workspace format, lint, typecheck, unit, integration, component,
   validation, and production build: PASS
 

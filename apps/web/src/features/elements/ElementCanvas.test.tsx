@@ -9,6 +9,7 @@ import {
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { ELEMENT_DEFINITIONS, ELEMENT_PROPERTY_TABS } from "@webeditor/domain";
 
 import stylesCss from "@/styles.css?raw";
 import type {
@@ -40,48 +41,33 @@ type MockElementChange =
   | { kind: "MOVE"; x: number; y: number }
   | { kind: "RESIZE"; x: number; y: number; w: number; h: number };
 
-const rules = {
-  text: {
-    name: "Text",
-    props: { text: "Text" },
-    w: 6,
-    h: 5,
-    minW: 2,
-    minH: 3,
-    maxW: 24,
-    maxH: 20,
-  },
-  button: {
-    name: "Button",
-    props: { label: "Button" },
-    w: 4,
-    h: 5,
-    minW: 2,
-    minH: 4,
-    maxW: 12,
-    maxH: 10,
-  },
-  container: {
-    name: "Container",
-    props: {},
-    w: 12,
-    h: 12,
-    minW: 4,
-    minH: 6,
-    maxW: 24,
-    maxH: 60,
-  },
-  "kpi-card": {
-    name: "KPI Card",
-    props: { label: "Value", value: "0" },
-    w: 6,
-    h: 10,
-    minW: 4,
-    minH: 8,
-    maxW: 12,
-    maxH: 20,
-  },
-} as const;
+const rules = Object.fromEntries(
+  ELEMENT_DEFINITIONS.map((definition) => [
+    definition.type,
+    {
+      name: definition.defaultName,
+      props: definition.defaultProps,
+      w: definition.layout.defaultW,
+      h: definition.layout.defaultH,
+      minW: definition.layout.minW,
+      minH: definition.layout.minH,
+      maxW: definition.layout.maxW,
+      maxH: definition.layout.maxH,
+    },
+  ]),
+) as unknown as Record<
+  ElementType,
+  {
+    name: string;
+    props: Readonly<Record<string, unknown>>;
+    w: number;
+    h: number;
+    minW: number;
+    minH: number;
+    maxW: number;
+    maxH: number;
+  }
+>;
 
 function response(payload: unknown, status = 200): Response {
   return new Response(JSON.stringify(payload), {
@@ -180,6 +166,29 @@ function installElementApi(
           ? (JSON.parse(init.body) as Record<string, unknown>)
           : {};
       calls.push({ path, method, body });
+
+      if (path === "/api/v1/elements/registry" && method === "GET") {
+        return response({
+          schemaVersion: 1,
+          tabs: ELEMENT_PROPERTY_TABS,
+          definitions: ELEMENT_DEFINITIONS,
+          checksum: "test-registry",
+        });
+      }
+
+      if (
+        path === "/api/v1/projects/project-1/element-history" &&
+        method === "GET"
+      ) {
+        return response({
+          projectId: "project-1",
+          canUndo: false,
+          canRedo: false,
+          undoCommand: null,
+          redoCommand: null,
+          commands: [],
+        });
+      }
 
       if (path === "/api/v1/pages/page-1/elements" && method === "GET") {
         listAttempts += 1;
@@ -355,6 +364,38 @@ function installElementApi(
       }
 
       const elementMatch = path.match(/^\/api\/v1\/elements\/([^/]+)$/);
+      if (elementMatch && method === "GET") {
+        const entry = entries.find(
+          (candidate) => candidate.element.id === elementMatch[1],
+        );
+        const definition = ELEMENT_DEFINITIONS.find(
+          (candidate) => candidate.type === entry?.element.type,
+        );
+        if (!entry || !definition) {
+          return response(
+            { error: { code: "ELEMENT_NOT_FOUND", message: "요소 없음" } },
+            404,
+          );
+        }
+        const ports = definition.bindingPorts.map((port) => ({
+          portId: port.id,
+          status: "UNCONNECTED",
+          message: "미연결",
+        }));
+        return response({
+          entry,
+          definition,
+          propertyValues: {},
+          bindingStatus:
+            ports.length === 0
+              ? { status: "NOT_APPLICABLE", ports, message: "해당 없음" }
+              : { status: "UNCONNECTED", ports, message: "미연결" },
+          renderState: {
+            state: ports.length === 0 ? "DATA" : "EMPTY",
+            message: ports.length === 0 ? null : "미연결",
+          },
+        });
+      }
       if (elementMatch && method === "PATCH") {
         const id = elementMatch[1]!;
         const change = body.change as MockElementChange;
@@ -599,6 +640,7 @@ function Harness() {
   const [layoutRevision, setLayoutRevision] = useState(4);
   return (
     <ElementWorkspaceProvider
+      projectId="project-1"
       pageId="page-1"
       projectRevision={projectRevision}
       layoutRevision={layoutRevision}
@@ -761,7 +803,7 @@ describe("ElementCanvas Phase 5 interaction", () => {
 
     await user.click(screen.getByTestId("palette-item-text"));
     let placeholder = await screen.findByRole("group", {
-      name: /텍스트 배치 후보/,
+      name: /Text 배치 후보/,
     });
     const cancel = within(placeholder).getByRole("button", { name: "취소" });
     cancel.focus();
@@ -772,7 +814,7 @@ describe("ElementCanvas Phase 5 interaction", () => {
 
     await user.click(screen.getByTestId("palette-item-text"));
     placeholder = await screen.findByRole("group", {
-      name: /텍스트 배치 후보/,
+      name: /Text 배치 후보/,
     });
     const commitAction = within(placeholder).getByRole("button", {
       name: "배치",
@@ -784,7 +826,7 @@ describe("ElementCanvas Phase 5 interaction", () => {
 
     await user.click(screen.getByTestId("palette-item-text"));
     placeholder = await screen.findByRole("group", {
-      name: /텍스트 배치 후보/,
+      name: /Text 배치 후보/,
     });
     await user.click(within(placeholder).getByRole("button", { name: "취소" }));
     expect(screen.queryByTestId("placement-placeholder")).toBeNull();
@@ -792,7 +834,7 @@ describe("ElementCanvas Phase 5 interaction", () => {
 
     await user.click(screen.getByTestId("palette-item-text"));
     placeholder = await screen.findByRole("group", {
-      name: /텍스트 배치 후보/,
+      name: /Text 배치 후보/,
     });
     await user.click(within(placeholder).getByRole("button", { name: "배치" }));
     const created = await screen.findByTestId("placed-element-element-1");
@@ -1430,6 +1472,7 @@ describe("ElementCanvas Phase 5 interaction", () => {
     const onLayoutRevisionChange = vi.fn();
     const view = render(
       <ElementWorkspaceProvider
+        projectId="project-1"
         pageId="page-1"
         projectRevision={10}
         layoutRevision={4}
@@ -1442,6 +1485,7 @@ describe("ElementCanvas Phase 5 interaction", () => {
     );
     view.rerender(
       <ElementWorkspaceProvider
+        projectId="project-1"
         pageId="page-1"
         projectRevision={10}
         layoutRevision={9}
@@ -1544,8 +1588,14 @@ describe("ElementCanvas Phase 5 interaction", () => {
   });
 
   it("blocks Delete for two selected elements when one is locked before any partial request and keeps both unchanged", async () => {
-    const locked = makeEntry("locked-delete", "text", { x: 8, y: 0 });
-    locked.element.locked = true;
+    const unlockedLockedEntry = makeEntry("locked-delete", "text", {
+      x: 8,
+      y: 0,
+    });
+    const locked: ElementEntryDto = {
+      ...unlockedLockedEntry,
+      element: { ...unlockedLockedEntry.element, locked: true },
+    };
     const api = installElementApi({
       entries: [makeEntry("unlocked-delete", "text"), locked],
     });
@@ -1850,7 +1900,7 @@ describe("ElementCanvas Phase 5 interaction", () => {
     expect(mutationCalls(api.calls)).toHaveLength(0);
   });
 
-  it("measures all four palette items and canvas zoom-grid sibling control geometry with getBoundingClientRect", async () => {
+  it("measures all six palette items and canvas zoom-grid sibling control geometry with getBoundingClientRect", async () => {
     installElementApi();
     installCanvasGeometry();
     const user = userEvent.setup();
@@ -1876,10 +1926,10 @@ describe("ElementCanvas Phase 5 interaction", () => {
       ),
     );
 
-    const paletteItems = ["text", "button", "container", "kpi-card"].map(
-      (type) => screen.getByTestId(`palette-item-${type}`),
+    const paletteItems = ELEMENT_DEFINITIONS.map((definition) =>
+      screen.getByTestId(`palette-item-${definition.type}`),
     );
-    expect(paletteItems).toHaveLength(4);
+    expect(paletteItems).toHaveLength(6);
     expect(new Set(paletteItems.map((item) => item.dataset.size))).toEqual(
       new Set(["default"]),
     );

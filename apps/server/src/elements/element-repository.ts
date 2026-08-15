@@ -1,5 +1,7 @@
 import type {
   BatchLayoutItem,
+  ElementCommandSummaryDto,
+  ElementCommandType,
   ElementDefinition,
   ElementDto,
   ElementEntryDto,
@@ -9,6 +11,10 @@ import type {
 import type Database from "better-sqlite3";
 
 import type { MetadataDatabase } from "../metadata/database.js";
+import {
+  elementDefinition,
+  validateElementStoredState,
+} from "./element-registry.js";
 
 export interface ElementRow {
   readonly id: string;
@@ -48,8 +54,7 @@ export interface ElementCommandRow {
   readonly project_id: string;
   readonly page_id: string;
   readonly element_id: string | null;
-  readonly command_type:
-    "ADD" | "MOVE" | "RESIZE" | "LOCK" | "BATCH_LAYOUT" | "DELETE";
+  readonly command_type: ElementCommandType;
   readonly idempotency_key: string;
   readonly request_hash: string;
   readonly before_json: string | null;
@@ -58,6 +63,22 @@ export interface ElementCommandRow {
   readonly response_json: string;
   readonly before_layout_revision: number;
   readonly after_layout_revision: number;
+  readonly history_state: "APPLIED" | "UNDONE" | "DISCARDED" | null;
+  readonly history_sequence: number | null;
+  readonly history_updated_at: string | null;
+  readonly created_at: string;
+}
+
+export interface ElementHistoryOperationRow {
+  readonly id: string;
+  readonly project_id: string;
+  readonly command_id: string | null;
+  readonly requested_command_id: string;
+  readonly operation_type: "UNDO" | "REDO";
+  readonly idempotency_key: string;
+  readonly request_hash: string;
+  readonly response_status: number;
+  readonly response_json: string;
   readonly created_at: string;
 }
 
@@ -68,6 +89,12 @@ const elementColumns = `
 const layoutColumns = `
   element_id, project_id, page_id, breakpoint, x, y, w, h,
   min_w, min_h, max_w, max_h
+`;
+const commandColumns = `
+  id, project_id, page_id, element_id, command_type, idempotency_key,
+  request_hash, before_json, after_json, response_status, response_json,
+  before_layout_revision, after_layout_revision, history_state,
+  history_sequence, history_updated_at, created_at
 `;
 
 export class ElementRepository {
@@ -355,6 +382,87 @@ export class ElementRepository {
     return changed.changes === 1 ? this.getEntry(elementId) : undefined;
   }
 
+  updateProperties(
+    elementId: string,
+    expectedRevision: number,
+    value: {
+      readonly name: string;
+      readonly props: Readonly<Record<string, unknown>>;
+      readonly style: Readonly<Record<string, unknown>>;
+      readonly locked: boolean;
+      readonly hidden: boolean;
+    },
+    now: string,
+  ): ElementEntryDto | undefined {
+    const changed = this.connection
+      .prepare(
+        `UPDATE elements
+         SET name = ?, props_json = ?, style_json = ?, locked = ?, hidden = ?,
+             revision = revision + 1, updated_at = ?
+         WHERE id = ? AND revision = ? AND deleted_at IS NULL`,
+      )
+      .run(
+        value.name,
+        JSON.stringify(value.props),
+        JSON.stringify(value.style),
+        value.locked ? 1 : 0,
+        value.hidden ? 1 : 0,
+        now,
+        elementId,
+        expectedRevision,
+      );
+    return changed.changes === 1 ? this.getEntry(elementId) : undefined;
+  }
+
+  applyHistoryEntry(
+    snapshot: ElementEntryDto,
+    shouldBeActive: boolean,
+    now: string,
+  ): ElementEntryDto | undefined {
+    const current = this.get(snapshot.element.id);
+    if (current === undefined) return undefined;
+    const changed = this.connection
+      .prepare(
+        `UPDATE elements
+         SET name = ?, props_json = ?, style_json = ?, events_json = ?,
+             locked = ?, hidden = ?, deleted_at = ?, revision = revision + 1,
+             updated_at = ?
+         WHERE id = ? AND revision = ?`,
+      )
+      .run(
+        snapshot.element.name,
+        JSON.stringify(snapshot.element.props),
+        JSON.stringify(snapshot.element.style),
+        JSON.stringify(snapshot.element.events),
+        snapshot.element.locked ? 1 : 0,
+        snapshot.element.hidden ? 1 : 0,
+        shouldBeActive ? null : now,
+        now,
+        snapshot.element.id,
+        current.revision,
+      );
+    if (changed.changes !== 1) return undefined;
+    this.connection
+      .prepare(
+        `UPDATE element_layouts
+         SET x = ?, y = ?, w = ?, h = ?, min_w = ?, min_h = ?,
+             max_w = ?, max_h = ?
+         WHERE element_id = ? AND breakpoint = 'desktop'`,
+      )
+      .run(
+        snapshot.layout.x,
+        snapshot.layout.y,
+        snapshot.layout.w,
+        snapshot.layout.h,
+        snapshot.layout.minW,
+        snapshot.layout.minH,
+        snapshot.layout.maxW,
+        snapshot.layout.maxH,
+        snapshot.element.id,
+      );
+    return shouldBeActive ? this.getEntry(snapshot.element.id) : undefined;
+  }
+
   updateBatch(items: readonly BatchLayoutItem[], now: string): void {
     const updateElement = this.connection.prepare(
       `UPDATE elements SET revision = revision + 1, updated_at = ?
@@ -422,10 +530,7 @@ export class ElementRepository {
   ): ElementCommandRow | undefined {
     return this.connection
       .prepare(
-        `SELECT id, project_id, page_id, element_id, command_type,
-           idempotency_key, request_hash, before_json, after_json,
-           response_status, response_json, before_layout_revision,
-           after_layout_revision, created_at
+        `SELECT ${commandColumns}
          FROM element_commands WHERE project_id = ? AND idempotency_key = ?`,
       )
       .get(projectId, idempotencyKey) as ElementCommandRow | undefined;
@@ -447,14 +552,34 @@ export class ElementRepository {
     readonly afterLayoutRevision: number;
     readonly now: string;
   }): void {
+    const successful =
+      command.responseStatus >= 200 && command.responseStatus < 300;
+    let historySequence: number | null = null;
+    if (successful) {
+      this.connection
+        .prepare(
+          `UPDATE element_commands
+           SET history_state = 'DISCARDED', history_updated_at = ?
+           WHERE project_id = ? AND history_state = 'UNDONE'`,
+        )
+        .run(command.now, command.projectId);
+      const row = this.connection
+        .prepare(
+          `SELECT coalesce(max(history_sequence), 0) + 1 AS next_sequence
+           FROM element_commands WHERE project_id = ?`,
+        )
+        .get(command.projectId) as { readonly next_sequence: number };
+      historySequence = row.next_sequence;
+    }
     this.connection
       .prepare(
         `INSERT INTO element_commands (
            id, project_id, page_id, element_id, command_type,
            idempotency_key, request_hash, before_json, after_json,
            response_status, response_json, before_layout_revision,
-           after_layout_revision, created_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           after_layout_revision, history_state, history_sequence,
+           history_updated_at, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       )
       .run(
         command.id,
@@ -470,7 +595,128 @@ export class ElementRepository {
         JSON.stringify(command.response),
         command.beforeLayoutRevision,
         command.afterLayoutRevision,
+        successful ? "APPLIED" : null,
+        historySequence,
+        successful ? command.now : null,
         command.now,
+      );
+  }
+
+  listHistory(projectId: string): readonly ElementCommandRow[] {
+    return this.connection
+      .prepare(
+        `SELECT ${commandColumns} FROM element_commands
+         WHERE project_id = ? AND history_state IS NOT NULL
+         ORDER BY history_sequence`,
+      )
+      .all(projectId) as readonly ElementCommandRow[];
+  }
+
+  undoCommand(projectId: string): ElementCommandRow | undefined {
+    return this.connection
+      .prepare(
+        `SELECT ${commandColumns} FROM element_commands
+         WHERE project_id = ? AND history_state = 'APPLIED'
+         ORDER BY history_sequence DESC LIMIT 1`,
+      )
+      .get(projectId) as ElementCommandRow | undefined;
+  }
+
+  redoCommand(projectId: string): ElementCommandRow | undefined {
+    const cursor = this.connection
+      .prepare(
+        `SELECT coalesce(max(history_sequence), 0) AS cursor
+         FROM element_commands
+         WHERE project_id = ? AND history_state = 'APPLIED'`,
+      )
+      .get(projectId) as { readonly cursor: number };
+    return this.connection
+      .prepare(
+        `SELECT ${commandColumns} FROM element_commands
+         WHERE project_id = ? AND history_state = 'UNDONE'
+           AND history_sequence > ?
+         ORDER BY history_sequence LIMIT 1`,
+      )
+      .get(projectId, cursor.cursor) as ElementCommandRow | undefined;
+  }
+
+  setHistoryState(
+    commandId: string,
+    expectedState: "APPLIED" | "UNDONE",
+    nextState: "APPLIED" | "UNDONE",
+    now: string,
+  ): boolean {
+    return (
+      this.connection
+        .prepare(
+          `UPDATE element_commands SET history_state = ?, history_updated_at = ?
+           WHERE id = ? AND history_state = ?`,
+        )
+        .run(nextState, now, commandId, expectedState).changes === 1
+    );
+  }
+
+  toCommandSummary(row: ElementCommandRow): ElementCommandSummaryDto {
+    if (row.history_state === null || row.history_sequence === null) {
+      throw new Error(`Command ${row.id} is not part of Element history`);
+    }
+    return {
+      id: row.id,
+      pageId: row.page_id,
+      elementId: row.element_id,
+      type: row.command_type,
+      state: row.history_state,
+      sequence: row.history_sequence,
+      createdAt: row.created_at,
+    };
+  }
+
+  findHistoryOperation(
+    projectId: string,
+    idempotencyKey: string,
+  ): ElementHistoryOperationRow | undefined {
+    return this.connection
+      .prepare(
+        `SELECT id, project_id, command_id, requested_command_id,
+           operation_type, idempotency_key, request_hash, response_status,
+           response_json, created_at
+         FROM element_history_operations
+         WHERE project_id = ? AND idempotency_key = ?`,
+      )
+      .get(projectId, idempotencyKey) as ElementHistoryOperationRow | undefined;
+  }
+
+  storeHistoryOperation(operation: {
+    readonly id: string;
+    readonly projectId: string;
+    readonly commandId: string | null;
+    readonly requestedCommandId: string;
+    readonly type: "UNDO" | "REDO";
+    readonly idempotencyKey: string;
+    readonly requestHash: string;
+    readonly responseStatus: number;
+    readonly response: unknown;
+    readonly now: string;
+  }): void {
+    this.connection
+      .prepare(
+        `INSERT INTO element_history_operations (
+           id, project_id, command_id, requested_command_id, operation_type,
+           idempotency_key, request_hash, response_status, response_json,
+           created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      )
+      .run(
+        operation.id,
+        operation.projectId,
+        operation.commandId,
+        operation.requestedCommandId,
+        operation.type,
+        operation.idempotencyKey,
+        operation.requestHash,
+        operation.responseStatus,
+        JSON.stringify(operation.response),
+        operation.now,
       );
   }
 
@@ -495,14 +741,20 @@ export class ElementRepository {
       .all(projectId);
     const commands = this.connection
       .prepare(
-        `SELECT id, project_id, page_id, element_id, command_type,
-           idempotency_key, request_hash, before_json, after_json,
-           response_status, response_json, before_layout_revision,
-           after_layout_revision, created_at
+        `SELECT ${commandColumns}
          FROM element_commands WHERE project_id = ? ORDER BY created_at, id`,
       )
       .all(projectId);
-    return { layoutRevisions, elements, layouts, commands };
+    const historyOperations = this.connection
+      .prepare(
+        `SELECT id, project_id, command_id, requested_command_id,
+           operation_type, idempotency_key, request_hash, response_status,
+           response_json, created_at
+         FROM element_history_operations
+         WHERE project_id = ? ORDER BY created_at, id`,
+      )
+      .all(projectId);
+    return { layoutRevisions, elements, layouts, commands, historyOperations };
   }
 
   layoutRevisionSnapshot(projectId: string): readonly {
@@ -530,6 +782,15 @@ export class ElementRepository {
   }
 
   toElementDto(row: ElementRow): ElementDto {
+    const definition = elementDefinition(row.type);
+    if (row.type_version !== definition.typeVersion) {
+      throw new Error(`Element ${row.id} has an unsupported type version`);
+    }
+    const state = validateElementStoredState(definition, {
+      props: JSON.parse(row.props_json),
+      style: JSON.parse(row.style_json),
+      events: JSON.parse(row.events_json),
+    });
     return {
       id: row.id,
       projectId: row.project_id,
@@ -537,9 +798,9 @@ export class ElementRepository {
       type: row.type,
       typeVersion: row.type_version,
       name: row.name,
-      props: JSON.parse(row.props_json) as Record<string, unknown>,
-      style: JSON.parse(row.style_json) as Record<string, unknown>,
-      events: JSON.parse(row.events_json) as readonly unknown[],
+      props: state.props,
+      style: state.style,
+      events: state.events,
       locked: row.locked === 1,
       hidden: row.hidden === 1,
       revision: row.revision,

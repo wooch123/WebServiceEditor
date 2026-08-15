@@ -1,5 +1,6 @@
 import type {
   DeletePageImpact,
+  ElementEntryDto,
   PageDto,
   PageType,
   PublishedNavigationPageDto,
@@ -62,7 +63,7 @@ export interface ProjectVersionRow {
 
 export interface ProjectVersionSnapshot {
   readonly pages: readonly PublishedNavigationPageDto[];
-  readonly elements?: readonly unknown[];
+  readonly elements?: readonly ElementEntryDto[];
   readonly layoutRevisions?: readonly unknown[];
 }
 

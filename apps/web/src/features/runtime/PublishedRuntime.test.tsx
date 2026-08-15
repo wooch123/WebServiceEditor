@@ -7,12 +7,88 @@ import {
 } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import {
+  ELEMENT_DEFINITIONS,
+  ELEMENT_PROPERTY_TABS,
+  type ElementEntryDto,
+} from "@webeditor/domain";
 
 import stylesCss from "@/styles.css?raw";
 import { App } from "@/App";
 import { PageManager } from "@/features/pages/PageManager";
 import type { ProjectDto } from "@/services/projects-api";
 import type { PageDto, RuntimePageDto } from "@/services/pages-api";
+
+function registryPayload() {
+  return {
+    schemaVersion: 1,
+    tabs: ELEMENT_PROPERTY_TABS,
+    definitions: ELEMENT_DEFINITIONS,
+    checksum: "runtime-test-registry",
+  };
+}
+
+function publishedEntry(
+  id: string,
+  type: ElementEntryDto["element"]["type"],
+  options: {
+    props?: Readonly<Record<string, unknown>>;
+    style?: Readonly<Record<string, unknown>>;
+    hidden?: boolean;
+  } = {},
+): ElementEntryDto {
+  const definition = ELEMENT_DEFINITIONS.find(
+    (candidate) => candidate.type === type,
+  )!;
+  return {
+    element: {
+      id,
+      projectId: "runtime-project",
+      pageId: "page-0",
+      type,
+      typeVersion: 1,
+      name: definition.defaultName,
+      props: { ...definition.defaultProps, ...options.props },
+      style: { ...definition.defaultStyle, ...options.style },
+      events: [],
+      locked: false,
+      hidden: options.hidden ?? false,
+      revision: 1,
+    },
+    layout: {
+      elementId: id,
+      breakpoint: "desktop",
+      x: 0,
+      y: id === "runtime-number" ? 6 : 0,
+      w: definition.layout.defaultW,
+      h: definition.layout.defaultH,
+      minW: definition.layout.minW,
+      minH: definition.layout.minH,
+      maxW: definition.layout.maxW,
+      maxH: definition.layout.maxH,
+    },
+  };
+}
+
+function runtimePagePayload({
+  projectId,
+  versionId,
+  page,
+  elements = [],
+}: {
+  projectId: string;
+  versionId: string;
+  page: RuntimePageDto;
+  elements?: ElementEntryDto[];
+}) {
+  return {
+    projectId,
+    versionId,
+    publishedAt: "2026-08-15T00:00:00Z",
+    page,
+    elements,
+  };
+}
 
 function runtimePages(): RuntimePageDto[] {
   const pages = Array.from({ length: 31 }, (_, index) => ({
@@ -34,7 +110,7 @@ function runtimePages(): RuntimePageDto[] {
   return pages.reverse();
 }
 
-function installRuntimeApi() {
+function installRuntimeApi(elements: ElementEntryDto[] = []) {
   const calls: string[] = [];
   const pages = runtimePages();
   vi.stubGlobal(
@@ -42,6 +118,9 @@ function installRuntimeApi() {
     vi.fn(async (input: RequestInfo | URL) => {
       const path = new URL(String(input), "http://local").pathname;
       calls.push(path);
+      if (path === "/api/v1/elements/registry") {
+        return Response.json(registryPayload());
+      }
       if (path === "/api/v1/runtime/runtime-project/navigation") {
         return new Response(
           JSON.stringify({
@@ -52,6 +131,27 @@ function installRuntimeApi() {
           }),
           { status: 200, headers: { "content-type": "application/json" } },
         );
+      }
+      const runtimePageMatch = path.match(
+        /^\/api\/v1\/runtime\/runtime-project\/pages\/(page-\d+)$/,
+      );
+      if (runtimePageMatch) {
+        const page = pages.find(
+          (candidate) => candidate.id === runtimePageMatch[1],
+        );
+        return page
+          ? Response.json(
+              runtimePagePayload({
+                projectId: "runtime-project",
+                versionId: "version-7",
+                page,
+                elements,
+              }),
+            )
+          : Response.json(
+              { error: { code: "PAGE_NOT_FOUND", message: "페이지 없음" } },
+              { status: 404 },
+            );
       }
       if (path === "/api/v1/ui/icons/File") {
         return new Response(
@@ -133,6 +233,9 @@ function installPublishTransitionApi() {
       const path = new URL(String(input), "http://local").pathname;
       const method = init.method ?? "GET";
       calls.push({ path, method });
+      if (path === "/api/v1/elements/registry") {
+        return Response.json(registryPayload());
+      }
       if (path === "/api/v1/runtime/publish-project/navigation") {
         return Response.json({
           projectId: project.id,
@@ -151,6 +254,25 @@ function installPublishTransitionApi() {
             },
           ],
         });
+      }
+      if (path === "/api/v1/runtime/publish-project/pages/page-1") {
+        const page: RuntimePageDto = {
+          id: draftPage.id,
+          name: publishedName,
+          route: draftPage.route,
+          sortOrder: 0,
+          iconName: "File",
+          iconCatalogVersion: "1.31.0",
+          navigationVisible: true,
+          navigationGroup: null,
+        };
+        return Response.json(
+          runtimePagePayload({
+            projectId: project.id,
+            versionId: projectRevision === 1 ? "version-1" : "version-2",
+            page,
+          }),
+        );
       }
       if (path === "/api/v1/projects/publish-project/pages") {
         return Response.json({
@@ -229,6 +351,49 @@ afterEach(() => {
 });
 
 describe("PublishedRuntime", () => {
+  it("renders only immutable published elements with runtime accessibility and visibility effects", async () => {
+    installRuntimeApi([
+      publishedEntry("runtime-text", "text", {
+        props: { text: "게시 본문" },
+      }),
+      publishedEntry("runtime-number", "number-input", {
+        props: {
+          defaultValue: 0,
+          disabled: true,
+          required: true,
+          minimum: 0,
+          maximum: 10,
+          step: 1,
+          tooltip: "게시 범위",
+          accessibilityLabel: "게시 수량",
+        },
+      }),
+      publishedEntry("runtime-hidden", "button", {
+        props: { label: "초안 누출" },
+        hidden: true,
+      }),
+    ]);
+    window.history.replaceState({}, "", "/runtime/runtime-project/hidden");
+    render(<App />);
+
+    expect(await screen.findByText("게시 본문")).toBeInTheDocument();
+    const publishedRegion = screen.getByRole("region", {
+      name: "게시 엘리먼트",
+    });
+    expect(within(publishedRegion).getAllByRole("region")).toHaveLength(2);
+    const number = within(publishedRegion).getByRole("spinbutton", {
+      name: "게시 수량",
+    });
+    expect(number).toHaveValue(0);
+    expect(number).toBeDisabled();
+    expect(number).toBeRequired();
+    expect(number).toHaveAttribute("min", "0");
+    expect(number).toHaveAttribute("max", "10");
+    expect(number).toHaveAttribute("step", "1");
+    expect(number).toHaveAttribute("title", "게시 범위");
+    expect(screen.queryByText("초안 누출")).not.toBeInTheDocument();
+  });
+
   it("keeps draft navigation out of runtime until the publish control commits it", async () => {
     const { calls, project } = installPublishTransitionApi();
     const user = userEvent.setup();
@@ -311,8 +476,10 @@ describe("PublishedRuntime", () => {
     ]);
     await waitFor(() =>
       expect(
-        calls.filter((path) => path === "/api/v1/ui/icons/Building2"),
-      ).toHaveLength(1),
+        within(navigation)
+          .getByRole("button", { name: "페이지 2" })
+          .querySelector("svg"),
+      ).toBeInTheDocument(),
     );
 
     await user.click(

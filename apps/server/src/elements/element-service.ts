@@ -10,8 +10,13 @@ import {
   type CreatePlacementCandidateRequest,
   type DeleteElementRequest,
   type ElementEntryDto,
+  type ElementHistoryDto,
+  type ElementHistoryMutationDto,
+  type ElementHistoryMutationRequest,
+  type ElementInspectorDto,
   type ElementListDto,
   type ElementMutationDto,
+  type ElementType,
   type PatchElementRequest,
   type PlacementCandidateDto,
 } from "@webeditor/domain";
@@ -30,11 +35,17 @@ import {
 import {
   assertGridInteger,
   clampMove,
+  elementBindingStatus,
   elementDefinition,
+  elementPropertyValues,
+  elementRegistry,
+  elementRenderState,
   layoutLimits,
   normalizeResize,
+  projectElementProperties,
   rectanglesOverlap,
   resizeHandle,
+  validateElementStoredState,
   type GridRectangle,
 } from "./element-registry.js";
 import {
@@ -53,7 +64,10 @@ export interface ElementServiceOptions {
   readonly failureInjector?: ElementFailureInjector;
 }
 
-export type ElementFailurePoint = "element:add-before-command";
+export type ElementFailurePoint =
+  | "element:add-before-command"
+  | "element:patch-before-command"
+  | "element:history-before-operation";
 export type ElementFailureInjector = (point: ElementFailurePoint) => void;
 
 interface ElementPageContext {
@@ -166,6 +180,33 @@ function toApiError(command: ElementCommandRow): ApiError {
   );
 }
 
+function storedApiError(
+  statusCode: number,
+  responseJson: string,
+  fallbackCode: string,
+): ApiError {
+  const response = JSON.parse(responseJson) as {
+    readonly error?: {
+      readonly code?: unknown;
+      readonly message?: unknown;
+      readonly details?: unknown;
+    };
+  };
+  const error = response.error;
+  if (
+    error === undefined ||
+    typeof error.code !== "string" ||
+    typeof error.message !== "string"
+  ) {
+    return new ApiError(
+      statusCode,
+      fallbackCode,
+      "Stored command response is invalid",
+    );
+  }
+  return new ApiError(statusCode, error.code, error.message, error.details);
+}
+
 export class ElementService {
   readonly repository: ElementRepository;
   readonly pageRepository: PageRepository;
@@ -199,6 +240,65 @@ export class ElementService {
       projectRevision: project.revision,
       elements: this.repository.listActive(page.id),
     };
+  }
+
+  registry() {
+    return elementRegistry();
+  }
+
+  registryDefinition(elementType: string) {
+    try {
+      return { definition: elementDefinition(elementType) };
+    } catch (error) {
+      if (error instanceof ApiError && error.code === "INVALID_ELEMENT_TYPE") {
+        throw new ApiError(
+          404,
+          "ELEMENT_DEFINITION_NOT_FOUND",
+          "Element definition was not found",
+        );
+      }
+      throw error;
+    }
+  }
+
+  inspect(elementId: string): ElementInspectorDto {
+    assertUuid(elementId, "INVALID_ELEMENT_ID", "Element ID");
+    const entry = this.repository.getEntry(elementId);
+    assertApi(
+      entry !== undefined,
+      404,
+      "ELEMENT_NOT_FOUND",
+      "Element was not found",
+    );
+    this.#pageContext(entry.element.pageId);
+    const definition = elementDefinition(entry.element.type);
+    return {
+      entry,
+      definition,
+      propertyValues: elementPropertyValues(entry, definition),
+      bindingStatus: elementBindingStatus(definition),
+      renderState: elementRenderState(definition),
+    };
+  }
+
+  history(projectId: string): ElementHistoryDto {
+    assertUuid(projectId, "INVALID_PROJECT_ID", "Project ID");
+    this.#activeProject(projectId);
+    return this.#historyDto(projectId);
+  }
+
+  undo(
+    projectId: string,
+    request: ElementHistoryMutationRequest,
+  ): ElementHistoryMutationDto {
+    return this.#mutateHistory("UNDO", projectId, request);
+  }
+
+  redo(
+    projectId: string,
+    request: ElementHistoryMutationRequest,
+  ): ElementHistoryMutationDto {
+    return this.#mutateHistory("REDO", projectId, request);
   }
 
   placementCandidate(
@@ -420,12 +520,15 @@ export class ElementService {
     );
     const kind = request.change?.kind;
     assertApi(
-      kind === "MOVE" || kind === "RESIZE" || kind === "LOCK",
+      kind === "MOVE" ||
+        kind === "RESIZE" ||
+        kind === "LOCK" ||
+        kind === "PROPERTIES",
       400,
       "INVALID_ELEMENT_CHANGE",
       "Element change is invalid",
     );
-    const commandType = kind as "MOVE" | "RESIZE" | "LOCK";
+    const commandType = kind as "MOVE" | "RESIZE" | "LOCK" | "PROPERTIES";
     return this.#recordFailure(
       context,
       { type: commandType, key, hash, elementId },
@@ -453,6 +556,19 @@ export class ElementService {
               elementId,
               expectedElementRevision,
               request.change.locked,
+              this.#now(),
+            );
+          } else if (kind === "PROPERTIES") {
+            const definition = elementDefinition(current.type);
+            const projection = projectElementProperties(
+              before,
+              definition,
+              request.change.values,
+            );
+            entry = this.repository.updateProperties(
+              elementId,
+              expectedElementRevision,
+              projection,
               this.#now(),
             );
           } else {
@@ -516,6 +632,7 @@ export class ElementService {
             projectRevision,
             commandId: randomUUID(),
           };
+          this.#failureInjector?.("element:patch-before-command");
           this.repository.storeCommand({
             id: response.commandId,
             projectId: liveContext.project.id,
@@ -839,7 +956,7 @@ export class ElementService {
     },
     key: string,
     hash: string,
-    type: "text" | "button" | "container" | "kpi-card",
+    type: ElementType,
     rectangle: GridRectangle,
     commandType: "ADD",
   ): ElementMutationDto {
@@ -916,10 +1033,328 @@ export class ElementService {
     };
   }
 
-  #pageContext(pageId: string): ElementPageContext {
-    const page = this.pageRepository.getActive(pageId);
-    assertApi(page !== undefined, 404, "PAGE_NOT_FOUND", "Page was not found");
-    const project = this.projectRepository.get(page.project_id);
+  #historyDto(projectId: string): ElementHistoryDto {
+    const commands = this.repository.listHistory(projectId);
+    const undo = this.repository.undoCommand(projectId);
+    const redo = this.repository.redoCommand(projectId);
+    return {
+      projectId,
+      canUndo: undo !== undefined,
+      canRedo: redo !== undefined,
+      undoCommand:
+        undo === undefined ? null : this.repository.toCommandSummary(undo),
+      redoCommand:
+        redo === undefined ? null : this.repository.toCommandSummary(redo),
+      commands: commands.map((command) =>
+        this.repository.toCommandSummary(command),
+      ),
+    };
+  }
+
+  #mutateHistory(
+    operation: "UNDO" | "REDO",
+    projectId: string,
+    request: ElementHistoryMutationRequest,
+  ): ElementHistoryMutationDto {
+    assertUuid(projectId, "INVALID_PROJECT_ID", "Project ID");
+    assertUuid(
+      request.expectedCommandId,
+      "INVALID_ELEMENT_COMMAND_ID",
+      "Element command ID",
+    );
+    const expectedProjectRevision = expectedRevision(
+      request.expectedProjectRevision,
+      "INVALID_EXPECTED_PROJECT_REVISION",
+    );
+    const key = idempotencyKey(request.idempotencyKey);
+    const hash = commandHash(`HISTORY_${operation}`, projectId, request);
+    const replay = this.repository.findHistoryOperation(projectId, key);
+    if (replay !== undefined) {
+      assertApi(
+        replay.request_hash === hash,
+        409,
+        "IDEMPOTENCY_PAYLOAD_CONFLICT",
+        "Idempotency key has different input",
+      );
+      if (replay.response_status >= 400) {
+        throw storedApiError(
+          replay.response_status,
+          replay.response_json,
+          "ELEMENT_HISTORY_REPLAY_INVALID",
+        );
+      }
+      return JSON.parse(replay.response_json) as ElementHistoryMutationDto;
+    }
+
+    try {
+      return this.repository.metadataDatabase.transaction(() => {
+        const project = this.#activeProject(projectId);
+        this.#assertProjectRevision(project, expectedProjectRevision);
+        const command =
+          operation === "UNDO"
+            ? this.repository.undoCommand(projectId)
+            : this.repository.redoCommand(projectId);
+        assertApi(
+          command !== undefined,
+          409,
+          operation === "UNDO"
+            ? "ELEMENT_HISTORY_NOTHING_TO_UNDO"
+            : "ELEMENT_HISTORY_NOTHING_TO_REDO",
+          operation === "UNDO" ? "Nothing to undo" : "Nothing to redo",
+        );
+        assertApi(
+          command.id === request.expectedCommandId,
+          409,
+          "ELEMENT_HISTORY_COMMAND_CONFLICT",
+          "Element history command changed",
+          { commandId: command.id },
+        );
+        const context = this.#pageContext(command.page_id);
+        const affected = this.#applyHistoryCommand(
+          command,
+          operation,
+          projectId,
+          this.#now(),
+        );
+        const changesLayout =
+          command.command_type === "ADD" ||
+          command.command_type === "MOVE" ||
+          command.command_type === "RESIZE" ||
+          command.command_type === "BATCH_LAYOUT" ||
+          command.command_type === "DELETE";
+        const layoutRevision = changesLayout
+          ? this.#bumpLayout(
+              command.page_id,
+              context.layoutRevision,
+              this.#now(),
+            )
+          : context.layoutRevision;
+        this.#assertPairwiseNoCollision(
+          this.repository
+            .listActive(command.page_id)
+            .map(({ layout }) => layout),
+        );
+        assertApi(
+          this.repository.setHistoryState(
+            command.id,
+            operation === "UNDO" ? "APPLIED" : "UNDONE",
+            operation === "UNDO" ? "UNDONE" : "APPLIED",
+            this.#now(),
+          ),
+          409,
+          "ELEMENT_HISTORY_COMMAND_CONFLICT",
+          "Element history command changed",
+        );
+        const projectRevision = this.#bumpProject(
+          projectId,
+          expectedProjectRevision,
+          this.#now(),
+        );
+        const history = this.#historyDto(projectId);
+        const response: ElementHistoryMutationDto = {
+          operation,
+          commandId: command.id,
+          pageId: command.page_id,
+          entries: this.repository.listActive(command.page_id),
+          deletedElementIds: affected.filter(
+            (elementId) => this.repository.getActive(elementId) === undefined,
+          ),
+          layoutRevision,
+          projectRevision,
+          canUndo: history.canUndo,
+          canRedo: history.canRedo,
+        };
+        this.#failureInjector?.("element:history-before-operation");
+        this.repository.storeHistoryOperation({
+          id: randomUUID(),
+          projectId,
+          commandId: command.id,
+          requestedCommandId: request.expectedCommandId,
+          type: operation,
+          idempotencyKey: key,
+          requestHash: hash,
+          responseStatus: 200,
+          response,
+          now: this.#now(),
+        });
+        this.#audit(
+          `HISTORY_${operation}`,
+          projectId,
+          command.id,
+          command.command_type,
+          response,
+        );
+        return response;
+      });
+    } catch (error) {
+      if (
+        error instanceof ApiError &&
+        error.statusCode >= 400 &&
+        error.statusCode < 500 &&
+        this.repository.findHistoryOperation(projectId, key) === undefined
+      ) {
+        const project = this.projectRepository.get(projectId);
+        if (project !== undefined) {
+          const target =
+            operation === "UNDO"
+              ? this.repository.undoCommand(projectId)
+              : this.repository.redoCommand(projectId);
+          this.repository.metadataDatabase.transaction(() => {
+            this.repository.storeHistoryOperation({
+              id: randomUUID(),
+              projectId,
+              commandId: target?.id ?? null,
+              requestedCommandId: request.expectedCommandId,
+              type: operation,
+              idempotencyKey: key,
+              requestHash: hash,
+              responseStatus: error.statusCode,
+              response: apiErrorResponse(error),
+              now: this.#now(),
+            });
+          });
+        }
+      }
+      throw error;
+    }
+  }
+
+  #applyHistoryCommand(
+    command: ElementCommandRow,
+    operation: "UNDO" | "REDO",
+    projectId: string,
+    now: string,
+  ): readonly string[] {
+    const before =
+      command.before_json === null ? null : JSON.parse(command.before_json);
+    const after =
+      command.after_json === null ? null : JSON.parse(command.after_json);
+    let snapshots: readonly ElementEntryDto[];
+    let active: boolean;
+    if (command.command_type === "ADD") {
+      snapshots = [this.#historyEntry(after, command, projectId)];
+      active = operation === "REDO";
+    } else if (command.command_type === "DELETE") {
+      snapshots = [this.#historyEntry(before, command, projectId)];
+      active = operation === "UNDO";
+    } else if (command.command_type === "BATCH_LAYOUT") {
+      snapshots = this.#historyEntries(
+        operation === "UNDO" ? before : after,
+        command,
+        projectId,
+      );
+      active = true;
+    } else {
+      snapshots = [
+        this.#historyEntry(
+          operation === "UNDO" ? before : after,
+          command,
+          projectId,
+        ),
+      ];
+      active = true;
+    }
+    for (const snapshot of snapshots) {
+      const result = this.repository.applyHistoryEntry(snapshot, active, now);
+      assertApi(
+        active
+          ? result !== undefined
+          : this.repository.get(snapshot.element.id) !== undefined,
+        409,
+        "ELEMENT_HISTORY_STATE_CONFLICT",
+        "Element state changed outside its history",
+        { elementId: snapshot.element.id },
+      );
+    }
+    return snapshots.map(({ element }) => element.id);
+  }
+
+  #historyEntries(
+    value: unknown,
+    command: ElementCommandRow,
+    projectId: string,
+  ): readonly ElementEntryDto[] {
+    if (!Array.isArray(value)) {
+      throw new Error(`Element command ${command.id} has invalid snapshots`);
+    }
+    return value.map((entry) => this.#historyEntry(entry, command, projectId));
+  }
+
+  #historyEntry(
+    value: unknown,
+    command: ElementCommandRow,
+    projectId: string,
+  ): ElementEntryDto {
+    if (typeof value !== "object" || value === null || Array.isArray(value)) {
+      throw new Error(`Element command ${command.id} has an invalid snapshot`);
+    }
+    const entry = value as ElementEntryDto;
+    if (
+      typeof entry.element !== "object" ||
+      entry.element === null ||
+      typeof entry.layout !== "object" ||
+      entry.layout === null ||
+      entry.element.projectId !== projectId ||
+      entry.element.pageId !== command.page_id ||
+      entry.layout.elementId !== entry.element.id ||
+      entry.element.typeVersion !== 1 ||
+      (command.command_type === "BATCH_LAYOUT"
+        ? command.element_id !== null
+        : command.element_id !== entry.element.id)
+    ) {
+      throw new Error(`Element command ${command.id} violates ownership`);
+    }
+    let definition: ReturnType<typeof elementDefinition>;
+    let state: ReturnType<typeof validateElementStoredState>;
+    try {
+      definition = elementDefinition(entry.element.type);
+      state = validateElementStoredState(definition, {
+        props: entry.element.props,
+        style: entry.element.style,
+        events: entry.element.events,
+      });
+    } catch (error) {
+      if (error instanceof ApiError && error.statusCode === 400) {
+        throw new Error(`Element command ${command.id} violates the Registry`, {
+          cause: error,
+        });
+      }
+      throw error;
+    }
+    const layout = entry.layout;
+    if (
+      layout.breakpoint !== "desktop" ||
+      !Number.isSafeInteger(layout.x) ||
+      layout.x < 0 ||
+      !Number.isSafeInteger(layout.y) ||
+      layout.y < 0 ||
+      !Number.isSafeInteger(layout.w) ||
+      !Number.isSafeInteger(layout.h) ||
+      layout.minW !== definition.layout.minW ||
+      layout.minH !== definition.layout.minH ||
+      layout.maxW !== definition.layout.maxW ||
+      layout.maxH !== definition.layout.maxH ||
+      layout.w < layout.minW ||
+      layout.w > layout.maxW ||
+      layout.h < layout.minH ||
+      layout.h > layout.maxH ||
+      layout.x + layout.w > CANVAS_GRID.columns
+    ) {
+      throw new Error(`Element command ${command.id} has invalid geometry`);
+    }
+    return {
+      ...entry,
+      element: {
+        ...entry.element,
+        props: state.props,
+        style: state.style,
+        events: state.events,
+      },
+    };
+  }
+
+  #activeProject(projectId: string): ProjectRow {
+    const project = this.projectRepository.get(projectId);
     assertApi(
       project !== undefined,
       404,
@@ -932,6 +1367,13 @@ export class ElementService {
       "PROJECT_NOT_ACTIVE",
       "Project is not active",
     );
+    return project;
+  }
+
+  #pageContext(pageId: string): ElementPageContext {
+    const page = this.pageRepository.getActive(pageId);
+    assertApi(page !== undefined, 404, "PAGE_NOT_FOUND", "Page was not found");
+    const project = this.#activeProject(page.project_id);
     const layoutRevision = this.repository.layoutRevision(page.id);
     if (layoutRevision === undefined) {
       throw new Error(`Page ${page.id} is missing its layout revision`);

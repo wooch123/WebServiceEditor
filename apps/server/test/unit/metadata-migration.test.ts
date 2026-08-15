@@ -84,7 +84,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(4);
+      expect(migrated.assertReady().schemaVersion).toBe(5);
       expect(
         migrated.connection
           .prepare(
@@ -107,6 +107,7 @@ describe("metadata migration", () => {
         { version: 2 },
         { version: 3 },
         { version: 4 },
+        { version: 5 },
       ]);
       expect(
         migrated.connection
@@ -123,11 +124,12 @@ describe("metadata migration", () => {
       expect(
         migrated.connection
           .prepare(
-            "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('page_layout_revisions', 'elements', 'element_layouts', 'element_commands') ORDER BY name",
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('page_layout_revisions', 'elements', 'element_layouts', 'element_commands', 'element_history_operations') ORDER BY name",
           )
           .all(),
       ).toEqual([
         { name: "element_commands" },
+        { name: "element_history_operations" },
         { name: "element_layouts" },
         { name: "elements" },
         { name: "page_layout_revisions" },
@@ -145,11 +147,11 @@ describe("metadata migration", () => {
     const path = join(directory, "metadata.sqlite");
     const future = new Database(path);
     future.pragma("application_id = 1464156741");
-    future.pragma("user_version = 5");
+    future.pragma("user_version = 6");
     future.close();
 
     expect(() => new MetadataDatabase(path)).toThrow(
-      "Refusing unknown future metadata schema version 5",
+      "Refusing unknown future metadata schema version 6",
     );
   });
 
@@ -193,19 +195,20 @@ describe("metadata migration", () => {
     version3.pragma("foreign_keys = OFF");
     version3.exec(`
       DROP TRIGGER pages_initialize_layout_revision;
+      DROP TABLE element_history_operations;
       DROP TABLE element_commands;
       DROP TABLE element_layouts;
       DROP TABLE elements;
       DROP TABLE page_layout_revisions;
       DROP INDEX pages_id_project_unique_idx;
-      DELETE FROM metadata_migrations WHERE version = 4;
+      DELETE FROM metadata_migrations WHERE version >= 4;
     `);
     version3.pragma("user_version = 3");
     version3.close();
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(4);
+      expect(migrated.assertReady().schemaVersion).toBe(5);
       expect(
         migrated.connection
           .prepare(
@@ -256,5 +259,112 @@ describe("metadata migration", () => {
     expect(() => new MetadataDatabase(path)).toThrow(
       "Metadata migration history is not a known prefix",
     );
+  });
+
+  it("preserves v4 insertion order when successful commands share one timestamp", () => {
+    const directory = mkdtempSync(
+      join(tmpdir(), "webeditor-v4-history-order-"),
+    );
+    directories.push(directory);
+    const path = join(directory, "metadata.sqlite");
+    const current = new MetadataDatabase(path);
+    const projectId = "00000000-0000-4000-8000-000000000011";
+    const pageId = "00000000-0000-4000-8000-000000000012";
+    const elementId = "00000000-0000-4000-8000-000000000013";
+    const fixedNow = "2026-08-16T01:00:00.000Z";
+    current.connection.exec(`
+      INSERT INTO projects (
+        id, name, slug, lifecycle_status, status, schema_version, revision,
+        lifecycle_revision, favorite, theme_id, created_at, updated_at
+      ) VALUES (
+        '${projectId}', 'History', 'history-order', 'ACTIVE', 'DRAFT', 1, 3,
+        0, 0, 'light-clean-paper', '${fixedNow}', '${fixedNow}'
+      );
+      INSERT INTO pages (
+        id, project_id, schema_version, revision, name, route, page_type,
+        icon_name, icon_catalog_version, navigation_visible, sort_order,
+        created_at, updated_at
+      ) VALUES (
+        '${pageId}', '${projectId}', 1, 1, 'Page', '/page', 'blank', 'File',
+        '1.31.0', 1, 0, '${fixedNow}', '${fixedNow}'
+      );
+      INSERT INTO elements (
+        id, project_id, page_id, type, type_version, name, props_json,
+        style_json, events_json, locked, hidden, revision, created_at, updated_at
+      ) VALUES (
+        '${elementId}', '${projectId}', '${pageId}', 'text', 1, 'Text',
+        '{"text":"Text"}', '{}', '[]', 0, 0, 2, '${fixedNow}', '${fixedNow}'
+      );
+      INSERT INTO element_layouts (
+        element_id, project_id, page_id, breakpoint, x, y, w, h,
+        min_w, min_h, max_w, max_h
+      ) VALUES (
+        '${elementId}', '${projectId}', '${pageId}', 'desktop', 0, 0, 6, 5,
+        2, 3, 24, 20
+      );
+    `);
+    const insertCommand = current.connection.prepare(
+      `INSERT INTO element_commands (
+         id, project_id, page_id, element_id, command_type, idempotency_key,
+         request_hash, before_json, after_json, response_status, response_json,
+         before_layout_revision, after_layout_revision, created_at
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 200, '{}', ?, ?, ?)`,
+    );
+    insertCommand.run(
+      "z-first-insertion",
+      projectId,
+      pageId,
+      elementId,
+      "ADD",
+      "first-insertion",
+      "first-hash",
+      null,
+      "{}",
+      0,
+      1,
+      fixedNow,
+    );
+    insertCommand.run(
+      "a-second-insertion",
+      projectId,
+      pageId,
+      elementId,
+      "PROPERTIES",
+      "second-insertion",
+      "second-hash",
+      "{}",
+      "{}",
+      1,
+      1,
+      fixedNow,
+    );
+    current.close();
+
+    const version4 = new Database(path);
+    version4.pragma("foreign_keys = OFF");
+    version4.exec(`
+      DROP TABLE element_history_operations;
+      DELETE FROM metadata_migrations WHERE version = 5;
+    `);
+    version4.pragma("user_version = 4");
+    version4.close();
+
+    const migrated = new MetadataDatabase(path);
+    try {
+      expect(
+        migrated.connection
+          .prepare(
+            `SELECT id, history_sequence FROM element_commands
+             WHERE project_id = ? ORDER BY history_sequence`,
+          )
+          .all(projectId),
+      ).toEqual([
+        { id: "z-first-insertion", history_sequence: 1 },
+        { id: "a-second-insertion", history_sequence: 2 },
+      ]);
+      expect(migrated.connection.pragma("foreign_key_check")).toEqual([]);
+    } finally {
+      migrated.close();
+    }
   });
 });

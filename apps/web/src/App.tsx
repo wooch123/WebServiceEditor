@@ -21,8 +21,11 @@ import { Button } from "@/components/ui/button";
 import {
   CanvasControls,
   ElementCanvas,
-  ElementInspectorSummary,
 } from "@/features/elements/ElementCanvas";
+import {
+  ElementHistoryControls,
+  ElementPropertyInspector,
+} from "@/features/elements/ElementPropertyInspector";
 import {
   ElementWorkspaceProvider,
   WorkspaceElementPalette,
@@ -210,67 +213,71 @@ function EditorSurface({
   ];
 
   return (
-    <div className="surface editor-surface">
-      <header className="app-header editor-header">
-        <button
-          className="icon-button back-button"
-          type="button"
-          aria-label="프로젝트 홈으로"
-          onClick={onBack}
-        >
-          <ArrowLeft aria-hidden="true" />
-        </button>
-        <Brand />
-        <div className="editor-project-name">
-          <span>프로젝트</span>
-          <strong>{project.name}</strong>
-        </div>
-        <button
-          className={`button save-button ${saved ? "secondary" : "primary"}`}
-          type="button"
-          onClick={() => setSaved(true)}
-        >
-          <Save aria-hidden="true" />
-          {saved ? "저장됨" : "저장"}
-        </button>
-        <HeaderControls {...controls} />
-      </header>
+    <ElementWorkspaceProvider
+      projectId={project.id}
+      pageId={selectedPage?.id ?? null}
+      projectRevision={project.revision}
+      layoutRevision={
+        selectedPage ? (layoutRevisions[selectedPage.id] ?? 0) : 0
+      }
+      onProjectRevisionChange={onProjectRevisionChange}
+      onLayoutRevisionChange={(pageId, revision) =>
+        setLayoutRevisions((current) => ({
+          ...current,
+          [pageId]: Math.max(current[pageId] ?? 0, revision),
+        }))
+      }
+    >
+      <div className="surface editor-surface">
+        <header className="app-header editor-header">
+          <button
+            className="icon-button back-button"
+            type="button"
+            aria-label="프로젝트 홈으로"
+            onClick={onBack}
+          >
+            <ArrowLeft aria-hidden="true" />
+          </button>
+          <Brand />
+          <div className="editor-project-name">
+            <span>프로젝트</span>
+            <strong>{project.name}</strong>
+          </div>
+          <button
+            className={`button save-button ${saved ? "secondary" : "primary"}`}
+            type="button"
+            onClick={() => setSaved(true)}
+          >
+            <Save aria-hidden="true" />
+            {saved ? "저장됨" : "저장"}
+          </button>
+          <ElementHistoryControls />
+          <HeaderControls {...controls} />
+        </header>
 
-      <nav className="step-navigation" aria-label="제작 단계">
-        {steps.map((item, index) => {
-          const Icon = item.icon;
-          return (
-            <div className="step-segment" key={item.id}>
-              <button
-                type="button"
-                className={step === item.id ? "is-active" : ""}
-                aria-current={step === item.id ? "step" : undefined}
-                onClick={() => setStep(item.id)}
-              >
-                <span>{item.number}</span>
-                <Icon aria-hidden="true" />
-                <strong>{item.label}</strong>
-              </button>
-              {index < steps.length - 1 && <ChevronRight aria-hidden="true" />}
-            </div>
-          );
-        })}
-      </nav>
+        <nav className="step-navigation" aria-label="제작 단계">
+          {steps.map((item, index) => {
+            const Icon = item.icon;
+            return (
+              <div className="step-segment" key={item.id}>
+                <button
+                  type="button"
+                  className={step === item.id ? "is-active" : ""}
+                  aria-current={step === item.id ? "step" : undefined}
+                  onClick={() => setStep(item.id)}
+                >
+                  <span>{item.number}</span>
+                  <Icon aria-hidden="true" />
+                  <strong>{item.label}</strong>
+                </button>
+                {index < steps.length - 1 && (
+                  <ChevronRight aria-hidden="true" />
+                )}
+              </div>
+            );
+          })}
+        </nav>
 
-      <ElementWorkspaceProvider
-        pageId={selectedPage?.id ?? null}
-        projectRevision={project.revision}
-        layoutRevision={
-          selectedPage ? (layoutRevisions[selectedPage.id] ?? 0) : 0
-        }
-        onProjectRevisionChange={onProjectRevisionChange}
-        onLayoutRevisionChange={(pageId, revision) =>
-          setLayoutRevisions((current) => ({
-            ...current,
-            [pageId]: Math.max(current[pageId] ?? 0, revision),
-          }))
-        }
-      >
         <div className="editor-workspace">
           <aside className="editor-left-panel">
             <PageManager
@@ -324,14 +331,14 @@ function EditorSurface({
               <div>
                 <strong>
                   {step === "page"
-                    ? "페이지 속성"
+                    ? "속성"
                     : step === "data"
                       ? "연결 정보"
                       : "검증 요약"}
                 </strong>
               </div>
             </div>
-            {step === "page" && <ElementInspectorSummary />}
+            {step === "page" && <ElementPropertyInspector />}
             {step === "data" && (
               <div className="inspector-summary">
                 {selectedPage ? (
@@ -375,17 +382,17 @@ function EditorSurface({
             )}
           </aside>
         </div>
-      </ElementWorkspaceProvider>
 
-      <footer className="editor-statusbar">
-        <span>
-          <span className="connection-dot" />
-          API 연결
-        </span>
-        <span aria-live="polite">{saved ? "저장됨" : "저장 필요"}</span>
-        <span>Draft r{project.revision}</span>
-      </footer>
-    </div>
+        <footer className="editor-statusbar">
+          <span>
+            <span className="connection-dot" />
+            API 연결
+          </span>
+          <span aria-live="polite">{saved ? "저장됨" : "저장 필요"}</span>
+          <span>Draft r{project.revision}</span>
+        </footer>
+      </div>
+    </ElementWorkspaceProvider>
   );
 }
 
