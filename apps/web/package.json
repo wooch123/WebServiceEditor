@@ -8,8 +8,8 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "test:unit": "vitest run src/theme.unit.test.ts",
-    "test:component": "vitest run src/App.test.tsx src/DesignSystemGallery.test.tsx src/theme.runtime.test.tsx src/features/pages/PageManager.test.tsx src/features/runtime/PublishedRuntime.test.tsx"
+    "test:unit": "vitest run src/theme.unit.test.ts src/features/elements/element-geometry.test.ts",
+    "test:component": "vitest run src/App.test.tsx src/DesignSystemGallery.test.tsx src/theme.runtime.test.tsx src/features/pages/PageManager.test.tsx src/features/runtime/PublishedRuntime.test.tsx src/features/elements/ElementCanvas.test.tsx"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -32,6 +32,8 @@
     "react": "19.2.8",
     "react-day-picker": "^10.0.1",
     "react-dom": "19.2.8",
+    "react-grid-layout": "2.2.4",
+    "react-resizable": "3.1.3",
     "react-resizable-panels": "^4.12.2",
     "react-router-dom": "7.18.2",
     "recharts": "3.8.0",

@@ -208,7 +208,7 @@ export function PageManager({
   onProjectRevisionChange,
 }: PageManagerProps) {
   const [pages, setPages] = useState<PageDto[]>([]);
-  const [projectRevision, setProjectRevision] = useState(project.revision);
+  const projectRevision = project.revision;
   const [publishedVersionId, setPublishedVersionId] = useState<string | null>(
     null,
   );
@@ -249,12 +249,7 @@ export function PageManager({
     onProjectRevisionChangeRef.current = onProjectRevisionChange;
   }, [onProjectRevisionChange]);
 
-  useEffect(() => {
-    setProjectRevision(project.revision);
-  }, [project.revision]);
-
   const updateProjectRevision = useCallback((revision: number) => {
-    setProjectRevision(revision);
     onProjectRevisionChangeRef.current?.(revision);
   }, []);
 

@@ -6,7 +6,7 @@ import { PROJECT_LIFECYCLE_STATUSES } from "@webeditor/domain";
 import Database from "better-sqlite3";
 
 const METADATA_APPLICATION_ID = 0x57454245;
-export const LATEST_METADATA_SCHEMA_VERSION = 3;
+export const LATEST_METADATA_SCHEMA_VERSION = 4;
 
 const lifecycleSqlValues = PROJECT_LIFECYCLE_STATUSES.map(
   (status) => `'${status}'`,
@@ -221,6 +221,113 @@ const pageManagementSchemaChecksum = createHash("sha256")
   .update(pageManagementSchemaSql)
   .digest("hex");
 
+const canvasElementLayoutSchemaSql = `
+  CREATE UNIQUE INDEX pages_id_project_unique_idx ON pages(id, project_id);
+
+  CREATE TABLE page_layout_revisions (
+    page_id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL,
+    desktop_revision INTEGER NOT NULL DEFAULT 0
+      CHECK (desktop_revision >= 0)
+      CHECK (typeof(desktop_revision) = 'integer'),
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (page_id, project_id) REFERENCES pages(id, project_id) ON DELETE CASCADE
+  );
+  CREATE INDEX page_layout_revisions_project_idx
+    ON page_layout_revisions(project_id, page_id);
+  INSERT INTO page_layout_revisions (page_id, project_id, desktop_revision, updated_at)
+    SELECT id, project_id, 0, updated_at FROM pages;
+  CREATE TRIGGER pages_initialize_layout_revision
+    AFTER INSERT ON pages
+    BEGIN
+      INSERT INTO page_layout_revisions (
+        page_id, project_id, desktop_revision, updated_at
+      ) VALUES (NEW.id, NEW.project_id, 0, NEW.updated_at);
+    END;
+
+  CREATE TABLE elements (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    page_id TEXT NOT NULL,
+    type TEXT NOT NULL CHECK (type IN ('text', 'button', 'container', 'kpi-card')),
+    type_version INTEGER NOT NULL DEFAULT 1 CHECK (type_version = 1),
+    name TEXT NOT NULL CHECK (length(trim(name)) BETWEEN 1 AND 120),
+    props_json TEXT NOT NULL CHECK (json_valid(props_json) AND json_type(props_json) = 'object'),
+    style_json TEXT NOT NULL CHECK (json_valid(style_json) AND json_type(style_json) = 'object'),
+    events_json TEXT NOT NULL CHECK (json_valid(events_json) AND json_type(events_json) = 'array'),
+    locked INTEGER NOT NULL DEFAULT 0 CHECK (locked IN (0, 1)),
+    hidden INTEGER NOT NULL DEFAULT 0 CHECK (hidden IN (0, 1)),
+    revision INTEGER NOT NULL DEFAULT 1
+      CHECK (revision >= 1)
+      CHECK (typeof(revision) = 'integer'),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT,
+    UNIQUE(id, page_id, project_id),
+    FOREIGN KEY (page_id, project_id) REFERENCES pages(id, project_id) ON DELETE CASCADE
+  );
+  CREATE INDEX elements_page_active_idx
+    ON elements(page_id, deleted_at, created_at, id);
+  CREATE INDEX elements_project_active_idx
+    ON elements(project_id, deleted_at, page_id, id);
+
+  CREATE TABLE element_layouts (
+    element_id TEXT NOT NULL,
+    project_id TEXT NOT NULL,
+    page_id TEXT NOT NULL,
+    breakpoint TEXT NOT NULL CHECK (breakpoint IN ('desktop', 'tablet', 'mobile')),
+    x INTEGER NOT NULL CHECK (x >= 0) CHECK (typeof(x) = 'integer'),
+    y INTEGER NOT NULL CHECK (y >= 0) CHECK (typeof(y) = 'integer'),
+    w INTEGER NOT NULL CHECK (w >= 1) CHECK (typeof(w) = 'integer'),
+    h INTEGER NOT NULL CHECK (h >= 1) CHECK (typeof(h) = 'integer'),
+    min_w INTEGER NOT NULL CHECK (min_w >= 1) CHECK (typeof(min_w) = 'integer'),
+    min_h INTEGER NOT NULL CHECK (min_h >= 1) CHECK (typeof(min_h) = 'integer'),
+    max_w INTEGER NOT NULL CHECK (max_w >= min_w) CHECK (typeof(max_w) = 'integer'),
+    max_h INTEGER NOT NULL CHECK (max_h >= min_h) CHECK (typeof(max_h) = 'integer'),
+    PRIMARY KEY (element_id, breakpoint),
+    CHECK (w BETWEEN min_w AND max_w),
+    CHECK (h BETWEEN min_h AND max_h),
+    CHECK (breakpoint != 'desktop' OR (max_w <= 24 AND x + w <= 24)),
+    FOREIGN KEY (element_id, page_id, project_id)
+      REFERENCES elements(id, page_id, project_id) ON DELETE CASCADE
+  );
+  CREATE INDEX element_layouts_page_breakpoint_idx
+    ON element_layouts(page_id, breakpoint, y, x, element_id);
+
+  CREATE TABLE element_commands (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    page_id TEXT NOT NULL,
+    element_id TEXT,
+    command_type TEXT NOT NULL CHECK (
+      command_type IN ('ADD', 'MOVE', 'RESIZE', 'LOCK', 'BATCH_LAYOUT', 'DELETE')
+    ),
+    idempotency_key TEXT NOT NULL,
+    request_hash TEXT NOT NULL,
+    before_json TEXT CHECK (before_json IS NULL OR json_valid(before_json)),
+    after_json TEXT CHECK (after_json IS NULL OR json_valid(after_json)),
+    response_status INTEGER NOT NULL
+      CHECK (response_status BETWEEN 200 AND 499)
+      CHECK (typeof(response_status) = 'integer'),
+    response_json TEXT NOT NULL CHECK (json_valid(response_json)),
+    before_layout_revision INTEGER NOT NULL
+      CHECK (before_layout_revision >= 0)
+      CHECK (typeof(before_layout_revision) = 'integer'),
+    after_layout_revision INTEGER NOT NULL
+      CHECK (after_layout_revision >= before_layout_revision)
+      CHECK (typeof(after_layout_revision) = 'integer'),
+    created_at TEXT NOT NULL,
+    UNIQUE(project_id, idempotency_key),
+    FOREIGN KEY (page_id, project_id) REFERENCES pages(id, project_id) ON DELETE CASCADE
+  );
+  CREATE INDEX element_commands_page_created_idx
+    ON element_commands(page_id, created_at, id);
+`;
+
+export const CANVAS_ELEMENT_LAYOUT_SCHEMA_CHECKSUM = createHash("sha256")
+  .update(canvasElementLayoutSchemaSql)
+  .digest("hex");
+
 const metadataMigrations = [
   {
     checksum: INITIAL_METADATA_SCHEMA_CHECKSUM,
@@ -239,6 +346,12 @@ const metadataMigrations = [
     name: "page-management-and-published-navigation",
     sql: pageManagementSchemaSql,
     version: 3,
+  },
+  {
+    checksum: CANVAS_ELEMENT_LAYOUT_SCHEMA_CHECKSUM,
+    name: "canvas-element-layout-kernel",
+    sql: canvasElementLayoutSchemaSql,
+    version: 4,
   },
 ] as const;
 

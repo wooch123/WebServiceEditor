@@ -1,7 +1,5 @@
 import {
-  Activity,
   ArrowLeft,
-  BarChart3,
   Blocks,
   Check,
   ChevronRight,
@@ -12,16 +10,23 @@ import {
   Plus,
   Save,
   ShieldCheck,
-  Table2,
   Waypoints,
-  Wifi,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import type { CSSProperties } from "react";
-import { lazy, Suspense, useLayoutEffect, useState } from "react";
+import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
+import {
+  CanvasControls,
+  ElementCanvas,
+  ElementInspectorSummary,
+} from "@/features/elements/ElementCanvas";
+import {
+  ElementWorkspaceProvider,
+  WorkspaceElementPalette,
+} from "@/features/elements/ElementWorkspace";
 import { PageManager } from "@/features/pages/PageManager";
 import { PublishedRuntime } from "@/features/runtime/PublishedRuntime";
 import type { PageDto } from "@/services/pages-api";
@@ -96,70 +101,6 @@ function Brand() {
         <Blocks aria-hidden="true" />
       </span>
       <span className="brand-wordmark">WebEditor</span>
-    </div>
-  );
-}
-
-function CanvasPreview({ title }: { title: string }) {
-  return (
-    <div className="canvas-stage" aria-label="페이지 캔버스">
-      <div className="canvas-page">
-        <div className="canvas-heading">
-          <div>
-            <span>REGIONAL HEALTH / 2026</span>
-            <h2>{title}</h2>
-          </div>
-          <span className="status-badge success">
-            <Wifi aria-hidden="true" />
-            연결됨
-          </span>
-        </div>
-        <div className="metric-grid">
-          <article className="metric-card is-selected">
-            <span>평균 재원일수</span>
-            <strong>8.4일</strong>
-            <small>전월 -4.2%</small>
-            <i className="resize-dot top-left" />
-            <i className="resize-dot top-right" />
-            <i className="resize-dot bottom-left" />
-            <i className="resize-dot bottom-right" />
-          </article>
-          <article className="metric-card">
-            <span>고위험군 비율</span>
-            <strong>12.8%</strong>
-            <small>목표 내</small>
-          </article>
-          <article className="metric-card">
-            <span>데이터 완성도</span>
-            <strong>98.6%</strong>
-            <small>일간 +0.7%</small>
-          </article>
-        </div>
-        <article className="chart-card">
-          <div className="chart-copy">
-            <span>월별 추이</span>
-            <strong>입원 일수 변화</strong>
-          </div>
-          <svg
-            viewBox="0 0 640 150"
-            role="img"
-            aria-label="월별 입원 일수 감소 추이"
-          >
-            <path
-              className="chart-grid-line"
-              d="M12 28H628 M12 74H628 M12 120H628"
-            />
-            <path
-              className="chart-area"
-              d="M12 36 C90 44,118 70,188 62 S298 98,366 80 S470 112,528 88 S592 76,628 56 L628 132 L12 132 Z"
-            />
-            <path
-              className="chart-line"
-              d="M12 36 C90 44,118 70,188 62 S298 98,366 80 S470 112,528 88 S592 76,628 56"
-            />
-          </svg>
-        </article>
-      </div>
     </div>
   );
 }
@@ -247,6 +188,9 @@ function EditorSurface({
 }) {
   const [step, setStep] = useState<EditorStep>("page");
   const [selectedPage, setSelectedPage] = useState<PageDto | null>(null);
+  const [layoutRevisions, setLayoutRevisions] = useState<
+    Record<string, number>
+  >({});
   const [saved, setSaved] = useState(true);
 
   const steps: Array<{
@@ -313,145 +257,125 @@ function EditorSurface({
         })}
       </nav>
 
-      <div className="editor-workspace">
-        <aside className="editor-left-panel">
-          <PageManager
-            project={project}
-            selectedPageId={selectedPage?.id ?? null}
-            onSelectPage={setSelectedPage}
-            onProjectRevisionChange={onProjectRevisionChange}
-          />
-          <div className="element-palette">
-            <div className="panel-heading compact">
-              <div>
-                <strong>엘리먼트</strong>
-              </div>
-            </div>
-            <div className="palette-grid">
-              <button type="button">
-                <BarChart3 aria-hidden="true" />
-                차트
-              </button>
-              <button type="button">
-                <Table2 aria-hidden="true" />
-                테이블
-              </button>
-              <button type="button">
-                <Activity aria-hidden="true" />
-                지표
-              </button>
-              <button type="button">
-                <Blocks aria-hidden="true" />
-                텍스트
-              </button>
-            </div>
-          </div>
-        </aside>
+      <ElementWorkspaceProvider
+        pageId={selectedPage?.id ?? null}
+        projectRevision={project.revision}
+        layoutRevision={
+          selectedPage ? (layoutRevisions[selectedPage.id] ?? 0) : 0
+        }
+        onProjectRevisionChange={onProjectRevisionChange}
+        onLayoutRevisionChange={(pageId, revision) =>
+          setLayoutRevisions((current) => ({
+            ...current,
+            [pageId]: Math.max(current[pageId] ?? 0, revision),
+          }))
+        }
+      >
+        <div className="editor-workspace">
+          <aside className="editor-left-panel">
+            <PageManager
+              project={project}
+              selectedPageId={selectedPage?.id ?? null}
+              onSelectPage={setSelectedPage}
+              onProjectRevisionChange={onProjectRevisionChange}
+            />
+            <WorkspaceElementPalette disabled={step !== "page"} />
+          </aside>
 
-        <main className="editor-main">
-          <div className="canvas-toolbar">
-            <div>
-              <span className="canvas-breadcrumb">
-                {selectedPage?.name ?? "페이지 없음"}
-              </span>
-              <strong>{steps.find((item) => item.id === step)?.label}</strong>
-            </div>
-            <span className="zoom-indicator">100%</span>
-          </div>
-          {step === "page" &&
-            (selectedPage ? (
-              <CanvasPreview title={selectedPage.name} />
-            ) : (
-              <div className="editor-empty-state" role="status">
-                <strong>페이지 없음</strong>
-                <span>빈 페이지 추가</span>
-              </div>
-            ))}
-          {step === "data" &&
-            (selectedPage ? (
-              <DataDesignPreview />
-            ) : (
-              <div className="editor-empty-state" role="status">
-                <strong>페이지 필요</strong>
-                <span>페이지 단계</span>
-              </div>
-            ))}
-          {step === "validation" && (
-            <ValidationPreview pageExists={selectedPage !== null} />
-          )}
-        </main>
-
-        <aside className="inspector-panel">
-          <div className="panel-heading">
-            <div>
-              <strong>
-                {step === "page"
-                  ? "페이지 속성"
-                  : step === "data"
-                    ? "연결 정보"
-                    : "검증 요약"}
-              </strong>
-            </div>
-          </div>
-          {step === "page" && (
-            <div className="inspector-form">
-              <label>
-                페이지 제목
-                <input value={selectedPage?.name ?? ""} readOnly />
-              </label>
-              <label>
-                캔버스 폭
-                <select defaultValue="desktop">
-                  <option value="desktop">Desktop · 1440px</option>
-                  <option value="tablet">Tablet · 768px</option>
-                  <option value="mobile">Mobile · 390px</option>
-                </select>
-              </label>
-            </div>
-          )}
-          {step === "data" && (
-            <div className="inspector-summary">
-              {selectedPage ? (
-                <>
-                  <span>
-                    <Database aria-hidden="true" />
-                    SQLite 연결 1개
-                  </span>
-                  <span>
-                    <Waypoints aria-hidden="true" />
-                    실행 바인딩 2개
-                  </span>
-                </>
-              ) : (
-                <span>
-                  <Clock3 aria-hidden="true" />
-                  페이지 필요
+          <main className="editor-main">
+            <div className="canvas-toolbar">
+              <div className="canvas-toolbar-heading">
+                <span className="canvas-breadcrumb">
+                  {selectedPage?.name ?? "페이지 없음"}
                 </span>
+                <strong>{steps.find((item) => item.id === step)?.label}</strong>
+              </div>
+              {step === "page" ? (
+                <CanvasControls />
+              ) : (
+                <span className="zoom-indicator">100%</span>
               )}
             </div>
-          )}
-          {step === "validation" && (
-            <div className="inspector-summary">
-              <span>
-                {selectedPage ? (
-                  <Check aria-hidden="true" />
-                ) : (
-                  <Clock3 aria-hidden="true" />
-                )}
-                통과 {selectedPage ? 1 : 0}
-              </span>
-              <span>
-                <Clock3 aria-hidden="true" />
-                확인 필요 {selectedPage ? 2 : 3}
-              </span>
-              <span>
-                <ShieldCheck aria-hidden="true" />
-                샘플 검증 전 게시 차단
-              </span>
+            {step === "page" &&
+              (selectedPage ? (
+                <ElementCanvas />
+              ) : (
+                <div className="editor-empty-state" role="status">
+                  <strong>페이지 없음</strong>
+                  <span>빈 페이지 추가</span>
+                </div>
+              ))}
+            {step === "data" &&
+              (selectedPage ? (
+                <DataDesignPreview />
+              ) : (
+                <div className="editor-empty-state" role="status">
+                  <strong>페이지 필요</strong>
+                  <span>페이지 단계</span>
+                </div>
+              ))}
+            {step === "validation" && (
+              <ValidationPreview pageExists={selectedPage !== null} />
+            )}
+          </main>
+
+          <aside className="inspector-panel">
+            <div className="panel-heading">
+              <div>
+                <strong>
+                  {step === "page"
+                    ? "페이지 속성"
+                    : step === "data"
+                      ? "연결 정보"
+                      : "검증 요약"}
+                </strong>
+              </div>
             </div>
-          )}
-        </aside>
-      </div>
+            {step === "page" && <ElementInspectorSummary />}
+            {step === "data" && (
+              <div className="inspector-summary">
+                {selectedPage ? (
+                  <>
+                    <span>
+                      <Database aria-hidden="true" />
+                      SQLite 연결 1개
+                    </span>
+                    <span>
+                      <Waypoints aria-hidden="true" />
+                      실행 바인딩 2개
+                    </span>
+                  </>
+                ) : (
+                  <span>
+                    <Clock3 aria-hidden="true" />
+                    페이지 필요
+                  </span>
+                )}
+              </div>
+            )}
+            {step === "validation" && (
+              <div className="inspector-summary">
+                <span>
+                  {selectedPage ? (
+                    <Check aria-hidden="true" />
+                  ) : (
+                    <Clock3 aria-hidden="true" />
+                  )}
+                  통과 {selectedPage ? 1 : 0}
+                </span>
+                <span>
+                  <Clock3 aria-hidden="true" />
+                  확인 필요 {selectedPage ? 2 : 3}
+                </span>
+                <span>
+                  <ShieldCheck aria-hidden="true" />
+                  샘플 검증 전 게시 차단
+                </span>
+              </div>
+            )}
+          </aside>
+        </div>
+      </ElementWorkspaceProvider>
 
       <footer className="editor-statusbar">
         <span>
@@ -472,6 +396,7 @@ function ProductApp() {
   );
   const [fontSize, setFontSize] = useState(12);
   const [themeId, setThemeId] = useState(defaultTheme.id);
+  const themeRequestSequenceRef = useRef(0);
 
   const selectedTheme =
     themes.find((theme) => theme.id === themeId) ?? defaultTheme;
@@ -483,14 +408,32 @@ function ProductApp() {
       const previousThemeId = selectedProject?.themeId ?? themeId;
       setThemeId(nextThemeId);
       if (surface === "editor" && selectedProject) {
+        const requestSequence = ++themeRequestSequenceRef.current;
         const projectAtRequest = selectedProject;
         setSelectedProject({ ...projectAtRequest, themeId: nextThemeId });
         void updateProject(projectAtRequest.id, {
           expectedRevision: projectAtRequest.revision,
           themeId: nextThemeId,
         })
-          .then(setSelectedProject)
+          .then((updatedProject) => {
+            setSelectedProject((current) => {
+              if (
+                current?.id !== updatedProject.id ||
+                updatedProject.revision < current.revision
+              ) {
+                return current;
+              }
+              return {
+                ...updatedProject,
+                themeId:
+                  requestSequence === themeRequestSequenceRef.current
+                    ? updatedProject.themeId
+                    : current.themeId,
+              };
+            });
+          })
           .catch(() => {
+            if (requestSequence !== themeRequestSequenceRef.current) return;
             setThemeId(previousThemeId);
             setSelectedProject((current) =>
               current?.id === projectAtRequest.id
@@ -544,7 +487,9 @@ function ProductApp() {
           onBack={() => setSurface("home")}
           onProjectRevisionChange={(revision) =>
             setSelectedProject((current) =>
-              current ? { ...current, revision } : current,
+              current
+                ? { ...current, revision: Math.max(current.revision, revision) }
+                : current,
             )
           }
           controls={controls}

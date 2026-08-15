@@ -2,11 +2,16 @@ import Fastify, { type FastifyInstance } from "fastify";
 
 import { resolveMetadataDatabasePath, resolveStorageRoot } from "./config.js";
 import { ApiError } from "./errors.js";
+import {
+  ElementService,
+  type ElementFailureInjector,
+} from "./elements/element-service.js";
 import { MetadataDatabase } from "./metadata/database.js";
 import { PageService } from "./pages/page-service.js";
 import { ProjectService } from "./projects/project-service.js";
 import type { LifecycleFailureInjector } from "./projects/project-storage.js";
 import { registerProjectRoutes } from "./routes/projects.js";
+import { registerElementRoutes } from "./routes/elements.js";
 import { registerPageRoutes } from "./routes/pages.js";
 import { registerSystemRoutes } from "./routes/system.js";
 
@@ -15,6 +20,7 @@ export interface BuildServerOptions {
   readonly metadataDatabasePath?: string;
   readonly storageRoot?: string;
   readonly failureInjector?: LifecycleFailureInjector;
+  readonly elementFailureInjector?: ElementFailureInjector;
   readonly clock?: () => Date;
 }
 
@@ -39,6 +45,13 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   }
   const pageService = new PageService({
     metadataDatabase,
+    ...(options.clock === undefined ? {} : { clock: options.clock }),
+  });
+  const elementService = new ElementService({
+    metadataDatabase,
+    ...(options.elementFailureInjector === undefined
+      ? {}
+      : { failureInjector: options.elementFailureInjector }),
     ...(options.clock === undefined ? {} : { clock: options.clock }),
   });
 
@@ -98,6 +111,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   void app.register(registerSystemRoutes, { metadataDatabase, projectService });
   void app.register(registerProjectRoutes, { projectService });
   void app.register(registerPageRoutes, { pageService });
+  void app.register(registerElementRoutes, { elementService });
 
   return app;
 }

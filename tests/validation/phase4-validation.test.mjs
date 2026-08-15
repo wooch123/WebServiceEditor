@@ -728,6 +728,18 @@ describe("Phase 4 page/runtime validation infrastructure", () => {
     assert.equal(baseline.sameLevelPickerGeometry, true);
     assert.equal(baseline.sameLevelDialogGeometry, true);
 
+    const independentPaletteOverlay = inspectFrontendPageImplementation([
+      sourceFile(
+        "apps/web/src/features/pages/PageManager.tsx",
+        `${completeFrontend}\n${completeGeometryCss}`,
+      ),
+      sourceFile(
+        "apps/web/src/features/elements/ElementWorkspace.tsx",
+        "function Palette() { return <DragOverlay />; }",
+      ),
+    ]);
+    assert.equal(independentPaletteOverlay.overlayCount, 1);
+
     const splitRowGeometry = inspectFrontendPageImplementation([
       sourceFile(
         "PageManager.tsx",

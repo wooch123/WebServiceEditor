@@ -180,19 +180,42 @@
       "id": "REQ-013",
       "title": "Palette drag and grid snap",
       "phase": 5,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "docs/adr/0006-canvas-placement-candidate-boundary.md",
+        "packages/domain/src/element.ts",
+        "apps/server/src/metadata/database.ts",
+        "apps/server/src/elements/element-service.ts",
+        "apps/server/src/routes/elements.ts",
+        "apps/web/src/features/elements/ElementWorkspace.tsx",
+        "apps/web/src/features/elements/ElementPalette.tsx",
+        "apps/web/src/features/elements/ElementCanvas.tsx"
+      ],
+      "tests": [
+        "apps/server/test/integration/element-layout.test.ts",
+        "apps/web/src/features/elements/ElementCanvas.test.tsx",
+        "scripts/verify-phase5.mjs"
+      ],
+      "evidence": ["artifacts/phase5/element-layout-validation.json"]
     },
     {
       "id": "REQ-014",
       "title": "Eight-direction element resize",
       "phase": 5,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "docs/adr/0006-canvas-placement-candidate-boundary.md",
+        "packages/domain/src/element.ts",
+        "apps/server/src/elements/element-registry.ts",
+        "apps/server/src/elements/element-service.ts",
+        "apps/web/src/features/elements/ElementCanvas.tsx"
+      ],
+      "tests": [
+        "apps/server/test/integration/element-layout.test.ts",
+        "apps/web/src/features/elements/ElementCanvas.test.tsx",
+        "scripts/verify-phase5.mjs"
+      ],
+      "evidence": ["artifacts/phase5/element-layout-validation.json"]
     },
     {
       "id": "REQ-015",
@@ -323,10 +346,23 @@
       "id": "REQ-026",
       "title": "Pre-drop position and size preview",
       "phase": 5,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "docs/adr/0006-canvas-placement-candidate-boundary.md",
+        "packages/domain/src/element.ts",
+        "apps/server/src/elements/placement-candidate-store.ts",
+        "apps/server/src/elements/element-service.ts",
+        "apps/web/src/features/elements/element-geometry.ts",
+        "apps/web/src/features/elements/ElementWorkspace.tsx",
+        "apps/web/src/features/elements/ElementCanvas.tsx"
+      ],
+      "tests": [
+        "apps/server/test/integration/element-layout.test.ts",
+        "apps/web/src/features/elements/element-geometry.test.ts",
+        "apps/web/src/features/elements/ElementCanvas.test.tsx",
+        "scripts/verify-phase5.mjs"
+      ],
+      "evidence": ["artifacts/phase5/element-layout-validation.json"]
     },
     {
       "id": "REQ-027",

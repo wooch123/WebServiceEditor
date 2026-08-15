@@ -8,7 +8,7 @@ Overall state: `IN PROGRESS`
 
 ### PHASE 5 — Element Placement and Resize
 
-State: `IN PROGRESS`
+State: `VERIFIED`
 
 Scope:
 
@@ -24,8 +24,8 @@ Test plan:
 
 - Verify Palette pointer and keyboard placement use an identical snapped
   candidate and commit result.
-- Verify all eight resize handles, boundary clamping, collision handling, Undo,
-  refresh, and server restart.
+- Verify all eight resize handles, boundary clamping, collision handling,
+  durable command records, refresh, and server restart.
 - Prove drag previews never write to SQLite and stale or expired candidates fail
   closed.
 - Verify Project clone, export, import, trash, restore, and publish keep Element
@@ -40,7 +40,7 @@ Test plan:
 | 2     | VERIFIED    | 120 themes: 40 dark, 40 gray, 40 light                        |
 | 3     | VERIFIED    | Persistent lifecycle, restart recovery, and browser QA passed |
 | 4     | VERIFIED    | Page management and immutable runtime navigation              |
-| 5     | IN PROGRESS | Element placement, grid snapping, and eight-way resize        |
+| 5     | VERIFIED    | Element placement, grid snapping, and eight-way resize        |
 | 6–23  | NOT STARTED | Must follow sequentially                                      |
 
 ## Phase 0 evidence
@@ -115,6 +115,28 @@ Test plan:
   storage unchanged
 - Browser QA: numeric Lucide rendering, published Runtime, 120-theme picker, and
   equal sibling-control geometry: PASS
+- Full workspace format, lint, typecheck, unit, integration, component,
+  validation, and production build: PASS
+
+## Phase 5 evidence
+
+- Static, behavioral, and operational audit:
+  `artifacts/phase5/element-layout-validation.json` — 191/191
+- Domain unit: 11/11; Server unit: 27/27; Server integration: 34/34
+- Web unit/component: 86/86; Phase 0–4 regression: PASS
+- Server-issued placement candidates own snapping, nearest-free collision
+  resolution, vertical compaction, four-edge validity, and preview/commit
+  geometry
+- Candidate cache is bounded to 512 entries and 15 seconds; stale, expired,
+  reused, cross-Page, invalid, and revision-mismatched candidates fail closed
+- Pointer and keyboard placement, 24-column movement, lock, single/multi delete,
+  eight resize handles, atomic COMPLETE compaction, reload, and restart: PASS
+- Browser QA at 1280×720: preview/commit rectangles exact; Project actions,
+  Palette items, Page actions, and Canvas controls have equal sibling geometry
+- Browser QA at 200%: Canvas owns 1920×1376 overflow inside an 836×527 viewport,
+  both scroll offsets are positive, and the 1280×720 document remains unchanged
+- Responsive QA at 419px: document width remains 419px and Editor workspace
+  retains internal scrolling
 - Full workspace format, lint, typecheck, unit, integration, component,
   validation, and production build: PASS
 

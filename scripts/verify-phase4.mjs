@@ -758,12 +758,17 @@ export function inspectLucideImplementation(files, catalog) {
 
 export function inspectFrontendPageImplementation(files) {
   const source = combinedSource(files);
+  const pageManagerSource = combinedSource(
+    files.filter(({ path }) =>
+      /(?:^|\/)PageManager\.[cm]?[jt]sx?$/u.test(path),
+    ),
+  );
   const hardcodedInitialPages = [
     ...source.matchAll(
       /\b(?:const|let|var)\s+(?<name>initialPages|mockPages|samplePages|pageFixtures)\b|useState\s*<[^>]*Page[^>]*>\s*\(\s*\[\s*\{/giu,
     ),
   ].map((match) => match.groups?.name ?? match[0]);
-  const overlayCount = source.match(/<DragOverlay\b/gu)?.length ?? 0;
+  const overlayCount = pageManagerSource.match(/<DragOverlay\b/gu)?.length ?? 0;
   const hasPageClient =
     /services\/pages-api|from\s+["'][^"']*pages-api["']/iu.test(source);
   const rowGeometryRule =

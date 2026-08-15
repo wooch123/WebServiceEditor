@@ -60,6 +60,12 @@ export interface ProjectVersionRow {
   readonly published_at: string;
 }
 
+export interface ProjectVersionSnapshot {
+  readonly pages: readonly PublishedNavigationPageDto[];
+  readonly elements?: readonly unknown[];
+  readonly layoutRevisions?: readonly unknown[];
+}
+
 const pageColumns = `
   id, project_id, schema_version, revision, name, route, page_type,
   icon_name, icon_catalog_version, navigation_visible, navigation_group,
@@ -472,7 +478,7 @@ export class PageRepository {
     readonly id: string;
     readonly projectId: string;
     readonly sourceProjectRevision: number;
-    readonly snapshot: readonly PublishedNavigationPageDto[];
+    readonly snapshot: ProjectVersionSnapshot;
     readonly now: string;
   }): ProjectVersionRow {
     const latest = this.latestVersion(version.projectId);
@@ -489,7 +495,7 @@ export class PageRepository {
         version.projectId,
         sequence,
         version.sourceProjectRevision,
-        JSON.stringify({ pages: version.snapshot }),
+        JSON.stringify(version.snapshot),
         version.now,
       );
     return this.latestVersion(version.projectId) as ProjectVersionRow;
@@ -500,7 +506,7 @@ export class PageRepository {
     readonly projectId: string;
     readonly sequence: number;
     readonly sourceProjectRevision: number;
-    readonly snapshot: readonly PublishedNavigationPageDto[];
+    readonly snapshot: ProjectVersionSnapshot;
     readonly publishedAt: string;
   }): void {
     this.connection
@@ -515,7 +521,7 @@ export class PageRepository {
         version.projectId,
         version.sequence,
         version.sourceProjectRevision,
-        JSON.stringify({ pages: version.snapshot }),
+        JSON.stringify(version.snapshot),
         version.publishedAt,
       );
   }
@@ -559,15 +565,17 @@ export class PageRepository {
   }
 
   toRuntimeNavigation(version: ProjectVersionRow): RuntimeNavigationDto {
-    const snapshot = JSON.parse(version.snapshot_json) as {
-      readonly pages: readonly PublishedNavigationPageDto[];
-    };
+    const snapshot = this.versionSnapshot(version);
     return {
       projectId: version.project_id,
       versionId: version.id,
       publishedAt: version.published_at,
       pages: snapshot.pages,
     };
+  }
+
+  versionSnapshot(version: ProjectVersionRow): ProjectVersionSnapshot {
+    return JSON.parse(version.snapshot_json) as ProjectVersionSnapshot;
   }
 
   getRequired(pageId: string): PageRow {

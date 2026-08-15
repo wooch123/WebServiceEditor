@@ -3,6 +3,7 @@ import { createHash, randomUUID } from "node:crypto";
 import {
   LUCIDE_ICON_CATALOG_VERSION,
   PUBLISH_VALIDATION_CODES,
+  type ElementEntryDto,
   type CreateProjectRequest,
   type PageDto,
   type PatchProjectRequest,
@@ -20,6 +21,11 @@ import {
 } from "@webeditor/domain";
 
 import { ApiError, assertApi } from "../errors.js";
+import { ElementRepository } from "../elements/element-repository.js";
+import {
+  elementDefinition,
+  rectanglesOverlap,
+} from "../elements/element-registry.js";
 import { LUCIDE_ICON_CATALOG } from "../icons/lucide-icon-catalog.generated.js";
 import type { MetadataDatabase } from "../metadata/database.js";
 import { PageRepository } from "../pages/page-repository.js";
@@ -73,6 +79,8 @@ interface ImportableProjectExport {
     readonly themeId: string;
   };
   readonly pages: readonly PageDto[];
+  readonly elements: readonly ElementEntryDto[];
+  readonly layoutRevisions: readonly ImportableLayoutRevision[];
   readonly publishedVersions: readonly ImportablePublishedVersion[];
   readonly files: readonly ProjectExportFile[];
 }
@@ -83,6 +91,14 @@ interface ImportablePublishedVersion {
   readonly sourceProjectRevision: number;
   readonly publishedAt: string;
   readonly pages: readonly PublishedNavigationPageDto[];
+  readonly elements: readonly ElementEntryDto[];
+  readonly layoutRevisions: readonly ImportableLayoutRevision[];
+}
+
+interface ImportableLayoutRevision {
+  readonly pageId: string;
+  readonly breakpoint: "desktop";
+  readonly revision: number;
 }
 
 function stableJson(value: unknown): string {
@@ -306,6 +322,195 @@ function parseImportPages(
   return pages;
 }
 
+function parseElementEntries(
+  value: unknown,
+  sourceProjectId: string,
+  pageIds: ReadonlySet<string>,
+  detail: Record<string, unknown>,
+): readonly ElementEntryDto[] {
+  if (value === undefined) return [];
+  assertApi(
+    Array.isArray(value) && value.length <= 20_000,
+    400,
+    "INVALID_PROJECT_ELEMENTS",
+    "Project elements are invalid",
+    detail,
+  );
+  const ids = new Set<string>();
+  const layoutsByPage = new Map<string, ElementEntryDto["layout"][]>();
+  return value.map((entryValue, index): ElementEntryDto => {
+    assertApi(
+      typeof entryValue === "object" &&
+        entryValue !== null &&
+        !Array.isArray(entryValue),
+      400,
+      "INVALID_PROJECT_ELEMENT",
+      "Project element is invalid",
+      { ...detail, index },
+    );
+    const entry = entryValue as Record<string, unknown>;
+    assertApi(
+      typeof entry.element === "object" &&
+        entry.element !== null &&
+        !Array.isArray(entry.element) &&
+        typeof entry.layout === "object" &&
+        entry.layout !== null &&
+        !Array.isArray(entry.layout),
+      400,
+      "INVALID_PROJECT_ELEMENT",
+      "Project element entry is invalid",
+      { ...detail, index },
+    );
+    const element = entry.element as Record<string, unknown>;
+    const layout = entry.layout as Record<string, unknown>;
+    assertApi(
+      typeof element.id === "string" &&
+        PROJECT_ID_PATTERN.test(element.id) &&
+        !ids.has(element.id) &&
+        element.projectId === sourceProjectId &&
+        typeof element.pageId === "string" &&
+        pageIds.has(element.pageId) &&
+        element.typeVersion === 1 &&
+        typeof element.name === "string" &&
+        element.name.trim().length >= 1 &&
+        element.name.trim().length <= 120 &&
+        typeof element.props === "object" &&
+        element.props !== null &&
+        !Array.isArray(element.props) &&
+        typeof element.style === "object" &&
+        element.style !== null &&
+        !Array.isArray(element.style) &&
+        Array.isArray(element.events) &&
+        typeof element.locked === "boolean" &&
+        typeof element.hidden === "boolean" &&
+        Number.isSafeInteger(element.revision) &&
+        (element.revision as number) >= 1,
+      400,
+      "INVALID_PROJECT_ELEMENT",
+      "Project element fields are invalid",
+      { ...detail, index },
+    );
+    const definition = elementDefinition(element.type);
+    assertApi(
+      layout.elementId === element.id &&
+        layout.breakpoint === "desktop" &&
+        Number.isSafeInteger(layout.x) &&
+        (layout.x as number) >= 0 &&
+        Number.isSafeInteger(layout.y) &&
+        (layout.y as number) >= 0 &&
+        Number.isSafeInteger(layout.w) &&
+        Number.isSafeInteger(layout.h) &&
+        layout.minW === definition.layout.minW &&
+        layout.minH === definition.layout.minH &&
+        layout.maxW === definition.layout.maxW &&
+        layout.maxH === definition.layout.maxH &&
+        (layout.w as number) >= definition.layout.minW &&
+        (layout.w as number) <= definition.layout.maxW &&
+        (layout.h as number) >= definition.layout.minH &&
+        (layout.h as number) <= definition.layout.maxH &&
+        (layout.x as number) + (layout.w as number) <= 24,
+      400,
+      "INVALID_PROJECT_ELEMENT_LAYOUT",
+      "Project element layout is invalid",
+      { ...detail, index },
+    );
+    ids.add(element.id);
+    const dto: ElementEntryDto = {
+      element: {
+        id: element.id,
+        projectId: sourceProjectId,
+        pageId: element.pageId as string,
+        type: definition.type,
+        typeVersion: 1,
+        name: element.name.trim(),
+        props: element.props as Record<string, unknown>,
+        style: element.style as Record<string, unknown>,
+        events: element.events,
+        locked: element.locked,
+        hidden: element.hidden,
+        revision: element.revision as number,
+      },
+      layout: {
+        elementId: element.id,
+        breakpoint: "desktop",
+        x: layout.x as number,
+        y: layout.y as number,
+        w: layout.w as number,
+        h: layout.h as number,
+        minW: definition.layout.minW,
+        minH: definition.layout.minH,
+        maxW: definition.layout.maxW,
+        maxH: definition.layout.maxH,
+      },
+    };
+    const pageLayouts = layoutsByPage.get(dto.element.pageId) ?? [];
+    assertApi(
+      !pageLayouts.some((other) => rectanglesOverlap(other, dto.layout)),
+      400,
+      "INVALID_PROJECT_ELEMENT_COLLISION",
+      "Project elements overlap",
+      { ...detail, index },
+    );
+    pageLayouts.push(dto.layout);
+    layoutsByPage.set(dto.element.pageId, pageLayouts);
+    return dto;
+  });
+}
+
+function parseLayoutRevisions(
+  value: unknown,
+  pageIds: ReadonlySet<string>,
+  detail: Record<string, unknown>,
+): readonly ImportableLayoutRevision[] {
+  if (pageIds.size === 0) return [];
+  if (value === undefined) {
+    return [...pageIds]
+      .sort()
+      .map((pageId) => ({ pageId, breakpoint: "desktop", revision: 0 }));
+  }
+  assertApi(
+    Array.isArray(value) && value.length === pageIds.size,
+    400,
+    "INVALID_PROJECT_LAYOUT_REVISIONS",
+    "Project layout revisions are invalid",
+    detail,
+  );
+  const seen = new Set<string>();
+  const revisions = value.map(
+    (revisionValue, index): ImportableLayoutRevision => {
+      assertApi(
+        typeof revisionValue === "object" &&
+          revisionValue !== null &&
+          !Array.isArray(revisionValue),
+        400,
+        "INVALID_PROJECT_LAYOUT_REVISION",
+        "Project layout revision is invalid",
+        { ...detail, index },
+      );
+      const revision = revisionValue as Record<string, unknown>;
+      assertApi(
+        typeof revision.pageId === "string" &&
+          pageIds.has(revision.pageId) &&
+          !seen.has(revision.pageId) &&
+          revision.breakpoint === "desktop" &&
+          Number.isSafeInteger(revision.revision) &&
+          (revision.revision as number) >= 0,
+        400,
+        "INVALID_PROJECT_LAYOUT_REVISION",
+        "Project layout revision fields are invalid",
+        { ...detail, index },
+      );
+      seen.add(revision.pageId);
+      return {
+        pageId: revision.pageId,
+        breakpoint: "desktop",
+        revision: revision.revision as number,
+      };
+    },
+  );
+  return revisions;
+}
+
 function parseImportPublishedVersions(
   manifestValue: unknown,
   sourceProjectId: unknown,
@@ -431,12 +636,25 @@ function parseImportPublishedVersions(
         "Published version must show a page in navigation",
         { versionIndex, errors: [PUBLISH_VALIDATION_CODES[0]] },
       );
+      const elements = parseElementEntries(
+        version.elements,
+        sourceProjectId,
+        pageIds,
+        { versionIndex },
+      );
+      const layoutRevisions = parseLayoutRevisions(
+        version.layoutRevisions,
+        pageIds,
+        { versionIndex },
+      );
       return {
         id: version.id,
         sequence: version.sequence as number,
         sourceProjectRevision: version.sourceProjectRevision as number,
         publishedAt: version.publishedAt,
         pages,
+        elements,
+        layoutRevisions,
       };
     },
   );
@@ -493,12 +711,14 @@ function assertSafeImportPath(path: string, index: number): void {
 export class ProjectService {
   readonly repository: ProjectRepository;
   readonly pageRepository: PageRepository;
+  readonly elementRepository: ElementRepository;
   readonly storage: ProjectStorage;
   readonly #clock: () => Date;
 
   constructor(options: ProjectServiceOptions) {
     this.repository = new ProjectRepository(options.metadataDatabase);
     this.pageRepository = new PageRepository(options.metadataDatabase);
+    this.elementRepository = new ElementRepository(options.metadataDatabase);
     this.storage = new ProjectStorage(
       options.storageRoot,
       options.failureInjector,
@@ -733,17 +953,24 @@ export class ProjectService {
       pages: this.pageRepository
         .listActive(projectId)
         .map((page) => this.pageRepository.toDto(page)),
+      elements: this.elementRepository.listActiveForProject(projectId),
+      layoutRevisions: this.elementRepository.layoutRevisionSnapshot(projectId),
       publishedVersions: this.pageRepository
         .listVersions(projectId)
-        .map((version) => ({
-          id: version.id,
-          projectId: version.project_id,
-          schemaVersion: version.schema_version,
-          sequence: version.sequence,
-          sourceProjectRevision: version.source_project_revision,
-          publishedAt: version.published_at,
-          pages: this.pageRepository.toRuntimeNavigation(version).pages,
-        })),
+        .map((version) => {
+          const snapshot = this.pageRepository.versionSnapshot(version);
+          return {
+            id: version.id,
+            projectId: version.project_id,
+            schemaVersion: version.schema_version,
+            sequence: version.sequence,
+            sourceProjectRevision: version.source_project_revision,
+            publishedAt: version.published_at,
+            pages: snapshot.pages,
+            elements: snapshot.elements ?? [],
+            layoutRevisions: snapshot.layoutRevisions ?? [],
+          };
+        }),
     };
     return { format: "webeditor-project-v1", project, manifest, files };
   }
@@ -771,12 +998,23 @@ export class ProjectService {
     const id = randomUUID();
     const themeId = validateThemeId(exportDto.project.themeId);
     const pageIdMap = new Map<string, string>();
+    const elementIdMap = new Map<string, string>();
     for (const page of exportDto.pages) {
       pageIdMap.set(page.id, randomUUID());
     }
     for (const version of exportDto.publishedVersions) {
       for (const page of version.pages) {
         if (!pageIdMap.has(page.id)) pageIdMap.set(page.id, randomUUID());
+      }
+      for (const entry of version.elements) {
+        if (!elementIdMap.has(entry.element.id)) {
+          elementIdMap.set(entry.element.id, randomUUID());
+        }
+      }
+    }
+    for (const entry of exportDto.elements) {
+      if (!elementIdMap.has(entry.element.id)) {
+        elementIdMap.set(entry.element.id, randomUUID());
       }
     }
     this.storage.stageFromExport(id, { ...project, themeId }, exportDto.files);
@@ -801,6 +1039,22 @@ export class ProjectService {
             now,
           );
         }
+        for (const entry of exportDto.elements) {
+          this.elementRepository.insertImported({
+            entry,
+            id: elementIdMap.get(entry.element.id) as string,
+            pageId: pageIdMap.get(entry.element.pageId) as string,
+            projectId: id,
+            now,
+          });
+        }
+        for (const layoutRevision of exportDto.layoutRevisions) {
+          this.elementRepository.setImportedLayoutRevision(
+            pageIdMap.get(layoutRevision.pageId) as string,
+            layoutRevision.revision,
+            now,
+          );
+        }
         for (const version of exportDto.publishedVersions) {
           this.pageRepository.insertImportedVersion({
             id: randomUUID(),
@@ -808,10 +1062,28 @@ export class ProjectService {
             sequence: version.sequence,
             sourceProjectRevision: version.sourceProjectRevision,
             publishedAt: version.publishedAt,
-            snapshot: version.pages.map((page) => ({
-              ...page,
-              id: pageIdMap.get(page.id) as string,
-            })),
+            snapshot: {
+              pages: version.pages.map((page) => ({
+                ...page,
+                id: pageIdMap.get(page.id) as string,
+              })),
+              elements: version.elements.map((entry) => ({
+                element: {
+                  ...entry.element,
+                  id: elementIdMap.get(entry.element.id) as string,
+                  projectId: id,
+                  pageId: pageIdMap.get(entry.element.pageId) as string,
+                },
+                layout: {
+                  ...entry.layout,
+                  elementId: elementIdMap.get(entry.element.id) as string,
+                },
+              })),
+              layoutRevisions: version.layoutRevisions.map((revision) => ({
+                ...revision,
+                pageId: pageIdMap.get(revision.pageId) as string,
+              })),
+            },
           });
         }
         if (exportDto.publishedVersions.length > 0) {
@@ -868,6 +1140,19 @@ export class ProjectService {
       themeId: validateThemeId(project.themeId),
     };
     const pages = parseImportPages(record.manifest, project.id);
+    const manifest = record.manifest as Record<string, unknown> | undefined;
+    const pageIds = new Set(pages.map((page) => page.id));
+    const elements = parseElementEntries(
+      manifest?.elements,
+      project.id as string,
+      pageIds,
+      {},
+    );
+    const layoutRevisions = parseLayoutRevisions(
+      manifest?.layoutRevisions,
+      pageIds,
+      {},
+    );
     const publishedVersions = parseImportPublishedVersions(
       record.manifest,
       project.id,
@@ -956,12 +1241,14 @@ export class ProjectService {
         `Project export is missing ${requiredPath}`,
       );
     }
-    const manifest = files.find(
+    const manifestFile = files.find(
       (file) => file.path === "project-manifest.json",
     );
     try {
       const parsedManifest = JSON.parse(
-        Buffer.from(manifest?.contentBase64 ?? "", "base64").toString("utf8"),
+        Buffer.from(manifestFile?.contentBase64 ?? "", "base64").toString(
+          "utf8",
+        ),
       );
       assertApi(
         typeof parsedManifest === "object" && parsedManifest !== null,
@@ -979,7 +1266,14 @@ export class ProjectService {
         "Imported project manifest is invalid",
       );
     }
-    return { project: parsedProject, pages, publishedVersions, files };
+    return {
+      project: parsedProject,
+      pages,
+      elements,
+      layoutRevisions,
+      publishedVersions,
+      files,
+    };
   }
 
   trash(projectId: string, request: TrashProjectRequest): ProjectDto {
@@ -2138,7 +2432,7 @@ export class ProjectService {
   #dto(row: ProjectRow, namespace: "active" | "trash"): ProjectDto {
     const counts: ProjectCounts = {
       pages: this.pageRepository.activeCount(row.id),
-      elements: 0,
+      elements: this.elementRepository.activeCountForProject(row.id),
       bindings: 0,
       tables: 0,
       assets:
@@ -2327,6 +2621,14 @@ export class ProjectService {
   }
 
   #definitionChecksum(projectId: string): string {
+    const pageDefinition = this.pageRepository.definitionState(projectId);
+    const elementDefinition = this.elementRepository.definitionState(projectId);
+    return createHash("sha256")
+      .update(stableJson({ pageDefinition, elementDefinition }))
+      .digest("hex");
+  }
+
+  #legacyPageDefinitionChecksum(projectId: string): string {
     return createHash("sha256")
       .update(stableJson(this.pageRepository.definitionState(projectId)))
       .digest("hex");
@@ -2338,13 +2640,21 @@ export class ProjectService {
   ): void {
     const detail = JSON.parse(manifest.manifest_json) as {
       readonly pageDefinitionChecksum?: unknown;
+      readonly definitionChecksum?: unknown;
+      readonly definitionChecksumVersion?: unknown;
     };
+    const matches =
+      detail.definitionChecksumVersion === 2
+        ? typeof detail.definitionChecksum === "string" &&
+          detail.definitionChecksum === this.#definitionChecksum(projectId)
+        : typeof detail.pageDefinitionChecksum === "string" &&
+          detail.pageDefinitionChecksum ===
+            this.#legacyPageDefinitionChecksum(projectId);
     assertApi(
-      typeof detail.pageDefinitionChecksum === "string" &&
-        detail.pageDefinitionChecksum === this.#definitionChecksum(projectId),
+      matches,
       409,
       "TRASH_PAGE_DEFINITION_CHECKSUM_MISMATCH",
-      "Page metadata no longer matches the trash manifest",
+      "Project definition metadata no longer matches the trash manifest",
     );
   }
 
@@ -2411,8 +2721,10 @@ export class ProjectService {
         this.pageRepository.definitionState(project.id)
           .versions as readonly unknown[]
       ).length,
-      pageDefinitionChecksum: this.#definitionChecksum(project.id),
-      elementCount: 0,
+      definitionChecksumVersion: 2,
+      definitionChecksum: this.#definitionChecksum(project.id),
+      pageDefinitionChecksum: this.#legacyPageDefinitionChecksum(project.id),
+      elementCount: this.elementRepository.activeCountForProject(project.id),
       bindingCount: 0,
       tableCount: 0,
       runtimeRowCount: 0,

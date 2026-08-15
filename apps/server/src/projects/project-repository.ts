@@ -586,6 +586,10 @@ export class ProjectRepository {
       "page_commands",
       "project_definition_operations",
       "project_versions",
+      "page_layout_revisions",
+      "elements",
+      "element_layouts",
+      "element_commands",
     ] as const;
     return tableNames.reduce((total, tableName) => {
       const projectColumn = tableName === "projects" ? "id" : "project_id";

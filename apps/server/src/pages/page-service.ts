@@ -19,6 +19,7 @@ import {
 
 import { ApiError, assertApi } from "../errors.js";
 import { LUCIDE_ICON_CATALOG } from "../icons/lucide-icon-catalog.generated.js";
+import { ElementRepository } from "../elements/element-repository.js";
 import type { MetadataDatabase } from "../metadata/database.js";
 import {
   PageRepository,
@@ -173,11 +174,13 @@ function publishValidation(
 
 export class PageService {
   readonly repository: PageRepository;
+  readonly elementRepository: ElementRepository;
   readonly projectRepository: ProjectRepository;
   readonly #clock: () => Date;
 
   constructor(options: PageServiceOptions) {
     this.repository = new PageRepository(options.metadataDatabase);
+    this.elementRepository = new ElementRepository(options.metadataDatabase);
     this.projectRepository = new ProjectRepository(options.metadataDatabase);
     this.#clock = options.clock ?? (() => new Date());
   }
@@ -574,7 +577,7 @@ export class PageService {
         );
       }
       const impact: DeletePageImpact = {
-        elementCount: 0,
+        elementCount: this.elementRepository.activeCountForPage(page.id),
         bindingCount: 0,
         navigationReferenceCount: 0,
         validationScenarioCount: 0,
@@ -635,7 +638,7 @@ export class PageService {
     this.#assertProjectRevision(project, expectedProjectRevision);
     return {
       impact: {
-        elementCount: 0,
+        elementCount: this.elementRepository.activeCountForPage(page.id),
         bindingCount: 0,
         navigationReferenceCount: 0,
         validationScenarioCount: 0,
@@ -805,7 +808,12 @@ export class PageService {
         id: randomUUID(),
         projectId,
         sourceProjectRevision: projectRevision,
-        snapshot: pages,
+        snapshot: {
+          pages,
+          elements: this.elementRepository.listActiveForProject(projectId),
+          layoutRevisions:
+            this.elementRepository.layoutRevisionSnapshot(projectId),
+        },
         now,
       });
       const response = {

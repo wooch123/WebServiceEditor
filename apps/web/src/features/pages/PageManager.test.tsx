@@ -658,6 +658,39 @@ describe("PageManager behavior", () => {
     const publish = await screen.findByRole("button", { name: "게시" });
     const blank = screen.getByRole("button", { name: "빈 페이지" });
     expect(publish).toHaveAttribute("data-size", blank.dataset.size);
+    const actionGroup = publish.closest<HTMLElement>(".page-manager-actions")!;
+    expect(actionGroup).toContainElement(blank);
+    expect(stylesCss).toMatch(
+      /\.page-manager-actions\s*\{[^}]*width:\s*6rem;/s,
+    );
+    expect(stylesCss).toMatch(
+      /\.page-manager-actions\s*>\s*\[data-slot="button"\]\s*\{[^}]*width:\s*100%;/s,
+    );
+    const actionWidth = 6 * 16;
+    const actionHeight = 2.5 * 16;
+    const actionRect = (top: number) =>
+      ({
+        x: 0,
+        y: top,
+        top,
+        left: 0,
+        right: actionWidth,
+        bottom: top + actionHeight,
+        width: actionWidth,
+        height: actionHeight,
+        toJSON: () => ({}),
+      }) as DOMRect;
+    vi.spyOn(publish, "getBoundingClientRect").mockReturnValue(actionRect(0));
+    vi.spyOn(blank, "getBoundingClientRect").mockReturnValue(
+      actionRect(actionHeight + 8),
+    );
+    const publishRect = publish.getBoundingClientRect();
+    const blankRect = blank.getBoundingClientRect();
+    expect({ width: publishRect.width, height: publishRect.height }).toEqual({
+      width: blankRect.width,
+      height: blankRect.height,
+    });
+    expect(publishRect.width).toBeGreaterThan(0);
 
     const drag = screen.getByRole("button", {
       name: "첫 페이지 순서 이동",

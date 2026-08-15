@@ -1,4 +1,10 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
@@ -120,6 +126,8 @@ function jsonResponse(payload: unknown, status = 200): Response {
 interface MockApiOptions {
   active?: ProjectDto[];
   recycle?: ProjectDto[];
+  pagesProjectRevision?: number;
+  elementsProjectRevision?: number;
   failFirstProjectLoad?: boolean;
   conflictFirstTrash?: boolean;
   conflictFirstRestore?: boolean;
@@ -189,8 +197,28 @@ function installMockApi(options: MockApiOptions = {}) {
         };
         return jsonResponse({
           pages: [page],
-          projectRevision: editorProject?.revision ?? 1,
+          projectRevision:
+            options.pagesProjectRevision ?? editorProject?.revision ?? 1,
           publishedVersionId: null,
+        });
+      }
+
+      if (
+        /^\/api\/v1\/pages\/[^/]+\/elements$/.test(pathname) &&
+        method === "GET"
+      ) {
+        const pageId = pathname.split("/")[4] ?? "page";
+        const editorProjectId = pageId.replace(/^page-/, "");
+        const editorProject = active.find(
+          (candidate) => candidate.id === editorProjectId,
+        );
+        return jsonResponse({
+          pageId,
+          breakpoint: "desktop",
+          layoutRevision: 0,
+          projectRevision:
+            options.elementsProjectRevision ?? editorProject?.revision ?? 1,
+          elements: [],
         });
       }
 
@@ -642,6 +670,138 @@ describe("WebEditor persistent project home", () => {
       [editorHeaderControls[1]!, editorHeaderControls[2]!],
       ["padding-left", "padding-right"],
     );
+  });
+
+  it("keeps the project revision monotonic across stale page reads", async () => {
+    const { fetchMock } = installMockApi({
+      active: [healthProject],
+      pagesProjectRevision: 25,
+      elementsProjectRevision: 19,
+    });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: healthProject.name });
+    await user.click(screen.getByRole("button", { name: "열기" }));
+    await screen.findByText("빈 캔버스");
+    await waitFor(() =>
+      expect(
+        fetchMock.mock.calls.some(
+          ([url]) => url === "/api/v1/pages/page-project-health/elements",
+        ),
+      ).toBe(true),
+    );
+    expect(screen.getByText("Draft r25")).toBeInTheDocument();
+    expect(screen.queryByText("Draft r19")).not.toBeInTheDocument();
+  });
+
+  it("keeps the 200% canvas as the two-axis overflow owner in a constrained 1280x720 editor", async () => {
+    installMockApi({ active: [healthProject] });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: healthProject.name });
+    await user.click(screen.getByRole("button", { name: "열기" }));
+    await screen.findByText("빈 캔버스");
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "캔버스 배율" }),
+      "2",
+    );
+
+    const workspace = document.querySelector<HTMLElement>(".editor-workspace")!;
+    const editorMain = document.querySelector<HTMLElement>(".editor-main")!;
+    const viewport = screen.getByTestId("element-canvas");
+    const zoomShell = viewport.querySelector<HTMLElement>(
+      ".element-canvas-zoom-shell",
+    )!;
+    const controls = document.querySelector<HTMLElement>(".canvas-controls")!;
+    expect(editorMain.contains(viewport)).toBe(true);
+    expect(workspace.contains(editorMain)).toBe(true);
+    expect(stylesCss).toMatch(
+      /\.editor-workspace\s*\{[^}]*height:\s*calc\(100vh - 11\.6em\);[^}]*min-height:\s*0;/s,
+    );
+    expect(stylesCss).toMatch(
+      /\.editor-main\s*\{[^}]*min-width:\s*0;[^}]*min-height:\s*0;[^}]*overflow:\s*hidden;/s,
+    );
+    expect(stylesCss).toMatch(
+      /\.element-canvas-viewport\s*\{[^}]*min-width:\s*0;[^}]*min-height:\s*0;[^}]*overflow:\s*auto;/s,
+    );
+    expect(stylesCss).toMatch(
+      /\.element-canvas-zoom-shell\s*\{[^}]*width:\s*max\([\s\S]*var\(--canvas-zoom\)[\s\S]*min-height:\s*calc\(var\(--canvas-base-height\) \* var\(--canvas-zoom\)\);/,
+    );
+    expect(stylesCss).not.toMatch(/\.canvas-toolbar\s*>\s*div\s*\{/);
+    Object.assign(editorMain.style, {
+      minHeight: "0px",
+      overflow: "hidden",
+    });
+    controls.style.flexDirection = "row";
+    expect(getComputedStyle(editorMain).minHeight).toBe("0px");
+    expect(getComputedStyle(editorMain).overflow).toBe("hidden");
+    expect(getComputedStyle(controls).flexDirection).toBe("row");
+
+    const constrainedWidth = 1_280;
+    const constrainedHeight = 720;
+    const pageBaselineWidth = constrainedWidth;
+    const pageBaselineHeight = constrainedHeight;
+    const appFontSize = 12;
+    const rootRem = 16;
+    const mainWidth = constrainedWidth - (17 + 20) * appFontSize;
+    const workspaceHeight = constrainedHeight - 11.6 * appFontSize;
+    const viewportHeight = Math.floor(workspaceHeight - 4.5 * appFontSize);
+    const scale = Number(zoomShell.style.getPropertyValue("--canvas-zoom"));
+    const baseHeight = Number.parseFloat(
+      zoomShell.style.getPropertyValue("--canvas-base-height"),
+    );
+    const scaledWidth = Math.max(
+      960 * scale,
+      (mainWidth - 6 * rootRem) * scale,
+    );
+    const scaledHeight = baseHeight * scale + 6 * rootRem;
+
+    vi.spyOn(viewport, "clientWidth", "get").mockReturnValue(mainWidth);
+    vi.spyOn(viewport, "clientHeight", "get").mockReturnValue(viewportHeight);
+    vi.spyOn(viewport, "scrollWidth", "get").mockReturnValue(scaledWidth);
+    vi.spyOn(viewport, "scrollHeight", "get").mockReturnValue(scaledHeight);
+    vi.spyOn(document.documentElement, "clientWidth", "get").mockReturnValue(
+      constrainedWidth,
+    );
+    vi.spyOn(document.documentElement, "scrollWidth", "get").mockReturnValue(
+      constrainedWidth,
+    );
+    vi.spyOn(document.documentElement, "clientHeight", "get").mockReturnValue(
+      constrainedHeight,
+    );
+    vi.spyOn(document.documentElement, "scrollHeight", "get").mockReturnValue(
+      constrainedHeight,
+    );
+    vi.spyOn(document.body, "clientWidth", "get").mockReturnValue(
+      constrainedWidth,
+    );
+    vi.spyOn(document.body, "scrollWidth", "get").mockReturnValue(
+      constrainedWidth,
+    );
+    vi.spyOn(document.body, "clientHeight", "get").mockReturnValue(
+      constrainedHeight,
+    );
+    vi.spyOn(document.body, "scrollHeight", "get").mockReturnValue(
+      constrainedHeight,
+    );
+
+    expect(viewport.scrollWidth).toBeGreaterThan(viewport.clientWidth);
+    expect(viewport.scrollHeight).toBeGreaterThan(viewport.clientHeight);
+    viewport.scrollLeft = 320;
+    viewport.scrollTop = 240;
+    fireEvent.scroll(viewport);
+    expect(viewport.scrollLeft).toBeGreaterThan(0);
+    expect(viewport.scrollTop).toBeGreaterThan(0);
+    expect(document.documentElement.scrollWidth).toBe(pageBaselineWidth);
+    expect(document.documentElement.clientWidth).toBe(pageBaselineWidth);
+    expect(document.documentElement.scrollHeight).toBe(pageBaselineHeight);
+    expect(document.documentElement.clientHeight).toBe(pageBaselineHeight);
+    expect(document.body.scrollWidth).toBe(pageBaselineWidth);
+    expect(document.body.clientWidth).toBe(pageBaselineWidth);
+    expect(document.body.scrollHeight).toBe(pageBaselineHeight);
+    expect(document.body.clientHeight).toBe(pageBaselineHeight);
   });
 
   it("shows a load error and retries the real list endpoints", async () => {
