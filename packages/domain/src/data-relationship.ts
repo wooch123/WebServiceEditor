@@ -255,6 +255,8 @@ export interface CreateRelationshipBindingRequest {
   readonly bindingType: RelationshipBindingType;
   /** Required for READ. The server consumes the matching Wizard preview. */
   readonly queryPreviewId?: string;
+  /** Required for CREATE, UPDATE, and DELETE. */
+  readonly mutation?: import("./binding-query.js").ConfigureBindingMutationRequestDto;
   readonly expectedGraphRevision: number;
   readonly expectedProjectRevision: number;
   readonly idempotencyKey: string;

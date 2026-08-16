@@ -691,4 +691,185 @@ describe("PublishedRuntime", () => {
       false,
     );
   });
+
+  it("submits a Draft CREATE Binding, maps field errors, and refreshes the Data Table", async () => {
+    const page: RuntimePageDto = {
+      id: "page-0",
+      name: "입력",
+      route: "/form",
+      sortOrder: 0,
+      iconName: "File",
+      iconCatalogVersion: "1.31.0",
+      navigationVisible: true,
+      navigationGroup: null,
+    };
+    const number = publishedEntry("number-1", "number-input", {
+      props: { label: "값", accessibilityLabel: "값", defaultValue: null },
+    });
+    const button = publishedEntry("button-1", "button", {
+      props: { label: "생성", accessibilityLabel: "생성" },
+    });
+    const table = publishedEntry("table-1", "data-table", {
+      props: { title: "목록" },
+    });
+    let queryCount = 0;
+    const mutationBodies: unknown[] = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(String(input), "http://local").pathname;
+        if (path === "/api/v1/elements/registry") {
+          return Response.json(registryPayload());
+        }
+        if (path === "/api/v1/draft-previews/preview-1/navigation") {
+          return Response.json({
+            projectId: "runtime-project",
+            previewId: "preview-1",
+            snapshotId: "preview-1",
+            sourceProjectRevision: 8,
+            themeId: "light-clean-paper",
+            definitionChecksum: "a".repeat(64),
+            registryChecksum: "b".repeat(64),
+            createdAt: "2026-08-16T00:00:00Z",
+            expiresAt: "2026-08-16T00:05:00Z",
+            pages: [page],
+          });
+        }
+        if (path === "/api/v1/draft-previews/preview-1/pages/page-0") {
+          return Response.json({
+            projectId: "runtime-project",
+            previewId: "preview-1",
+            snapshotId: "preview-1",
+            sourceProjectRevision: 8,
+            themeId: "light-clean-paper",
+            definitionChecksum: "a".repeat(64),
+            registryChecksum: "b".repeat(64),
+            createdAt: "2026-08-16T00:00:00Z",
+            expiresAt: "2026-08-16T00:05:00Z",
+            page,
+            elements: [number, button, table],
+            bindings: [
+              {
+                id: "create-binding",
+                bindingType: "CREATE",
+                status: "READY",
+                source: { objectId: "button-1" },
+                target: { objectId: "table-id" },
+                mapping: {
+                  fields: [
+                    { fieldId: "value-field", inputElementId: "number-1" },
+                  ],
+                },
+              },
+              {
+                id: "read-binding",
+                bindingType: "READ",
+                status: "READY",
+                source: { objectId: "table-id" },
+                target: { objectId: "table-1" },
+              },
+            ],
+          });
+        }
+        if (path === "/api/v1/draft-previews/preview-1/query/read-binding") {
+          queryCount += 1;
+          return Response.json({
+            bindingId: "read-binding",
+            projectId: "runtime-project",
+            targetElementId: "table-1",
+            environment: "test",
+            planChecksum: "c".repeat(64),
+            snapshotId: "preview-1",
+            definitionChecksum: "a".repeat(64),
+            result: {
+              columns: [],
+              rows: [],
+              rowCount: queryCount > 1 ? 1 : 0,
+              truncated: false,
+              renderState: queryCount > 1 ? "DATA" : "EMPTY",
+              renderData:
+                queryCount > 1
+                  ? { columns: ["값"], rows: [{ 값: 12.5 }] }
+                  : { columns: [], rows: [] },
+            },
+          });
+        }
+        if (path === "/api/v1/draft-previews/preview-1/create/create-binding") {
+          const body = JSON.parse(String(init?.body)) as {
+            values: Record<string, unknown>;
+          };
+          mutationBodies.push(body);
+          if (body.values["number-1"] === null) {
+            return Response.json(
+              {
+                error: {
+                  code: "BINDING_MUTATION_VALIDATION_FAILED",
+                  message: "입력 확인",
+                  details: {
+                    fieldErrors: [
+                      {
+                        inputElementId: "number-1",
+                        message: "필수 값",
+                      },
+                    ],
+                  },
+                },
+              },
+              { status: 422 },
+            );
+          }
+          return Response.json({
+            bindingId: "create-binding",
+            projectId: "runtime-project",
+            operation: "CREATE",
+            environment: "test",
+            affectedRows: 1,
+            insertedPrimaryKey: 1,
+            refreshBindingIds: ["read-binding"],
+            snapshotId: "preview-1",
+            definitionChecksum: "a".repeat(64),
+            commandId: "command-1",
+          });
+        }
+        if (path === "/api/v1/ui/icons/File") {
+          return Response.json({
+            item: {
+              name: "File",
+              dynamicName: "file",
+              categories: ["files"],
+              keywords: [],
+            },
+          });
+        }
+        return Response.json(
+          { error: { code: "UNHANDLED", message: path } },
+          { status: 500 },
+        );
+      }),
+    );
+    window.history.replaceState(
+      {},
+      "",
+      "/preview/runtime-project/preview-1/form",
+    );
+    const user = userEvent.setup();
+    render(<App />);
+
+    const create = await screen.findByRole("button", { name: "생성" });
+    await waitFor(() => expect(queryCount).toBe(1));
+    await user.click(create);
+    expect(await screen.findByRole("alert")).toHaveTextContent("필수 값");
+    const input = screen.getByRole("spinbutton", { name: "값" });
+    expect(input).toHaveAttribute("aria-invalid", "true");
+    await user.type(input, "12.5");
+    await user.click(create);
+    expect(await screen.findByText("생성됨")).toBeInTheDocument();
+    expect(await screen.findByText("12.5")).toBeInTheDocument();
+    expect(queryCount).toBe(2);
+    expect(mutationBodies).toHaveLength(2);
+    expect(mutationBodies[1]).toMatchObject({
+      values: { "number-1": 12.5 },
+    });
+    expect(screen.queryByText("필수 값")).not.toBeInTheDocument();
+  });
 });

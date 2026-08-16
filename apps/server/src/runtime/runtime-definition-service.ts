@@ -12,10 +12,14 @@ import {
   type ProjectDefinitionSnapshotDto,
   type PublishedRuntimeDefinitionPageDto,
   type RuntimeBindingResultDto,
+  type RuntimeBindingMutationDto,
+  type RuntimeBindingMutationRequestDto,
+  type BindingMutationOperation,
   type RuntimeNavigationDto,
 } from "@webeditor/domain";
 
 import { BindingQueryCompiler } from "../data-relationship/binding-query-compiler.js";
+import { BindingMutationCompiler } from "../data-relationship/binding-mutation-compiler.js";
 import { RelationshipRepository } from "../data-relationship/relationship-repository.js";
 import { SchemaRepository } from "../data-schema/schema-repository.js";
 import { ELEMENT_REGISTRY_CHECKSUM } from "../elements/element-registry.js";
@@ -89,6 +93,7 @@ export class RuntimeDefinitionService {
   readonly schemaRepository: SchemaRepository;
   readonly projectRepository: ProjectRepository;
   readonly queryCompiler: BindingQueryCompiler;
+  readonly mutationCompiler: BindingMutationCompiler;
   readonly #previews = new Map<string, StoredDraftPreview>();
 
   constructor(
@@ -102,6 +107,7 @@ export class RuntimeDefinitionService {
     this.schemaRepository = new SchemaRepository(metadataDatabase);
     this.projectRepository = new ProjectRepository(metadataDatabase);
     this.queryCompiler = new BindingQueryCompiler(metadataDatabase, storage);
+    this.mutationCompiler = new BindingMutationCompiler(storage);
   }
 
   buildSnapshot(
@@ -292,6 +298,91 @@ export class RuntimeDefinitionService {
     );
   }
 
+  executeDraftMutation(
+    previewIdValue: unknown,
+    bindingIdValue: unknown,
+    operation: BindingMutationOperation,
+    request: RuntimeBindingMutationRequestDto,
+  ): RuntimeBindingMutationDto {
+    const preview = this.#preview(previewIdValue);
+    return this.#executeMutation(
+      preview.snapshot,
+      preview.previewId,
+      preview.definitionChecksum,
+      bindingIdValue,
+      operation,
+      "test",
+      request,
+    );
+  }
+
+  executePublishedMutation(
+    projectIdValue: unknown,
+    bindingIdValue: unknown,
+    operation: BindingMutationOperation,
+    request: RuntimeBindingMutationRequestDto,
+  ): RuntimeBindingMutationDto {
+    const { version, snapshot, definitionChecksum } =
+      this.#published(projectIdValue);
+    return this.#executeMutation(
+      snapshot,
+      version.id,
+      definitionChecksum,
+      bindingIdValue,
+      operation,
+      "production",
+      request,
+    );
+  }
+
+  #executeMutation(
+    snapshot: ProjectDefinitionSnapshotDto,
+    snapshotId: string,
+    definitionChecksum: string,
+    bindingIdValue: unknown,
+    operation: BindingMutationOperation,
+    environment: "test" | "production",
+    request: RuntimeBindingMutationRequestDto,
+  ): RuntimeBindingMutationDto {
+    const bindingId = uuid(bindingIdValue, "INVALID_BINDING_ID", "Binding ID");
+    const binding = snapshot.bindings.find((entry) => entry.id === bindingId);
+    assertApi(
+      binding?.bindingType === operation,
+      404,
+      "SNAPSHOT_BINDING_NOT_FOUND",
+      `Runtime snapshot does not contain this ${operation} Binding`,
+    );
+    assertApi(
+      binding.status === "READY",
+      409,
+      "BINDING_DISABLED",
+      "Binding is disabled in this Runtime snapshot",
+    );
+    const sourcePageId = snapshot.elements.find(
+      (entry) => entry.element.id === binding.source.objectId,
+    )?.element.pageId;
+    const refreshBindingIds = snapshot.bindings
+      .filter(
+        (candidate) =>
+          candidate.bindingType === "READ" &&
+          candidate.status === "READY" &&
+          snapshot.elements.find(
+            (entry) => entry.element.id === candidate.target.objectId,
+          )?.element.pageId === sourcePageId,
+      )
+      .map(({ id }) => id);
+    return this.mutationCompiler.execute({
+      binding,
+      snapshotId,
+      definitionChecksum,
+      environment,
+      schema: snapshot.dataSchema,
+      elements: snapshot.elements,
+      refreshBindingIds,
+      request,
+    });
+  }
+
   #execute(
     snapshot: ProjectDefinitionSnapshotDto,
     snapshotId: string,
@@ -346,8 +437,8 @@ export class RuntimeDefinitionService {
       .prepare(
         `INSERT INTO binding_query_runs (
            id, project_id, binding_id, environment, plan_checksum, row_count,
-           truncated, render_state, created_at
-         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+           truncated, status, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, 'SUCCEEDED', ?)`,
       )
       .run(
         randomUUID(),
@@ -357,7 +448,6 @@ export class RuntimeDefinitionService {
         compiled.planChecksum,
         result.rowCount,
         result.truncated ? 1 : 0,
-        result.renderState,
         this.clock().toISOString(),
       );
     return {
@@ -525,8 +615,10 @@ export class RuntimeDefinitionService {
     );
     return snapshot.bindings.filter(
       (binding) =>
-        binding.target.nodeType === "element" &&
-        elementIds.has(binding.target.objectId),
+        (binding.target.nodeType === "element" &&
+          elementIds.has(binding.target.objectId)) ||
+        (binding.source.nodeType === "element" &&
+          elementIds.has(binding.source.objectId)),
     );
   }
 

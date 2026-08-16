@@ -1,5 +1,6 @@
 import type {
   ApplyRelationshipAutoLayoutRequest,
+  BindingMutationOperation,
   CreateRelationshipBindingRequest,
   DeleteRelationshipBindingRequest,
   PatchRelationshipBindingRequest,
@@ -9,6 +10,7 @@ import type {
   RelationshipHistoryMutationRequest,
   RelationshipLayoutHistoryMutationRequest,
   RelationshipRoutePreviewRequest,
+  RuntimeBindingMutationRequestDto,
   UpdateRelationshipNodePositionRequest,
   UpdateRelationshipViewportRequest,
 } from "@webeditor/domain";
@@ -180,6 +182,7 @@ export async function registerDataRelationshipRoutes(
         "previewId",
         "bindingType",
         "queryPreviewId",
+        "mutation",
         ...graphRevisions,
         "idempotencyKey",
       ]);
@@ -241,6 +244,34 @@ export async function registerDataRelationshipRoutes(
       );
     },
   );
+
+  for (const operation of ["CREATE", "UPDATE", "DELETE"] as const) {
+    const route = operation.toLowerCase();
+    server.post<{ Params: { projectId: string; bindingId: string } }>(
+      `/api/v1/runtime/:projectId/${route}/:bindingId`,
+      async (request) => {
+        const body = exactBody(request.body, ["values", "idempotencyKey"]);
+        return service.executeRuntimeMutation(
+          request.params.projectId,
+          request.params.bindingId,
+          operation as BindingMutationOperation,
+          body as unknown as RuntimeBindingMutationRequestDto,
+        );
+      },
+    );
+    server.post<{ Params: { previewId: string; bindingId: string } }>(
+      `/api/v1/draft-previews/:previewId/${route}/:bindingId`,
+      async (request) => {
+        const body = exactBody(request.body, ["values", "idempotencyKey"]);
+        return service.executeDraftRuntimeMutation(
+          request.params.previewId,
+          request.params.bindingId,
+          operation as BindingMutationOperation,
+          body as unknown as RuntimeBindingMutationRequestDto,
+        );
+      },
+    );
+  }
 
   server.patch<{ Params: { bindingId: string } }>(
     "/api/v1/bindings/:bindingId",

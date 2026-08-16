@@ -1,7 +1,9 @@
 import type {
   BindingQueryPreviewDto,
   BindingRenderShape,
+  ConfigureBindingMutationRequestDto,
   DataRelationshipGraphDto,
+  DataSchemaDto,
   ReadAggregateFunction,
   ReadFilterOperator,
   ReadQueryMode,
@@ -122,7 +124,7 @@ import {
   dataRelationshipApi,
   RelationshipApiError,
 } from "@/services/data-relationship-api";
-import { generateSampleData } from "@/services/data-schema-api";
+import { generateSampleData, getDataSchema } from "@/services/data-schema-api";
 
 interface RelationshipCanvasProps {
   readonly projectId: string;
@@ -189,6 +191,18 @@ const filterOperatorLabels: Record<ReadFilterOperator, string> = {
   IS_NULL: "비어 있음",
   IS_NOT_NULL: "값 있음",
 };
+
+const writeBindingTypes = new Set<RelationshipBindingType>([
+  "CREATE",
+  "UPDATE",
+  "DELETE",
+]);
+
+function nodePageLabel(node: RelationshipNodeDto | undefined) {
+  if (!node || node.type !== "element") return "";
+  const separator = node.subtitle.lastIndexOf(" · ");
+  return separator < 0 ? "" : node.subtitle.slice(separator + 3);
+}
 
 const aggregateLabels: Record<ReadAggregateFunction, string> = {
   COUNT: "개수",
@@ -596,6 +610,10 @@ function RelationshipCanvasInner({
     useState<RelationshipAutoLayoutPreviewDto | null>(null);
   const [bindingType, setBindingType] =
     useState<RelationshipBindingType>("READ");
+  const [dataSchema, setDataSchema] = useState<DataSchemaDto | null>(null);
+  const [writeFieldMappings, setWriteFieldMappings] = useState<
+    Readonly<Record<string, string>>
+  >({});
   const [selectedBindingId, setSelectedBindingId] = useState<string | null>(
     null,
   );
@@ -910,6 +928,105 @@ function RelationshipCanvasInner({
     valueFieldId,
   ]);
 
+  const mutationTable = useMemo(
+    () =>
+      dataSchema?.tables.find(
+        (table) => table.id === preview?.target.objectId,
+      ) ?? null,
+    [dataSchema, preview],
+  );
+
+  const mutationInputs = useMemo(() => {
+    if (!graph || !preview) return [];
+    const sourceNode = graph.nodes.find(
+      (node) => node.id === preview.source.nodeId,
+    );
+    const pageLabel = nodePageLabel(sourceNode);
+    return graph.nodes.filter(
+      (node) =>
+        node.type === "element" &&
+        node.subtitle.startsWith("Number Input ·") &&
+        nodePageLabel(node) === pageLabel,
+    );
+  }, [graph, preview]);
+
+  const mutationFields = useMemo(() => {
+    if (!mutationTable || !writeBindingTypes.has(bindingType)) return [];
+    const numeric = mutationTable.fields.filter(
+      (field) => field.type === "INTEGER" || field.type === "REAL",
+    );
+    if (bindingType === "DELETE") {
+      return numeric.filter((field) => field.primaryKey);
+    }
+    return numeric.filter(
+      (field) => bindingType !== "CREATE" || !field.autoIncrement,
+    );
+  }, [bindingType, mutationTable]);
+
+  useEffect(() => {
+    if (!preview || !writeBindingTypes.has(bindingType)) {
+      setWriteFieldMappings({});
+      return;
+    }
+    let cancelled = false;
+    void getDataSchema(projectId)
+      .then((schema) => {
+        if (!cancelled) setDataSchema(schema);
+      })
+      .catch((requestError) => {
+        if (!cancelled) setError(errorText(requestError));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [bindingType, preview, projectId]);
+
+  useEffect(() => {
+    if (!writeBindingTypes.has(bindingType) || mutationFields.length === 0) {
+      setWriteFieldMappings({});
+      return;
+    }
+    setWriteFieldMappings(
+      Object.fromEntries(
+        mutationFields.map((field, index) => [
+          field.id,
+          mutationInputs[index]?.objectId ?? "",
+        ]),
+      ),
+    );
+  }, [bindingType, mutationFields, mutationInputs]);
+
+  const mutationConfiguration = useMemo(() => {
+    if (!writeBindingTypes.has(bindingType) || !mutationTable) return null;
+    const fieldMappings = mutationFields.flatMap((field) => {
+      const inputElementId = writeFieldMappings[field.id];
+      return inputElementId ? [{ fieldId: field.id, inputElementId }] : [];
+    });
+    const primary = mutationTable.fields.find((field) => field.primaryKey);
+    const mapped = new Set(fieldMappings.map(({ fieldId }) => fieldId));
+    const valid =
+      primary !== undefined &&
+      new Set(fieldMappings.map(({ inputElementId }) => inputElementId))
+        .size === fieldMappings.length &&
+      (bindingType !== "CREATE" ||
+        mutationTable.fields
+          .filter(
+            (field) =>
+              !field.nullable &&
+              field.defaultValue === null &&
+              !field.autoIncrement,
+          )
+          .every((field) => mapped.has(field.id))) &&
+      (bindingType !== "UPDATE" ||
+        (mapped.has(primary.id) &&
+          fieldMappings.some(({ fieldId }) => fieldId !== primary.id))) &&
+      (bindingType !== "DELETE" ||
+        (fieldMappings.length === 1 && mapped.has(primary.id)));
+    return valid
+      ? ({ fieldMappings } satisfies ConfigureBindingMutationRequestDto)
+      : null;
+  }, [bindingType, mutationFields, mutationTable, writeFieldMappings]);
+
   const previewReadQuery = async () => {
     if (!graph || !preview || bindingType !== "READ" || busy) return;
     const nullary =
@@ -1004,6 +1121,9 @@ function RelationshipCanvasInner({
         bindingType,
         ...(bindingType === "READ" && queryPreview
           ? { queryPreviewId: queryPreview.queryPreviewId }
+          : {}),
+        ...(writeBindingTypes.has(bindingType) && mutationConfiguration
+          ? { mutation: mutationConfiguration }
           : {}),
         expectedGraphRevision: preview.graphRevision,
         expectedProjectRevision: preview.projectRevision,
@@ -1725,6 +1845,51 @@ function RelationshipCanvasInner({
               )}
             </>
           )}
+          {preview && writeBindingTypes.has(bindingType) && (
+            <FieldGroup className="binding-mutation-fields">
+              {mutationFields.map((field) => (
+                <Field
+                  key={field.id}
+                  data-invalid={!writeFieldMappings[field.id] || undefined}
+                >
+                  <FieldLabel htmlFor={`binding-mutation-${field.id}`}>
+                    {field.displayName}
+                    {field.primaryKey ? " · 키" : ""}
+                  </FieldLabel>
+                  <NativeSelect
+                    id={`binding-mutation-${field.id}`}
+                    value={writeFieldMappings[field.id] ?? ""}
+                    disabled={busy}
+                    aria-invalid={
+                      !writeFieldMappings[field.id] ? true : undefined
+                    }
+                    onChange={(event) =>
+                      setWriteFieldMappings((current) => ({
+                        ...current,
+                        [field.id]: event.target.value,
+                      }))
+                    }
+                  >
+                    <NativeSelectOption value="">입력 선택</NativeSelectOption>
+                    {mutationInputs.map((input) => (
+                      <NativeSelectOption
+                        key={input.objectId}
+                        value={input.objectId}
+                      >
+                        {input.label}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                </Field>
+              ))}
+              {mutationFields.length === 0 && (
+                <p role="alert">숫자 필드 없음</p>
+              )}
+              {mutationInputs.length === 0 && (
+                <p role="alert">숫자 입력 없음</p>
+              )}
+            </FieldGroup>
+          )}
           <DialogFooter className="relationship-dialog-actions">
             <Button
               type="button"
@@ -1740,7 +1905,10 @@ function RelationshipCanvasInner({
             <Button
               type="button"
               disabled={
-                busy || (bindingType === "READ" && queryPreview === null)
+                busy ||
+                (bindingType === "READ" && queryPreview === null) ||
+                (writeBindingTypes.has(bindingType) &&
+                  mutationConfiguration === null)
               }
               onClick={() => void commit()}
             >

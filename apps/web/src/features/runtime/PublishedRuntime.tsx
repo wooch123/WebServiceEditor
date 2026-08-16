@@ -16,7 +16,9 @@ import {
 } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
 import type {
+  BindingMutationOperation,
   BindingRenderDataDto,
+  BindingScalar,
   RelationshipBindingDto,
 } from "@webeditor/domain";
 
@@ -61,9 +63,12 @@ import {
 } from "@/services/elements-api";
 import {
   executeDraftRuntimeBinding,
+  executeDraftRuntimeMutation,
   executePublishedRuntimeBinding,
+  executePublishedRuntimeMutation,
   getDraftRuntimePage,
   getPublishedRuntimeDefinitionPage,
+  RuntimeApiError,
   type RuntimeDefinitionPage,
 } from "@/services/runtime-api";
 import { defaultTheme, themes, themeToCssVariables } from "@/theme";
@@ -264,6 +269,12 @@ function RuntimeShell({
   runtimePageError,
   definitionByType,
   preview,
+  formValues,
+  fieldErrors,
+  pendingElementId,
+  mutationMessage,
+  onValueChange,
+  onAction,
   onNavigate,
 }: {
   navigation: RuntimeNavigationPayload;
@@ -274,6 +285,12 @@ function RuntimeShell({
   runtimePageError: string;
   definitionByType: ReadonlyMap<ElementType, ElementDefinitionDto>;
   preview: boolean;
+  formValues: Readonly<Record<string, BindingScalar>>;
+  fieldErrors: Readonly<Record<string, string>>;
+  pendingElementId: string | null;
+  mutationMessage: string;
+  onValueChange: (elementId: string, value: BindingScalar) => void;
+  onAction: (elementId: string) => void;
   onNavigate: (page: RuntimePageDto) => void;
 }) {
   const isMobile = useIsMobile();
@@ -389,6 +406,11 @@ function RuntimeShell({
                   <h1>{runtimePage.page.name}</h1>
                   {!runtimePage.page.navigationVisible && <p>직접 링크</p>}
                 </header>
+                {mutationMessage && (
+                  <p className="runtime-mutation-message" role="status">
+                    {mutationMessage}
+                  </p>
+                )}
                 <div
                   className="runtime-elements"
                   role="region"
@@ -414,6 +436,15 @@ function RuntimeShell({
                           {...(data?.renderData
                             ? { renderData: data.renderData }
                             : {})}
+                          {...(Object.hasOwn(formValues, entry.element.id)
+                            ? { value: formValues[entry.element.id] }
+                            : {})}
+                          {...(fieldErrors[entry.element.id]
+                            ? { fieldError: fieldErrors[entry.element.id] }
+                            : {})}
+                          pending={pendingElementId !== null}
+                          onValueChange={onValueChange}
+                          onAction={onAction}
                         />
                       </div>
                     );
@@ -461,6 +492,16 @@ function RuntimeApplication({
   const [runtimePageLoading, setRuntimePageLoading] = useState(false);
   const [runtimePageError, setRuntimePageError] = useState("");
   const [error, setError] = useState("");
+  const [formValues, setFormValues] = useState<
+    Readonly<Record<string, BindingScalar>>
+  >({});
+  const [fieldErrors, setFieldErrors] = useState<
+    Readonly<Record<string, string>>
+  >({});
+  const [pendingElementId, setPendingElementId] = useState<string | null>(null);
+  const [mutationMessage, setMutationMessage] = useState("");
+  const [readRefreshRevision, setReadRefreshRevision] = useState(0);
+  const retryKeys = useMemo(() => new Map<string, string>(), [runtimePage]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -545,6 +586,24 @@ function RuntimeApplication({
           throw new Error("런타임 정의 불일치");
         }
         setRuntimePage(payload);
+        setFormValues(
+          Object.fromEntries(
+            payload.elements
+              .filter(({ element }) => element.type === "number-input")
+              .map(({ element }) => {
+                const candidate = element.props.defaultValue;
+                return [
+                  element.id,
+                  typeof candidate === "number" && Number.isFinite(candidate)
+                    ? candidate
+                    : null,
+                ];
+              }),
+          ),
+        );
+        setFieldErrors({});
+        setPendingElementId(null);
+        setMutationMessage("");
       })
       .catch((reason: unknown) => {
         if (!controller.signal.aborted) {
@@ -611,7 +670,116 @@ function RuntimeApplication({
         });
     }
     return () => controller.abort();
-  }, [preview, runtimePage, sourceId]);
+  }, [preview, readRefreshRevision, runtimePage, sourceId]);
+
+  const onValueChange = (elementId: string, value: BindingScalar) => {
+    setFormValues((current) => ({ ...current, [elementId]: value }));
+    setFieldErrors((current) => {
+      if (!Object.hasOwn(current, elementId)) return current;
+      const next = { ...current };
+      delete next[elementId];
+      return next;
+    });
+    setMutationMessage("");
+  };
+
+  const onAction = async (elementId: string) => {
+    if (!runtimePage || pendingElementId !== null) return;
+    const binding = (runtimePage.bindings ?? []).find(
+      (candidate: RelationshipBindingDto) =>
+        candidate.status === "READY" &&
+        candidate.source.objectId === elementId &&
+        (candidate.bindingType === "CREATE" ||
+          candidate.bindingType === "UPDATE" ||
+          candidate.bindingType === "DELETE"),
+    );
+    if (!binding) return;
+    const operation = binding.bindingType as BindingMutationOperation;
+    const mappedInputIds = Array.isArray(binding.mapping.fields)
+      ? binding.mapping.fields.flatMap((candidate) => {
+          if (typeof candidate !== "object" || candidate === null) return [];
+          const inputElementId = (candidate as { inputElementId?: unknown })
+            .inputElementId;
+          return typeof inputElementId === "string" ? [inputElementId] : [];
+        })
+      : [];
+    const mutationValues = Object.fromEntries(
+      mappedInputIds.map((inputElementId) => [
+        inputElementId,
+        formValues[inputElementId] ?? null,
+      ]),
+    );
+    const retryKey =
+      retryKeys.get(binding.id) ??
+      `runtime-mutation:${binding.id}:${crypto.randomUUID()}`;
+    retryKeys.set(binding.id, retryKey);
+    setPendingElementId(elementId);
+    setMutationMessage("");
+    setFieldErrors({});
+    try {
+      const result = preview
+        ? await executeDraftRuntimeMutation(
+            sourceId,
+            operation,
+            binding.id,
+            mutationValues,
+            retryKey,
+          )
+        : await executePublishedRuntimeMutation(
+            sourceId,
+            operation,
+            binding.id,
+            mutationValues,
+            retryKey,
+          );
+      if (
+        result.snapshotId !== runtimePage.snapshotId ||
+        result.definitionChecksum !== runtimePage.definitionChecksum
+      ) {
+        throw new Error("데이터 정의 불일치");
+      }
+      retryKeys.delete(binding.id);
+      setMutationMessage(
+        operation === "CREATE"
+          ? "생성됨"
+          : operation === "UPDATE"
+            ? "수정됨"
+            : "삭제됨",
+      );
+      if (result.refreshBindingIds.length > 0) {
+        setReadRefreshRevision((current) => current + 1);
+      }
+    } catch (reason) {
+      if (reason instanceof RuntimeApiError) {
+        const details =
+          typeof reason.details === "object" && reason.details !== null
+            ? (reason.details as {
+                readonly fieldErrors?: readonly {
+                  readonly inputElementId?: unknown;
+                  readonly message?: unknown;
+                }[];
+              })
+            : null;
+        const mapped = Object.fromEntries(
+          (details?.fieldErrors ?? []).flatMap((field) =>
+            typeof field.inputElementId === "string" &&
+            typeof field.message === "string"
+              ? [[field.inputElementId, field.message]]
+              : [],
+          ),
+        );
+        setFieldErrors(mapped);
+        setMutationMessage(reason.message);
+        if (reason.status < 500) retryKeys.delete(binding.id);
+      } else {
+        setMutationMessage(
+          reason instanceof Error ? reason.message : "작업 실패",
+        );
+      }
+    } finally {
+      setPendingElementId(null);
+    }
+  };
 
   if (error)
     return (
@@ -649,6 +817,12 @@ function RuntimeApplication({
         )
       }
       preview={preview}
+      formValues={formValues}
+      fieldErrors={fieldErrors}
+      pendingElementId={pendingElementId}
+      mutationMessage={mutationMessage}
+      onValueChange={onValueChange}
+      onAction={(elementId) => void onAction(elementId)}
       onNavigate={(page) => {
         const next = runtimePath(basePath, page.route);
         if (next !== location.pathname) navigate(next);

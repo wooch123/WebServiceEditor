@@ -46,6 +46,62 @@ export type ReadAggregateFunction = (typeof READ_AGGREGATE_FUNCTIONS)[number];
 export type BindingRenderShape = (typeof BINDING_RENDER_SHAPES)[number];
 export type BindingScalar = string | number | boolean | null;
 
+export const BINDING_MUTATION_SCHEMA_VERSION = 1 as const;
+export const BINDING_MUTATION_OPERATIONS = [
+  "CREATE",
+  "UPDATE",
+  "DELETE",
+] as const;
+
+export type BindingMutationOperation =
+  (typeof BINDING_MUTATION_OPERATIONS)[number];
+
+export interface BindingMutationFieldMappingDto {
+  readonly fieldId: string;
+  readonly inputElementId: string;
+}
+
+/** Wizard input. The operation and Table come from the canonical Binding. */
+export interface ConfigureBindingMutationRequestDto {
+  readonly fieldMappings: readonly BindingMutationFieldMappingDto[];
+}
+
+export interface StoredBindingMutationQueryDto {
+  readonly schemaVersion: typeof BINDING_MUTATION_SCHEMA_VERSION;
+  readonly operation: BindingMutationOperation;
+  readonly tableId: string;
+  readonly primaryKeyFieldId: string;
+}
+
+export interface StoredBindingMutationMappingDto {
+  readonly fields: readonly BindingMutationFieldMappingDto[];
+}
+
+export interface RuntimeBindingMutationRequestDto {
+  readonly values: Readonly<Record<string, BindingScalar>>;
+  readonly idempotencyKey: string;
+}
+
+export interface RuntimeBindingMutationFieldErrorDto {
+  readonly fieldId: string;
+  readonly inputElementId: string;
+  readonly code: string;
+  readonly message: string;
+}
+
+export interface RuntimeBindingMutationDto {
+  readonly bindingId: string;
+  readonly projectId: string;
+  readonly operation: BindingMutationOperation;
+  readonly environment: "test" | "production";
+  readonly affectedRows: number;
+  readonly insertedPrimaryKey: BindingScalar;
+  readonly refreshBindingIds: readonly string[];
+  readonly snapshotId: string;
+  readonly definitionChecksum: string;
+  readonly commandId: string;
+}
+
 export interface ReadFilterDto {
   readonly fieldId: string;
   readonly operator: ReadFilterOperator;

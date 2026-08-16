@@ -1,6 +1,6 @@
 import { Database } from "lucide-react";
 import type { ComponentType } from "react";
-import type { BindingRenderDataDto } from "@webeditor/domain";
+import type { BindingRenderDataDto, BindingScalar } from "@webeditor/domain";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -46,6 +46,11 @@ interface RuntimeRendererProps {
   definition: ElementDefinitionDto;
   renderState?: ElementRenderState;
   renderData?: BindingRenderDataDto | StatisticalRenderData;
+  value?: BindingScalar;
+  fieldError?: string;
+  pending?: boolean;
+  onValueChange?: (elementId: string, value: BindingScalar) => void;
+  onAction?: (elementId: string) => void;
 }
 
 function stringValue(
@@ -76,16 +81,20 @@ function RuntimeText({ entry }: RuntimeRendererProps) {
   return <p>{stringValue(entry.element.props, "text", entry.element.name)}</p>;
 }
 
-function RuntimeButton({ entry }: RuntimeRendererProps) {
+function RuntimeButton({ entry, pending, onAction }: RuntimeRendererProps) {
   const presentation = elementPresentation(entry);
   return (
     <Button
       type="button"
-      disabled={presentation.disabled}
+      disabled={presentation.disabled || pending}
       title={presentation.title}
       aria-label={presentation.accessibilityLabel}
+      aria-busy={pending || undefined}
+      onClick={() => onAction?.(entry.element.id)}
     >
-      {stringValue(entry.element.props, "label", entry.element.name)}
+      {pending
+        ? "처리 중"
+        : stringValue(entry.element.props, "label", entry.element.name)}
     </Button>
   );
 }
@@ -139,8 +148,22 @@ function RuntimeKpi({ entry, renderState, renderData }: RuntimeRendererProps) {
   );
 }
 
-function RuntimeNumberInput({ entry }: RuntimeRendererProps) {
+function RuntimeNumberInput({
+  entry,
+  value,
+  fieldError,
+  pending,
+  onValueChange,
+}: RuntimeRendererProps) {
   const presentation = elementPresentation(entry);
+  const inputValue =
+    value === undefined
+      ? (finiteNumber(entry.element.props.defaultValue) ?? "")
+      : value === null
+        ? ""
+        : typeof value === "number"
+          ? value
+          : String(value);
   return (
     <label className="runtime-number-input">
       <span>
@@ -148,17 +171,27 @@ function RuntimeNumberInput({ entry }: RuntimeRendererProps) {
       </span>
       <Input
         type="number"
-        value={stringValue(entry.element.props, "defaultValue", "0")}
+        value={inputValue}
         placeholder={stringValue(entry.element.props, "placeholder", "숫자")}
-        disabled={presentation.disabled}
+        disabled={presentation.disabled || pending}
         required={entry.element.props.required === true}
         min={finiteNumber(entry.element.props.minimum)}
         max={finiteNumber(entry.element.props.maximum)}
         step={finiteNumber(entry.element.props.step)}
         title={presentation.title}
         aria-label={presentation.accessibilityLabel}
-        readOnly
+        aria-invalid={fieldError ? true : undefined}
+        onChange={(event) => {
+          const next = event.target.value;
+          const parsed = event.target.valueAsNumber;
+          onValueChange?.(
+            entry.element.id,
+            next === "" || !Number.isFinite(parsed) ? null : parsed,
+          );
+        }}
+        readOnly={onValueChange === undefined}
       />
+      {fieldError && <span role="alert">{fieldError}</span>}
     </label>
   );
 }
@@ -271,6 +304,11 @@ export function RuntimeElementRenderer({
   definition,
   renderState,
   renderData,
+  value,
+  fieldError,
+  pending,
+  onValueChange,
+  onAction,
 }: RuntimeRendererProps) {
   const presentation = elementPresentation(entry);
   if (presentation.hidden) return null;
@@ -302,6 +340,11 @@ export function RuntimeElementRenderer({
         definition={definition}
         renderState={effectiveRenderState}
         {...(renderData ? { renderData } : {})}
+        {...(value === undefined ? {} : { value })}
+        {...(fieldError ? { fieldError } : {})}
+        {...(pending === undefined ? {} : { pending })}
+        {...(onValueChange ? { onValueChange } : {})}
+        {...(onAction ? { onAction } : {})}
       />
     </section>
   );

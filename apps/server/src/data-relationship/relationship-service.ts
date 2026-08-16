@@ -38,6 +38,9 @@ import {
   type RelationshipRoutePreviewRequest,
   type RelationshipViewportDto,
   type RuntimeBindingResultDto,
+  type RuntimeBindingMutationDto,
+  type RuntimeBindingMutationRequestDto,
+  type BindingMutationOperation,
   type UpdateRelationshipNodePositionRequest,
   type UpdateRelationshipViewportRequest,
 } from "@webeditor/domain";
@@ -65,6 +68,7 @@ import {
   BindingQueryCompiler,
   type CompiledBindingQuery,
 } from "./binding-query-compiler.js";
+import { BindingMutationCompiler } from "./binding-mutation-compiler.js";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -325,6 +329,7 @@ export class RelationshipService {
   readonly elementRepository: ElementRepository;
   readonly schemaRepository: SchemaRepository;
   readonly queryCompiler: BindingQueryCompiler;
+  readonly mutationCompiler: BindingMutationCompiler;
   readonly runtimeDefinitionService: RuntimeDefinitionService;
   readonly #clock: () => Date;
   readonly #previews = new Map<string, StoredConnectionPreview>();
@@ -341,6 +346,7 @@ export class RelationshipService {
       options.metadataDatabase,
       options.projectStorage,
     );
+    this.mutationCompiler = new BindingMutationCompiler(options.projectStorage);
     this.runtimeDefinitionService = options.runtimeDefinitionService;
     this.#clock = options.clock ?? (() => new Date());
     for (const project of this.projectRepository.listActive()) {
@@ -681,6 +687,34 @@ export class RelationshipService {
     );
   }
 
+  executeRuntimeMutation(
+    projectId: string,
+    bindingId: string,
+    operation: BindingMutationOperation,
+    request: RuntimeBindingMutationRequestDto,
+  ): RuntimeBindingMutationDto {
+    return this.runtimeDefinitionService.executePublishedMutation(
+      projectId,
+      bindingId,
+      operation,
+      request,
+    );
+  }
+
+  executeDraftRuntimeMutation(
+    previewId: string,
+    bindingId: string,
+    operation: BindingMutationOperation,
+    request: RuntimeBindingMutationRequestDto,
+  ): RuntimeBindingMutationDto {
+    return this.runtimeDefinitionService.executeDraftMutation(
+      previewId,
+      bindingId,
+      operation,
+      request,
+    );
+  }
+
   create(
     projectId: string,
     request: CreateRelationshipBindingRequest,
@@ -707,6 +741,18 @@ export class RelationshipService {
       400,
       "QUERY_PREVIEW_NOT_ALLOWED",
       "Query preview is only valid for READ",
+    );
+    const writeType =
+      type === "CREATE" || type === "UPDATE" || type === "DELETE";
+    assertApi(
+      writeType === (request.mutation !== undefined),
+      400,
+      writeType
+        ? "BINDING_MUTATION_CONFIGURATION_REQUIRED"
+        : "BINDING_MUTATION_CONFIGURATION_NOT_ALLOWED",
+      writeType
+        ? `${type} requires a mutation mapping`
+        : "Mutation mapping is valid only for CREATE, UPDATE, and DELETE",
     );
     const preview = this.#consumePreview(request.previewId, projectId);
     assertApi(
@@ -736,6 +782,17 @@ export class RelationshipService {
         "Binding query preview does not match this connection",
       );
     }
+    const mutation = writeType
+      ? this.mutationCompiler.compileDefinition(
+          projectId,
+          type,
+          preview.source.objectId,
+          preview.target.objectId,
+          request.mutation,
+          this.schemaRepository.exportDefinition(projectId),
+          this.elementRepository.listActiveForProject(projectId),
+        )
+      : null;
     const now = this.#now();
     const bindingId = randomUUID();
     const commandId = randomUUID();
@@ -759,22 +816,26 @@ export class RelationshipService {
         target: preview.target,
         query: (queryPreview?.compiled.query as unknown as Readonly<
           Record<string, unknown>
-        >) ?? {
-          source: {
-            nodeType: preview.source.nodeType,
-            objectId: preview.source.objectId,
-            portRole: preview.source.portRole,
+        >) ??
+          (mutation?.query as unknown as Readonly<Record<string, unknown>>) ?? {
+            source: {
+              nodeType: preview.source.nodeType,
+              objectId: preview.source.objectId,
+              portRole: preview.source.portRole,
+            },
           },
-        },
         mapping: (queryPreview?.compiled.mapping as unknown as Readonly<
           Record<string, unknown>
-        >) ?? {
-          target: {
-            nodeType: preview.target.nodeType,
-            objectId: preview.target.objectId,
-            portRole: preview.target.portRole,
+        >) ??
+          (mutation?.mapping as unknown as Readonly<
+            Record<string, unknown>
+          >) ?? {
+            target: {
+              nodeType: preview.target.nodeType,
+              objectId: preview.target.objectId,
+              portRole: preview.target.portRole,
+            },
           },
-        },
         status: "READY",
         now,
       });

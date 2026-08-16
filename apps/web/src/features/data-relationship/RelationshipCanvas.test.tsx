@@ -527,6 +527,222 @@ describe("RelationshipCanvas", () => {
     );
   });
 
+  it("maps Number Inputs to logical Table fields for a CREATE Binding", async () => {
+    const buttonId = "00000000-0000-4000-8000-000000000910";
+    const inputId = "00000000-0000-4000-8000-000000000911";
+    const valueFieldId = "00000000-0000-4000-8000-000000000912";
+    const buttonNode: RelationshipNodeDto = {
+      ...elementNode,
+      id: `element:${buttonId}`,
+      objectId: buttonId,
+      label: "저장",
+      subtitle: "Button · 분석",
+      ports: [
+        elementNode.ports[0] as RelationshipPortDto,
+        {
+          id: `${buttonId}:click:output:1`,
+          nodeId: `element:${buttonId}`,
+          objectId: buttonId,
+          role: "click",
+          label: "Submit",
+          direction: "output",
+          side: "right",
+          valueType: "event",
+          allowedBindingTypes: ["CREATE", "UPDATE", "DELETE"],
+          maxConnections: null,
+        },
+      ],
+    };
+    const inputNode: RelationshipNodeDto = {
+      ...elementNode,
+      id: `element:${inputId}`,
+      objectId: inputId,
+      label: "값 입력",
+      subtitle: "Number Input · 분석",
+      ports: [],
+    };
+    const writeGraph: DataRelationshipGraphDto = {
+      ...graph(),
+      nodes: [pageNode, buttonNode, inputNode, tableNode],
+    };
+    const sourcePort = buttonNode.ports[1] as RelationshipPortDto;
+    const targetPort = tableNode.ports[0] as RelationshipPortDto;
+    const endpoint = (portValue: RelationshipPortDto) => ({
+      nodeType: portValue.nodeId.startsWith("table:")
+        ? ("table" as const)
+        : ("element" as const),
+      nodeId: portValue.nodeId,
+      objectId: portValue.objectId,
+      portId: portValue.id,
+      portRole: portValue.role,
+      direction: portValue.direction,
+      side: portValue.side,
+      valueType: portValue.valueType,
+    });
+    const createBinding: RelationshipBindingDto = {
+      ...binding(),
+      id: "00000000-0000-4000-8000-000000000913",
+      bindingType: "CREATE",
+      source: endpoint(sourcePort),
+      target: endpoint(targetPort),
+      query: {
+        schemaVersion: 1,
+        operation: "CREATE",
+        tableId,
+        primaryKeyFieldId: fieldId,
+      },
+      mapping: {
+        fields: [{ fieldId: valueFieldId, inputElementId: inputId }],
+      },
+    };
+    const calls: Array<{ url: string; method: string; body: unknown }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = init?.method ?? "GET";
+        const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+        calls.push({ url, method, body });
+        if (url.endsWith("/relationship-graph")) return response(writeGraph);
+        if (url.endsWith("/relationship-layout-history"))
+          return response(layoutHistory(writeGraph));
+        if (url.endsWith("/binding-history"))
+          return response(history(writeGraph));
+        if (url.endsWith("/connections/preview")) {
+          return response({
+            previewId,
+            projectId,
+            source: endpoint(sourcePort),
+            target: endpoint(targetPort),
+            compatible: true,
+            allowedBindingTypes: ["CREATE", "UPDATE", "DELETE"],
+            issues: [],
+            graphRevision: 0,
+            projectRevision: 4,
+            expiresAt: "2026-08-16T00:00:15.000Z",
+          });
+        }
+        if (url.endsWith("/schema")) {
+          return response({
+            schemaVersion: 1,
+            projectId,
+            schemaRevision: 2,
+            projectRevision: 4,
+            tables: [
+              {
+                id: tableId,
+                projectId,
+                displayName: "측정값",
+                physicalName: "measurements",
+                description: null,
+                revision: 2,
+                rowCount: 0,
+                createdAt: "2026-08-16T00:00:00.000Z",
+                updatedAt: "2026-08-16T00:00:00.000Z",
+                fields: [
+                  {
+                    id: fieldId,
+                    projectId,
+                    tableId,
+                    displayName: "ID",
+                    physicalName: "id",
+                    type: "INTEGER",
+                    primaryKey: true,
+                    autoIncrement: true,
+                    nullable: false,
+                    unique: true,
+                    defaultValue: null,
+                    indexed: true,
+                    unit: null,
+                    description: null,
+                    sortOrder: 0,
+                    revision: 1,
+                    createdAt: "2026-08-16T00:00:00.000Z",
+                    updatedAt: "2026-08-16T00:00:00.000Z",
+                  },
+                  {
+                    id: valueFieldId,
+                    projectId,
+                    tableId,
+                    displayName: "값",
+                    physicalName: "value",
+                    type: "REAL",
+                    primaryKey: false,
+                    autoIncrement: false,
+                    nullable: false,
+                    unique: false,
+                    defaultValue: null,
+                    indexed: false,
+                    unit: null,
+                    description: null,
+                    sortOrder: 1,
+                    revision: 1,
+                    createdAt: "2026-08-16T00:00:00.000Z",
+                    updatedAt: "2026-08-16T00:00:00.000Z",
+                  },
+                ],
+              },
+            ],
+            relations: [],
+            runtime: {
+              test: {
+                environment: "test",
+                appliedRevision: 2,
+                schemaChecksum: "a".repeat(64),
+                drift: false,
+                integrity: "ok",
+              },
+              production: {
+                environment: "production",
+                appliedRevision: 2,
+                schemaChecksum: "a".repeat(64),
+                drift: false,
+                integrity: "ok",
+              },
+            },
+          });
+        }
+        if (url.endsWith("/bindings") && method === "POST") {
+          return response(
+            {
+              binding: createBinding,
+              graphRevision: 1,
+              projectRevision: 5,
+              commandId,
+            },
+            201,
+          );
+        }
+        return response({ error: { code: "NOT_FOUND", message: "없음" } }, 404);
+      }),
+    );
+    const user = userEvent.setup();
+    render(
+      <RelationshipCanvas
+        projectId={projectId}
+        projectRevision={4}
+        onProjectRevisionChange={vi.fn()}
+      />,
+    );
+    await screen.findByText("저장");
+    await user.click(screen.getByRole("button", { name: "Submit 출력" }));
+    await user.click(screen.getByRole("button", { name: "Record 입력" }));
+    const dialog = await screen.findByRole("dialog", { name: "연결" });
+    expect(await within(dialog).findByLabelText("값")).toHaveValue(inputId);
+    await user.click(within(dialog).getByRole("button", { name: "연결" }));
+    const createCall = calls.find(
+      ({ url, method }) => url.endsWith("/bindings") && method === "POST",
+    );
+    expect(createCall?.body).toMatchObject({
+      bindingType: "CREATE",
+      mutation: {
+        fieldMappings: [{ fieldId: valueFieldId, inputElementId: inputId }],
+      },
+    });
+    expect(createCall?.body).not.toHaveProperty("tableName");
+    expect(createCall?.body).not.toHaveProperty("sql");
+  });
+
   it("deletes the selected Edge and sends Undo through the durable history boundary", async () => {
     let current = graph([binding()]);
     let currentHistory = history(current, true);

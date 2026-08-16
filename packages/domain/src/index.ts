@@ -199,6 +199,8 @@ export {
   type UpdateRelationshipViewportRequest,
 } from "./data-relationship.js";
 export {
+  BINDING_MUTATION_OPERATIONS,
+  BINDING_MUTATION_SCHEMA_VERSION,
   BINDING_QUERY_SCHEMA_VERSION,
   BINDING_RENDER_SHAPES,
   READ_AGGREGATE_FUNCTIONS,
@@ -208,6 +210,8 @@ export {
   type BindingBoxPointDto,
   type BindingExecutionDto,
   type BindingMappingSpecDto,
+  type BindingMutationFieldMappingDto,
+  type BindingMutationOperation,
   type BindingQueryColumnDto,
   type BindingQueryPreviewDto,
   type BindingQueryResultDto,
@@ -217,6 +221,7 @@ export {
   type BindingScatterPointDto,
   type BindingSeriesPointDto,
   type BindingSummaryPointDto,
+  type ConfigureBindingMutationRequestDto,
   type ExecuteBindingQueryRequest,
   type GenerateSampleDataRequest,
   type PreviewBindingQueryRequest,
@@ -229,7 +234,12 @@ export {
   type ReadSortDirection,
   type ReadSortDto,
   type ResetSampleDataRequest,
+  type RuntimeBindingMutationDto,
+  type RuntimeBindingMutationFieldErrorDto,
+  type RuntimeBindingMutationRequestDto,
   type SampleDataMutationDto,
+  type StoredBindingMutationMappingDto,
+  type StoredBindingMutationQueryDto,
 } from "./binding-query.js";
 export {
   LUCIDE_ICON_CATALOG_VERSION,

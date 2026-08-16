@@ -296,6 +296,30 @@ Test plan:
   height
 - Browser console errors and required request failures: 0
 
+## Phase 13 evidence
+
+- Static, behavioral, browser, and Phase 0–12 regression audit:
+  `artifacts/phase13/crud-binding-runtime-validation.json`
+- Isolated browser evidence:
+  `artifacts/phase13/browser-crud-binding-validation.json`
+- CREATE, UPDATE, and DELETE Bindings store logical Table, Field, and Input
+  Element IDs only; SQL and physical identifiers never cross the browser
+  contract
+- Draft Preview mutates only `test.sqlite`; Published Runtime uses only
+  `production.sqlite` from the selected immutable definition snapshot
+- Each row mutation and its replay record share one SQLite IMMEDIATE
+  transaction; constraint, row, busy, and validation failures roll back
+- Runtime validation errors map to their Number Input, pending actions are
+  disabled, and successful writes refresh READY Data Table reads on the Page
+- Real Test DB integration covers create→update→delete, exact replay, stale-row
+  conflict, transaction rollback, Data Table refresh, and Production checksum
+  isolation
+- Browser QA at 1280×720: row counts 0→1→1→0, field-level validation,
+  stale-row rollback, and three Data Table refreshes PASS; two inputs and three
+  actions retain equal sibling geometry
+- Browser QA at 419×800: document width remains 419px, Form and Data Table stay
+  reachable, sibling geometry remains equal, and console errors are 0
+
 ## Deferred operational hardening
 
 - Sudden power-loss durability for directory rename/delete requires mount-backed
