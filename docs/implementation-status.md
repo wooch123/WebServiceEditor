@@ -8,7 +8,7 @@ Overall state: `IN PROGRESS`
 
 ### PHASE 19 — Exhaustive Feature, Element, and Layout Verification
 
-State: `IN PROGRESS`
+State: `EXHAUSTIVELY VERIFIED`
 
 Scope:
 
@@ -73,6 +73,12 @@ Current verified slice:
   Types, 55 Element Types, 22 Layout Presets, 11 Binding Types, 120 Themes, 8
   Element actions, 7 lifecycle states, 37 traced requirements, 118 API routes,
   and 418 evidence-backed inventory records.
+- Actual-domain QA confirms all 55 Palette entries, 12 Page Types, 22 Layout
+  Presets, 120 Themes, mobile reachability, non-occluding resize handles,
+  stable Element pointing, body-wide dragging, an unbounded vertical Canvas,
+  conditional Relationship Edge details, maximized graph space, left-aligned
+  Backup navigation, and an 18 ms Relationship Node drop response with zero
+  console errors.
 
 ## Phase ledger
 
@@ -97,7 +103,7 @@ Current verified slice:
 | 16    | VERIFIED               | Validation registry, reports, and deep-link navigation        |
 | 17    | VERIFIED               | Immutable backups, recovery drills, and restore-as-copy       |
 | 18    | OPERATIONALLY VERIFIED | Accessibility, security, performance, actual domain           |
-| 19    | IN PROGRESS            | Exhaustive inventory reconciliation and regression hardening  |
+| 19    | EXHAUSTIVELY VERIFIED  | Exact canonical inventory and actual-domain UX QA passed      |
 | 20–23 | NOT STARTED            | Must follow sequentially                                      |
 
 ## Phase 0 evidence
@@ -493,6 +499,29 @@ Current verified slice:
 - Actual domain first Project display 544ms and Editor open 291ms
 - `https://webeditor.dove9999.com/` returns HTTP 200 through an active named
   tunnel; credentials and tunnel secrets remain outside the repository
+- Browser console errors and required request failures: 0
+
+## Phase 19 evidence
+
+- Exhaustive source, runtime, browser, and Phase 0–18 regression audit:
+  `artifacts/phase19/exhaustive-inventory-validation.json`
+- Actual HTTPS browser evidence:
+  `artifacts/phase19/browser-exhaustive-inventory-validation.json`
+- Exact operational inventory: 12 Page Types, 55 Element Types, 22 Layout
+  Presets, 11 Binding Types, 120 Themes, 8 Element actions, 7 lifecycle states,
+  37 traced requirements, 118 API routes, and 418 evidence records
+- Palette category totals are exact: Basic 12, Input 12, Data 7, Statistics 13,
+  Collaboration 6, and Navigation 5; all sibling cards are 88.609×76px
+- Editor and Published Runtime use separate real renderers for all 55 Elements
+- Actual-domain interaction QA confirms non-occluding edge/corner resize
+  controls, body-wide Element dragging, stable click pointing, unlimited
+  vertical Canvas growth, conditional Edge details, and maximized Relationship
+  workspace
+- Relationship Node drop returned in 18ms and persisted through the real API;
+  its server request completed in 1.95ms
+- At 419px, document width remains 419px and both Palette and Inspector are
+  scroll-reachable; Backup and all peer navigation items share identical
+  192.203×39px bounds with left-aligned labels
 - Browser console errors and required request failures: 0
 
 ## Deferred operational hardening
