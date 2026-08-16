@@ -73,6 +73,38 @@ describe("Phase 12 validation contract", () => {
     assert.equal(result.runtimeSeparated, false);
   });
 
+  it("accepts the concise Preview label only with the accessible action contract", () => {
+    const source = {
+      adr: "",
+      domain: "",
+      pageRepository: "",
+      pageService: "",
+      projectService: "",
+      runtimeService: "",
+      relationshipService: "",
+      compiler: "",
+      pageRoutes: "",
+      relationshipRoutes: "",
+      backendTest: "",
+      app: "",
+      runtime: "",
+      runtimeRenderer: "",
+      runtimeTest: "",
+      pageManager:
+        'createDraftPreview aria-label="미리보기" onClick={() => void openDraftPreview()}>보기</Button>',
+      pageManagerTest: "",
+      runtimeApi: "",
+      styles: "",
+      status: "",
+    };
+    assert.equal(inspectPhase12Contract(source).previewControl, true);
+    source.pageManager = source.pageManager.replace(
+      'aria-label="미리보기"',
+      "",
+    );
+    assert.equal(inspectPhase12Contract(source).previewControl, false);
+  });
+
   it("rejects mismatched browser geometry and Draft/Published leakage", () => {
     const result = inspectPhase12BrowserEvidence({
       schemaVersion: 1,

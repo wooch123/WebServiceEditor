@@ -2,13 +2,18 @@
 
 Updated: 2026-08-16 (Asia/Seoul)
 
-Overall state: `IN PROGRESS`
+Overall state: `EXHAUSTIVELY VERIFIED`
+
+Completion scope: non-Windows implementation and verification. Windows
+installation, reboot, service recovery, backup/restore, and rollback were
+explicitly excluded by user direction, remain unverified, and are not treated
+as passing release evidence.
 
 ## Current phase
 
 ### PHASE 23 — Final Non-Windows Audit
 
-State: `IN PROGRESS`
+State: `EXHAUSTIVELY VERIFIED`
 
 Scope:
 
@@ -39,9 +44,12 @@ Current verified slice:
   web component tests, 166 validation tests, all unit suites, formatting,
   linting, type checking, and production builds.
 - Local web, public HTTPS, and public Ready endpoints each return HTTP 200.
-- The scoped Phase 23 gate passes 32/32 checks. The canonical release gate
-  intentionally remains red with only the Windows deployment, recovery,
-  rollback, and downstream final-report evidence absent.
+- The declared non-Windows scope is complete and exhaustively verified. Its
+  dedicated gate passes with every checksum-bound report and regression gate
+  satisfied.
+- The canonical release gate intentionally remains red with only the Windows
+  deployment, recovery, rollback, and downstream final-report evidence absent.
+  This repository is therefore not marked `RELEASED`.
 
 Phase 23 non-Windows report:
 `reports/release/non-windows-final-audit.json`.
@@ -261,7 +269,7 @@ Current verified slice:
 | 20    | OPERATIONALLY VERIFIED | Exact 100-Project isolated generation and manifest passed     |
 | 21    | OPERATIONALLY VERIFIED | 100/100 operational scenarios and performance budgets passed  |
 | 22    | IMPLEMENTED            | Windows package complete; operational execution not run       |
-| 23    | IN PROGRESS            | Non-Windows final audit; canonical release remains HOLD       |
+| 23    | EXHAUSTIVELY VERIFIED  | Non-Windows audit complete; canonical release remains HOLD    |
 
 ## Phase 0 evidence
 

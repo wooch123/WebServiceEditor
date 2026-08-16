@@ -129,7 +129,8 @@ export function inspectPhase12Contract(source) {
       /\/preview\/:projectId\/:previewId\/\*/u.test(source.app),
     previewControl:
       /createDraftPreview/u.test(source.pageManager) &&
-      />\s*미리보기\s*</u.test(source.pageManager),
+      /aria-label="미리보기"/u.test(source.pageManager) &&
+      /onClick=\{\(\) => void openDraftPreview\(\)\}/u.test(source.pageManager),
     equalActions:
       /grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\)/u.test(
         source.styles,

@@ -61,6 +61,32 @@ export function inspectNonWindowsFinalAuditBoundary(input) {
   };
 }
 
+export function inspectNonWindowsCompletionStatus(status) {
+  const phaseSection =
+    status.match(
+      /### PHASE 23 — Final Non-Windows Audit[\s\S]*?(?=\n### |\n## Phase ledger)/u,
+    )?.[0] ?? "";
+  return {
+    overallState:
+      /Overall state: `EXHAUSTIVELY VERIFIED`/u.test(status) &&
+      /Completion scope: non-Windows implementation and verification/u.test(
+        status,
+      ),
+    phaseState: /State: `EXHAUSTIVELY VERIFIED`/u.test(phaseSection),
+    declaredScopeComplete:
+      /declared non-Windows scope is complete and exhaustively verified/iu.test(
+        phaseSection,
+      ),
+    releaseBoundary:
+      /canonical release gate intentionally remains red/iu.test(phaseSection) &&
+      /not marked `RELEASED`/u.test(phaseSection),
+    ledger:
+      /\| 23\s+\| EXHAUSTIVELY VERIFIED\s+\| Non-Windows audit complete; canonical release remains HOLD\s+\|/u.test(
+        status,
+      ),
+  };
+}
+
 export function inspectFinalReleaseBoundary(input) {
   return {
     exhaustiveEvidence:
@@ -179,6 +205,10 @@ export async function validatePhase23Local() {
   for (const [name, passed] of Object.entries(boundary)) {
     validation.equal(passed, true, `Non-Windows audit contract: ${name}`);
   }
+  const completionStatus = inspectNonWindowsCompletionStatus(input.status);
+  for (const [name, passed] of Object.entries(completionStatus)) {
+    validation.equal(passed, true, `Non-Windows completion status: ${name}`);
+  }
 
   const packageJson = JSON.parse(input.package);
   validation.equal(
@@ -274,11 +304,6 @@ export async function validatePhase23Local() {
   }
 
   validation.check(
-    /PHASE 23 — Final Non-Windows Audit/u.test(input.status) &&
-      /State: `IN PROGRESS`/u.test(input.status),
-    "implementation status tracks Phase 23 as in progress",
-  );
-  validation.check(
     /Phase 22 retained implementation baseline/u.test(input.status) &&
       /State: `IMPLEMENTED`/u.test(input.status),
     "Phase 22 is implementation-complete without an operational claim",
@@ -286,6 +311,7 @@ export async function validatePhase23Local() {
 
   return validation.result({
     boundary,
+    completionStatus,
     report: report
       ? {
           scope: report.scope,

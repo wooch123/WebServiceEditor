@@ -3,6 +3,7 @@ import { describe, it } from "node:test";
 
 import {
   inspectFinalReleaseBoundary,
+  inspectNonWindowsCompletionStatus,
   inspectNonWindowsFinalAuditBoundary,
   validatePhase23,
   validatePhase23Local,
@@ -105,6 +106,37 @@ describe("Phase 23 validation contract", () => {
       Object.values(
         inspectNonWindowsFinalAuditBoundary(validNonWindowsInput()),
       ).every(Boolean),
+    );
+  });
+
+  it("accepts exhaustive non-Windows completion without claiming release", () => {
+    const status = `
+Overall state: \`EXHAUSTIVELY VERIFIED\`
+Completion scope: non-Windows implementation and verification.
+### PHASE 23 — Final Non-Windows Audit
+State: \`EXHAUSTIVELY VERIFIED\`
+The declared non-Windows scope is complete and exhaustively verified.
+The canonical release gate intentionally remains red. This repository is not marked \`RELEASED\`.
+## Phase ledger
+| 23 | EXHAUSTIVELY VERIFIED | Non-Windows audit complete; canonical release remains HOLD |
+`;
+    assert.ok(
+      Object.values(inspectNonWindowsCompletionStatus(status)).every(Boolean),
+    );
+  });
+
+  it("rejects a non-Windows completion record that claims release", () => {
+    const status = `
+Overall state: \`RELEASED\`
+### PHASE 23 — Final Non-Windows Audit
+State: \`RELEASED\`
+The declared non-Windows scope is complete.
+## Phase ledger
+| 23 | RELEASED | Release |
+`;
+    assert.equal(
+      Object.values(inspectNonWindowsCompletionStatus(status)).every(Boolean),
+      false,
     );
   });
 
