@@ -14,9 +14,9 @@ import GridLayout, {
   type LayoutItem,
 } from "react-grid-layout";
 import {
-  createScaledStrategy,
   moveElement as moveGridElement,
   noCompactor,
+  transformStrategy,
   verticalCompactor,
 } from "react-grid-layout/core";
 import "react-grid-layout/css/styles.css";
@@ -79,6 +79,10 @@ export const ELEMENT_RESIZE_HANDLES: readonly ResizeHandle[] = [
   "se",
   "sw",
 ];
+
+export function createEditorScaledPositionStrategy(scale: number) {
+  return { ...transformStrategy, scale };
+}
 
 interface ResizePreview {
   elementId: string;
@@ -454,6 +458,10 @@ export function ElementCanvas() {
     "--canvas-column-pitch": `${gridColumnWidth(canvasWidth) + GRID_GAP}px`,
     transform: `scale(${workspace.zoom})`,
   } as CSSProperties;
+  const positionStrategy = useMemo(
+    () => createEditorScaledPositionStrategy(workspace.zoom),
+    [workspace.zoom],
+  );
 
   const setCanvasNode = useCallback(
     (node: HTMLDivElement | null) => {
@@ -695,6 +703,7 @@ export function ElementCanvas() {
                 dragConfig={{
                   enabled: !workspace.mutating,
                   bounded: true,
+                  threshold: 12,
                   handle: ".element-node-drag-area",
                   cancel:
                     ".element-interactive, .element-resize-handle, button, input, textarea, select, a, label, [contenteditable='true']",
@@ -714,7 +723,7 @@ export function ElementCanvas() {
                   ),
                 }}
                 compactor={noCompactor}
-                positionStrategy={createScaledStrategy(workspace.zoom)}
+                positionStrategy={positionStrategy}
                 onDragStart={() => beginGridInteraction("drag")}
                 onDragStop={handleDragStop}
                 onResizeStart={handleResizeStart}

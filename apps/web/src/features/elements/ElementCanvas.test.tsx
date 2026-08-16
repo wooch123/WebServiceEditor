@@ -20,6 +20,7 @@ import type {
 } from "@/services/elements-api";
 import {
   CanvasControls,
+  createEditorScaledPositionStrategy,
   ElementCanvas,
   ElementInspectorSummary,
   ELEMENT_RESIZE_HANDLES,
@@ -782,6 +783,12 @@ afterEach(async () => {
 });
 
 describe("ElementCanvas Phase 5 interaction", () => {
+  it("uses parent-relative scaled positioning without an absolute pointer origin", () => {
+    const strategy = createEditorScaledPositionStrategy(1.5);
+    expect(strategy.scale).toBe(1.5);
+    expect(strategy).not.toHaveProperty("calcDragPosition");
+  });
+
   it("renders Test DB READ results in Table and Histogram elements without frontend fixture data", async () => {
     const tableEntry = makeEntry("bound-table", "data-table", {
       x: 0,
@@ -2097,6 +2104,43 @@ describe("ElementCanvas Phase 5 interaction", () => {
     expect(option.style.transform).toBe(originalTransform);
     expect(option).toHaveAttribute("data-w", "12");
     expect(option).toHaveAttribute("data-h", "12");
+    expect(mutationCalls(api.calls)).toHaveLength(0);
+  });
+
+  it("treats small pointer jitter on a 150% canvas as selection without moving or saving", async () => {
+    const api = installElementApi({
+      entries: [makeEntry("click-target", "text", { x: 2, y: 2 })],
+    });
+    installCanvasGeometry();
+    const user = userEvent.setup();
+    render(<Harness />);
+    await user.selectOptions(
+      screen.getByRole("combobox", { name: "캔버스 배율" }),
+      "1.5",
+    );
+    const option = await screen.findByTestId("placed-element-click-target");
+    const surface = option.querySelector(".element-render-surface");
+    expect(surface).not.toBeNull();
+
+    fireEvent.mouseDown(surface as HTMLElement, {
+      button: 0,
+      buttons: 1,
+      clientX: 500,
+      clientY: 300,
+    });
+    fireEvent.mouseMove(document, {
+      buttons: 1,
+      clientX: 503,
+      clientY: 303,
+    });
+    fireEvent.mouseUp(document, {
+      button: 0,
+      clientX: 503,
+      clientY: 303,
+    });
+
+    expect(option).toHaveAttribute("data-x", "2");
+    expect(option).toHaveAttribute("data-y", "2");
     expect(mutationCalls(api.calls)).toHaveLength(0);
   });
 
