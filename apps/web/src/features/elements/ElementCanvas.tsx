@@ -80,6 +80,17 @@ export const ELEMENT_RESIZE_HANDLES: readonly ResizeHandle[] = [
   "sw",
 ];
 
+const RESIZE_HANDLE_LABELS: Record<ResizeHandle, string> = {
+  n: "위",
+  s: "아래",
+  e: "오른쪽",
+  w: "왼쪽",
+  ne: "오른쪽 위",
+  nw: "왼쪽 위",
+  se: "오른쪽 아래",
+  sw: "왼쪽 아래",
+};
+
 export function createEditorScaledPositionStrategy(scale: number) {
   return { ...transformStrategy, scale };
 }
@@ -135,7 +146,7 @@ function CustomResizeHandle({
       className={`react-resizable-handle react-resizable-handle-${axis} element-resize-handle`}
       role="button"
       tabIndex={-1}
-      aria-label={`${axis} 크기 조절`}
+      aria-label={`${RESIZE_HANDLE_LABELS[axis]} 크기 조절`}
       data-testid={`resize-handle-${axis}`}
       data-resize-handle={axis}
       onPointerDown={(event) => {

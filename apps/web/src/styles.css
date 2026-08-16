@@ -3948,7 +3948,7 @@ svg {
   right: 0.35rem;
 }
 
-.element-resize-handle {
+.placed-element > .element-resize-handle {
   position: absolute;
   z-index: 6;
   display: block;
@@ -3961,17 +3961,19 @@ svg {
   transition: opacity 120ms ease;
 }
 
-.element-resize-handle::after {
+.placed-element > .element-resize-handle::after {
   position: absolute;
   display: block;
   box-sizing: border-box;
+  right: auto;
+  bottom: auto;
   border: 0;
   transform: translate(-50%, -50%);
   content: "";
 }
 
 .placed-element.is-selected > .element-resize-handle {
-  opacity: 0.74;
+  opacity: 0.78;
   pointer-events: auto;
 }
 
@@ -3979,41 +3981,45 @@ svg {
   opacity: 1;
 }
 
-.element-resize-handle.react-resizable-handle-n {
+.placed-element > .element-resize-handle.react-resizable-handle-n {
   top: -0.55rem;
   left: 50%;
   width: 2.75rem;
   height: 1.1rem;
   margin-left: -1.375rem;
+  transform: none;
   cursor: ns-resize;
 }
-.element-resize-handle.react-resizable-handle-s {
+.placed-element > .element-resize-handle.react-resizable-handle-s {
   bottom: -0.55rem;
   left: 50%;
   width: 2.75rem;
   height: 1.1rem;
   margin-left: -1.375rem;
+  transform: none;
   cursor: ns-resize;
 }
-.element-resize-handle.react-resizable-handle-e {
+.placed-element > .element-resize-handle.react-resizable-handle-e {
   top: 50%;
   right: -0.55rem;
   width: 1.1rem;
   height: 2.75rem;
   margin-top: -1.375rem;
+  transform: none;
   cursor: ew-resize;
 }
-.element-resize-handle.react-resizable-handle-w {
+.placed-element > .element-resize-handle.react-resizable-handle-w {
   top: 50%;
   left: -0.55rem;
   width: 1.1rem;
   height: 2.75rem;
   margin-top: -1.375rem;
+  transform: none;
   cursor: ew-resize;
 }
 
-.element-resize-handle.react-resizable-handle-n::after,
-.element-resize-handle.react-resizable-handle-s::after {
+.placed-element > .element-resize-handle.react-resizable-handle-n::after,
+.placed-element > .element-resize-handle.react-resizable-handle-s::after {
   top: 50%;
   left: 50%;
   width: 1.65rem;
@@ -4022,8 +4028,8 @@ svg {
   background: var(--selection);
 }
 
-.element-resize-handle.react-resizable-handle-e::after,
-.element-resize-handle.react-resizable-handle-w::after {
+.placed-element > .element-resize-handle.react-resizable-handle-e::after,
+.placed-element > .element-resize-handle.react-resizable-handle-w::after {
   top: 50%;
   left: 50%;
   width: 3px;
@@ -4032,39 +4038,43 @@ svg {
   background: var(--selection);
 }
 
-.element-resize-handle.react-resizable-handle-ne {
+.placed-element > .element-resize-handle.react-resizable-handle-ne {
   top: -0.6rem;
   right: -0.6rem;
   width: 1.2rem;
   height: 1.2rem;
+  transform: none;
   cursor: nesw-resize;
 }
-.element-resize-handle.react-resizable-handle-nw {
+.placed-element > .element-resize-handle.react-resizable-handle-nw {
   top: -0.6rem;
   left: -0.6rem;
   width: 1.2rem;
   height: 1.2rem;
+  transform: none;
   cursor: nwse-resize;
 }
-.element-resize-handle.react-resizable-handle-se {
+.placed-element > .element-resize-handle.react-resizable-handle-se {
   right: -0.6rem;
   bottom: -0.6rem;
   width: 1.2rem;
   height: 1.2rem;
+  transform: none;
   cursor: nwse-resize;
 }
-.element-resize-handle.react-resizable-handle-sw {
+.placed-element > .element-resize-handle.react-resizable-handle-sw {
   bottom: -0.6rem;
   left: -0.6rem;
   width: 1.2rem;
   height: 1.2rem;
+  transform: none;
   cursor: nesw-resize;
 }
 
-.element-resize-handle.react-resizable-handle-ne::after,
-.element-resize-handle.react-resizable-handle-nw::after,
-.element-resize-handle.react-resizable-handle-se::after,
-.element-resize-handle.react-resizable-handle-sw::after {
+.placed-element > .element-resize-handle.react-resizable-handle-ne::after,
+.placed-element > .element-resize-handle.react-resizable-handle-nw::after,
+.placed-element > .element-resize-handle.react-resizable-handle-se::after,
+.placed-element > .element-resize-handle.react-resizable-handle-sw::after {
   top: 50%;
   left: 50%;
   width: 0.55rem;

@@ -1940,8 +1940,16 @@ describe("ElementCanvas Phase 5 interaction", () => {
     ]);
     expect(stylesCss).toContain(".element-resize-tooltip");
     expect(stylesCss).toMatch(
-      /\.element-resize-handle::after\s*\{[^}]*border:\s*0;[^}]*transform:\s*translate\(-50%,\s*-50%\);/s,
+      /\.placed-element\s*>\s*\.element-resize-handle::after\s*\{[^}]*border:\s*0;[^}]*transform:\s*translate\(-50%,\s*-50%\);/s,
     );
+    for (const handle of ELEMENT_RESIZE_HANDLES) {
+      expect(stylesCss).toMatch(
+        new RegExp(
+          `\\.placed-element\\s*>\\s*\\.element-resize-handle\\.react-resizable-handle-${handle}\\s*\\{[^}]*transform:\\s*none;`,
+          "s",
+        ),
+      );
+    }
     expect(stylesCss).toContain(
       '.element-renderer[data-render-mode="compact"]',
     );
