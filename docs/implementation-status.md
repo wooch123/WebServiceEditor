@@ -6,28 +6,28 @@ Overall state: `IN PROGRESS`
 
 ## Current phase
 
-### PHASE 16 — Validation System
+### PHASE 17 — Backup, Export/Import, Recovery
 
 State: `VERIFIED`
 
 Scope:
 
-- Generate Requirement, Rule, Element, Preset, Theme, Binding, API, and
-  lifecycle inventory from canonical registries.
-- Persist immutable Validation Runs and exact idempotent replay evidence.
-- Detect broken Page routes, Element layouts, Binding references, Test DB
-  physical schema, and Theme policy references.
-- Navigate from report errors to the affected Editor object.
+- Create immutable Project backups from the canonical Export payload.
+- Preserve Metadata, Test Runtime, Production Runtime, Assets, Published
+  Runtime, and checksum evidence.
+- Verify backups with a read-only recovery drill and restore as a new Project.
+- Keep backup ownership independent from trash, restore, and purge state.
 
-Data risk: low. Validation is read-only except for its own run evidence.
+Data risk: medium. Backup creation is additive; restore never overwrites the
+source Project and creates a new active Project through the Import boundary.
 
 Test plan:
 
-- Verify PASS, WARNING, FAIL, and BLOCKED summaries.
-- Verify no implemented inventory item lacks a Test Reference or evidence.
-- Inject broken Route, Binding, and physical Test schema references.
-- Verify restart persistence, idempotent replay, deep-link navigation, and
-  responsive equal action geometry.
+- Verify exact file, payload, and inventory SHA-256 values.
+- Verify idempotent create/restore/drill replay and restart recovery.
+- Trash the source, restore a new Project, and compare Runtime rows, Assets,
+  Published navigation, and sentinels.
+- Tamper with a stored payload and verify fail-closed restore behavior.
 
 ## Phase ledger
 
@@ -50,7 +50,8 @@ Test plan:
 | 14    | VERIFIED    | Project variables and typed runtime navigation                |
 | 15    | VERIFIED    | Validated Theme revisions and browser-local Runtime policy    |
 | 16    | VERIFIED    | Validation registry, reports, and deep-link navigation        |
-| 17–23 | NOT STARTED | Must follow sequentially                                      |
+| 17    | VERIFIED    | Immutable backups, recovery drills, and restore-as-copy       |
+| 18–23 | NOT STARTED | Must follow sequentially                                      |
 
 ## Phase 0 evidence
 
@@ -401,6 +402,29 @@ Test plan:
   reachable, and Validation actions are both 185.5×40px
 - Browser console errors and required request failures: 0
 
+## Phase 17 evidence
+
+- Static, behavioral, browser, and Phase 16 regression audit:
+  `artifacts/phase17/backup-export-import-recovery-validation.json`
+- Isolated browser recovery evidence:
+  `artifacts/phase17/browser-backup-recovery-validation.json`
+- Metadata migration v14 stores immutable Backup inventory, replay-safe Backup
+  commands, and durable restore/drill runs
+- The backup manifest binds the canonical Project Export to payload and sorted
+  file-inventory SHA-256 values, exact file count, byte count, source identity,
+  and source revision
+- Backup creation, verification, and restore are server-owned and idempotent;
+  deterministic failures replay while transient failures remain retryable
+- Restore creates a new active Project through canonical Import and never
+  overwrites the source, including when the source remains in the recycle bin
+- Both Runtime SQLite databases, nested Assets, Published navigation, and
+  sentinel data survive backup, restart, trash, and restore
+- Tampered snapshots become `INVALID`, block restore, and make readiness fail
+  closed while verified snapshot metadata drives purge impact evidence
+- Project Home exposes concise Backup, Verify, and Restore actions with shared
+  sibling geometry; mobile tables own their horizontal overflow
+- Browser console errors and required request failures: 0
+
 ## Phase 18 operational checkpoint
 
 - Per user direction, Phase 18 includes an actual-domain deployment checkpoint
@@ -414,8 +438,6 @@ Test plan:
 - Sudden power-loss durability for directory rename/delete requires mount-backed
   testing in a later recovery phase; Phase 3 proves process interruption and
   startup recovery, not full operational power-loss certification.
-- Backup availability should eventually require a verified backup marker rather
-  than any child directory.
 - Metadata startup must fail closed on unknown future migration versions before
   backward-compatible release testing.
 - Runtime metadata singleton and lifecycle-status constraints will be tightened

@@ -10,7 +10,7 @@ describe("MetadataDatabase", () => {
       expect(database.assertReady()).toMatchObject({
         foreignKeysEnabled: true,
         integrity: "ok",
-        schemaVersion: 13,
+        schemaVersion: 14,
       });
     } finally {
       database.close();

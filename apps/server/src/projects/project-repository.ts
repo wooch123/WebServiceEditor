@@ -610,6 +610,19 @@ export class ProjectRepository {
     }, 0);
   }
 
+  hasVerifiedProjectBackup(projectId: string): boolean {
+    return (
+      this.connection
+        .prepare(
+          `SELECT 1
+           FROM project_backups
+           WHERE source_project_id = ? AND status = 'VERIFIED'
+           LIMIT 1`,
+        )
+        .get(projectId) !== undefined
+    );
+  }
+
   putPurgePlan(plan: PurgePlanDto, createdAt: string): void {
     this.connection
       .prepare(

@@ -45,8 +45,12 @@ describe("system routes", () => {
       });
       expect(readyResponse.statusCode).toBe(200);
       expect(readyResponse.json()).toEqual({
-        checks: { metadataDatabase: "ready", projectStorage: "ready" },
-        schemaVersion: 13,
+        checks: {
+          backupStorage: "ready",
+          metadataDatabase: "ready",
+          projectStorage: "ready",
+        },
+        schemaVersion: 14,
         status: "ready",
       });
     } finally {
@@ -72,6 +76,7 @@ describe("system routes", () => {
       { name: "project-variable-navigation", version: 11 },
       { name: "theme-revision-runtime-policy", version: 12 },
       { name: "validation-inventory-report", version: 13 },
+      { name: "project-backup-export-import-recovery", version: 14 },
     ]);
     expect(database.pragma("quick_check", { simple: true })).toBe("ok");
     expect(() =>

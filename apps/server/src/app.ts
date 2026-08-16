@@ -1,5 +1,6 @@
 import Fastify, { type FastifyInstance } from "fastify";
 
+import { BackupService } from "./backup/backup-service.js";
 import { resolveMetadataDatabasePath, resolveStorageRoot } from "./config.js";
 import { ApiError } from "./errors.js";
 import {
@@ -23,6 +24,7 @@ import { PageService } from "./pages/page-service.js";
 import { ProjectService } from "./projects/project-service.js";
 import type { LifecycleFailureInjector } from "./projects/project-storage.js";
 import { registerProjectRoutes } from "./routes/projects.js";
+import { registerBackupRoutes } from "./routes/backups.js";
 import { registerElementRoutes } from "./routes/elements.js";
 import { registerLayoutPresetRoutes } from "./routes/layout-presets.js";
 import { registerPageRoutes } from "./routes/pages.js";
@@ -133,6 +135,12 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
     () => [...registeredApiRoutes].sort(),
     options.clock ?? (() => new Date()),
   );
+  const backupService = new BackupService(
+    metadataDatabase,
+    projectService,
+    resolveStorageRoot(options.storageRoot),
+    options.clock ?? (() => new Date()),
+  );
 
   app.setErrorHandler(async (error, _request, reply) => {
     if (error instanceof ApiError) {
@@ -187,8 +195,13 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   app.addHook("onClose", async () => {
     metadataDatabase.close();
   });
-  void app.register(registerSystemRoutes, { metadataDatabase, projectService });
+  void app.register(registerSystemRoutes, {
+    metadataDatabase,
+    projectService,
+    backupService,
+  });
   void app.register(registerProjectRoutes, { projectService });
+  void app.register(registerBackupRoutes, { backupService });
   void app.register(registerPageRoutes, { pageService });
   void app.register(registerElementRoutes, { elementService });
   void app.register(registerLayoutPresetRoutes, { layoutPresetService });

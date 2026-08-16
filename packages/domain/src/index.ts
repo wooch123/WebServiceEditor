@@ -5,6 +5,17 @@ export {
   type ProjectLifecycleStatus,
 } from "./project-lifecycle.js";
 export {
+  PROJECT_BACKUP_STATUSES,
+  type CreateProjectBackupRequest,
+  type ProjectBackupDrillDto,
+  type ProjectBackupDto,
+  type ProjectBackupListDto,
+  type ProjectBackupRestoreDto,
+  type ProjectBackupStatus,
+  type RestoreProjectBackupRequest,
+  type VerifyProjectBackupRequest,
+} from "./backup.js";
+export {
   VALIDATION_INVENTORY_CATEGORIES,
   VALIDATION_LEVELS,
   VALIDATION_RESULTS,

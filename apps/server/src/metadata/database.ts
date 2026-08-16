@@ -7,7 +7,7 @@ import { themes } from "@webeditor/theme-core";
 import Database from "better-sqlite3";
 
 const METADATA_APPLICATION_ID = 0x57454245;
-export const LATEST_METADATA_SCHEMA_VERSION = 13;
+export const LATEST_METADATA_SCHEMA_VERSION = 14;
 
 const lifecycleSqlValues = PROJECT_LIFECYCLE_STATUSES.map(
   (status) => `'${status}'`,
@@ -1497,6 +1497,99 @@ export const VALIDATION_INVENTORY_REPORT_SCHEMA_CHECKSUM = createHash("sha256")
   .update(validationInventoryReportSchemaSql)
   .digest("hex");
 
+const projectBackupRecoverySchemaSql = `
+  CREATE TABLE project_backups (
+    id TEXT PRIMARY KEY NOT NULL,
+    source_project_id TEXT NOT NULL,
+    source_project_name TEXT NOT NULL CHECK (length(trim(source_project_name)) > 0),
+    source_project_slug TEXT NOT NULL CHECK (length(trim(source_project_slug)) > 0),
+    source_project_revision INTEGER NOT NULL CHECK (
+      source_project_revision >= 1 AND typeof(source_project_revision) = 'integer'
+    ),
+    status TEXT NOT NULL CHECK (status IN ('VERIFIED', 'INVALID')),
+    label TEXT CHECK (label IS NULL OR length(trim(label)) BETWEEN 1 AND 120),
+    relative_path TEXT NOT NULL UNIQUE,
+    payload_checksum TEXT NOT NULL CHECK (
+      length(payload_checksum) = 64 AND payload_checksum = lower(payload_checksum) AND
+      payload_checksum NOT GLOB '*[^0-9a-f]*'
+    ),
+    content_checksum TEXT NOT NULL CHECK (
+      length(content_checksum) = 64 AND content_checksum = lower(content_checksum) AND
+      content_checksum NOT GLOB '*[^0-9a-f]*'
+    ),
+    file_count INTEGER NOT NULL CHECK (
+      file_count > 0 AND typeof(file_count) = 'integer'
+    ),
+    total_bytes INTEGER NOT NULL CHECK (
+      total_bytes >= 0 AND typeof(total_bytes) = 'integer'
+    ),
+    manifest_json TEXT NOT NULL CHECK (
+      json_valid(manifest_json) AND json_type(manifest_json) = 'object'
+    ),
+    created_at TEXT NOT NULL,
+    verified_at TEXT NOT NULL
+  );
+  CREATE INDEX project_backups_source_created_idx
+    ON project_backups(source_project_id, created_at DESC, id DESC);
+  CREATE INDEX project_backups_status_created_idx
+    ON project_backups(status, created_at DESC, id DESC);
+
+  CREATE TABLE backup_commands (
+    id TEXT PRIMARY KEY NOT NULL,
+    scope_id TEXT NOT NULL,
+    operation_type TEXT NOT NULL CHECK (
+      operation_type IN ('CREATE', 'RESTORE', 'VERIFY')
+    ),
+    idempotency_key TEXT NOT NULL CHECK (length(trim(idempotency_key)) BETWEEN 1 AND 200),
+    request_hash TEXT NOT NULL CHECK (
+      length(request_hash) = 64 AND request_hash = lower(request_hash) AND
+      request_hash NOT GLOB '*[^0-9a-f]*'
+    ),
+    request_json TEXT NOT NULL CHECK (
+      json_valid(request_json) AND json_type(request_json) = 'object'
+    ),
+    backup_id TEXT,
+    status TEXT NOT NULL CHECK (status IN ('PENDING', 'COMPLETED', 'FAILED')),
+    response_status INTEGER CHECK (
+      response_status IS NULL OR
+      (response_status BETWEEN 200 AND 499 AND typeof(response_status) = 'integer')
+    ),
+    response_json TEXT CHECK (response_json IS NULL OR json_valid(response_json)),
+    error_json TEXT CHECK (error_json IS NULL OR json_valid(error_json)),
+    created_at TEXT NOT NULL,
+    completed_at TEXT,
+    UNIQUE(scope_id, operation_type, idempotency_key)
+  );
+  CREATE INDEX backup_commands_status_created_idx
+    ON backup_commands(status, created_at, id);
+
+  CREATE TABLE backup_restore_runs (
+    id TEXT PRIMARY KEY NOT NULL,
+    backup_id TEXT NOT NULL REFERENCES project_backups(id),
+    restored_project_id TEXT,
+    status TEXT NOT NULL CHECK (status IN ('PASS', 'FAIL')),
+    payload_checksum TEXT NOT NULL CHECK (
+      length(payload_checksum) = 64 AND payload_checksum = lower(payload_checksum) AND
+      payload_checksum NOT GLOB '*[^0-9a-f]*'
+    ),
+    content_checksum TEXT NOT NULL CHECK (
+      length(content_checksum) = 64 AND content_checksum = lower(content_checksum) AND
+      content_checksum NOT GLOB '*[^0-9a-f]*'
+    ),
+    detail_json TEXT NOT NULL CHECK (
+      json_valid(detail_json) AND json_type(detail_json) = 'object'
+    ),
+    started_at TEXT NOT NULL,
+    completed_at TEXT NOT NULL
+  );
+  CREATE INDEX backup_restore_runs_backup_created_idx
+    ON backup_restore_runs(backup_id, completed_at DESC, id DESC);
+`;
+
+export const PROJECT_BACKUP_RECOVERY_SCHEMA_CHECKSUM = createHash("sha256")
+  .update(projectBackupRecoverySchemaSql)
+  .digest("hex");
+
 const metadataMigrations = [
   {
     checksum: INITIAL_METADATA_SCHEMA_CHECKSUM,
@@ -1575,6 +1668,12 @@ const metadataMigrations = [
     name: "validation-inventory-report",
     sql: validationInventoryReportSchemaSql,
     version: 13,
+  },
+  {
+    checksum: PROJECT_BACKUP_RECOVERY_SCHEMA_CHECKSUM,
+    name: "project-backup-export-import-recovery",
+    sql: projectBackupRecoverySchemaSql,
+    version: 14,
   },
 ] as const;
 

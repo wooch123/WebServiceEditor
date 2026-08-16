@@ -1578,11 +1578,56 @@ export class ProjectService {
     return this.#importExport(exportDto, { name, slug }, "PROJECT_IMPORTED");
   }
 
+  restoreBackup(
+    untrustedExport: unknown,
+    overrides: { readonly name?: string; readonly slug?: string },
+    context: {
+      readonly backupId: string;
+      readonly idempotencyKey: string;
+    },
+  ): ProjectDto {
+    const exportDto = this.#parseProjectExport(untrustedExport);
+    const name = validateName(
+      overrides.name ?? `${exportDto.project.name} Restore`,
+    );
+    const slug = validateSlug(
+      overrides.slug ??
+        `${exportDto.project.slug}-restore-${randomUUID().slice(0, 6)}`,
+    );
+    return this.#importExport(
+      exportDto,
+      { name, slug },
+      "PROJECT_BACKUP_RESTORED",
+      undefined,
+      context,
+    );
+  }
+
+  verifyExport(untrustedExport: unknown): {
+    readonly pageCount: number;
+    readonly elementCount: number;
+    readonly tableCount: number;
+    readonly bindingCount: number;
+    readonly publishedVersionCount: number;
+    readonly fileCount: number;
+  } {
+    const exportDto = this.#parseProjectExport(untrustedExport);
+    return {
+      pageCount: exportDto.pages.length,
+      elementCount: exportDto.elements.length,
+      tableCount: exportDto.dataSchema.tables.length,
+      bindingCount: exportDto.bindings.bindings.length,
+      publishedVersionCount: exportDto.publishedVersions.length,
+      fileCount: exportDto.files.length,
+    };
+  }
+
   #importExport(
     exportDto: ImportableProjectExport,
     project: { readonly name: string; readonly slug: string },
     auditAction: string,
     sourceProjectId?: string,
+    auditBefore?: Record<string, unknown>,
   ): ProjectDto {
     this.#assertNoConflicts(project.name, project.slug);
     const id = randomUUID();
@@ -1816,7 +1861,9 @@ export class ProjectService {
         this.repository.writeAudit({
           projectId: id,
           action: auditAction,
-          before: sourceProjectId === undefined ? null : { sourceProjectId },
+          before:
+            auditBefore ??
+            (sourceProjectId === undefined ? null : { sourceProjectId }),
           after: this.repository.toDto(imported),
           correlationId: randomUUID(),
           now,
@@ -2280,7 +2327,9 @@ export class ProjectService {
         fileCount: snapshot.fileCount + 1,
         assetCount: snapshot.assetCount,
         estimatedBytes: snapshot.totalBytes + statManifestBytes(manifest),
-        hasBackup: this.storage.hasBackup(projectId),
+        hasBackup:
+          this.storage.hasBackup(projectId) ||
+          this.repository.hasVerifiedProjectBackup(projectId),
         blockedReasons: [],
       },
     };

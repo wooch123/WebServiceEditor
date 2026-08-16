@@ -1,11 +1,13 @@
 import type { FastifyInstance } from "fastify";
 
+import type { BackupService } from "../backup/backup-service.js";
 import type { MetadataDatabase } from "../metadata/database.js";
 import type { ProjectService } from "../projects/project-service.js";
 
 export interface SystemRoutesOptions {
   readonly metadataDatabase: MetadataDatabase;
   readonly projectService: ProjectService;
+  readonly backupService: BackupService;
 }
 
 export async function registerSystemRoutes(
@@ -21,8 +23,10 @@ export async function registerSystemRoutes(
     try {
       const readiness = options.metadataDatabase.assertReady();
       options.projectService.assertReady();
+      options.backupService.assertReady();
       return {
         checks: {
+          backupStorage: "ready",
           metadataDatabase: "ready",
           projectStorage: "ready",
         },
@@ -33,6 +37,7 @@ export async function registerSystemRoutes(
       app.log.error({ err: error }, "Readiness check failed");
       return reply.code(503).send({
         checks: {
+          backupStorage: "not_ready",
           metadataDatabase: "not_ready",
           projectStorage: "not_ready",
         },

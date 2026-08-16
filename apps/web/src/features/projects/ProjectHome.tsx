@@ -108,6 +108,7 @@ import type {
   PurgePlanDto,
   RestoreConflictResolution,
 } from "@/services/projects-api";
+import { BackupManager } from "./BackupManager";
 
 type HomeSection = "active" | "recent" | "favorites" | "trash" | "backup";
 type SortOption = "updated" | "name";
@@ -1284,7 +1285,14 @@ export function ProjectHome({
                   <CardTitle id="backup-title">백업</CardTitle>
                   <CardDescription>내보내기·가져오기</CardDescription>
                 </CardHeader>
-                <CardContent>활성 {activeProjects.length}개</CardContent>
+                <CardContent>
+                  <BackupManager
+                    projects={activeProjects}
+                    onRestored={(project) =>
+                      setActiveProjects((current) => [project, ...current])
+                    }
+                  />
+                </CardContent>
                 <CardFooter>
                   <ImportProjectDialog
                     onImported={(project) =>

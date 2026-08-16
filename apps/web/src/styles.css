@@ -1025,10 +1025,10 @@ svg {
 }
 
 .backup-card {
-  display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 1.4em;
+  display: flex;
+  align-items: stretch;
+  flex-direction: column;
+  gap: 1.2em;
   margin-top: 1.2em;
   padding: 2em;
   border: 1px solid var(--border);
@@ -1051,6 +1051,7 @@ svg {
 
 .backup-card [data-slot="card-content"],
 .backup-card [data-slot="card-footer"] {
+  width: 100%;
   padding: 0;
   border: 0;
   background: transparent;
@@ -1059,6 +1060,10 @@ svg {
 .backup-card [data-slot="card-footer"] {
   gap: 0.6em;
   justify-content: flex-end;
+}
+
+.backup-card [data-slot="card-footer"] > button {
+  width: 9.5rem;
 }
 
 .backup-card h1 {
@@ -1084,6 +1089,93 @@ svg {
 .backup-icon svg {
   width: 2em;
   height: 2em;
+}
+
+.backup-manager,
+.backup-projects,
+.backup-snapshots {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.8em;
+}
+
+.backup-manager {
+  gap: 1.1em;
+}
+
+.backup-projects h2,
+.backup-snapshots h2 {
+  margin: 0;
+  color: var(--foreground);
+  font-size: 0.95em;
+}
+
+.backup-project-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 18em), 1fr));
+  gap: 0.6em;
+}
+
+.backup-project-row {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.8em;
+  padding: 0.65em;
+  border: 1px solid var(--border);
+  border-radius: var(--control-radius);
+  background: var(--background);
+}
+
+.backup-project-row > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.backup-row-action {
+  width: 6rem;
+  min-width: 6rem;
+  height: var(--control-height);
+}
+
+.backup-row-actions,
+.backup-restore-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--control-gap);
+}
+
+.backup-restore-actions > button {
+  width: 7rem;
+}
+
+.backup-name-cell {
+  display: flex;
+  min-width: 10rem;
+  flex-direction: column;
+  gap: 0.15em;
+}
+
+.backup-name-cell span,
+.backup-muted,
+.backup-loading {
+  color: var(--muted-foreground);
+  font-size: 0.82em;
+}
+
+.backup-loading {
+  display: flex;
+  min-height: 10em;
+  align-items: center;
+  justify-content: center;
+  gap: var(--control-gap);
+}
+
+.backup-empty {
+  min-height: 14em;
 }
 
 .dialog-backdrop {
@@ -2347,6 +2439,10 @@ svg {
   .backup-card [data-slot="card-footer"] {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .backup-card [data-slot="card-footer"] > button {
+    width: 100%;
   }
 
   .impact-summary-five {

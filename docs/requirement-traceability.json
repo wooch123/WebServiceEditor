@@ -680,17 +680,27 @@
       "phase": 3,
       "status": "VERIFIED",
       "implementation": [
+        "apps/server/src/backup/backup-service.ts",
         "apps/server/src/projects/project-service.ts",
+        "apps/server/src/projects/project-repository.ts",
         "apps/server/src/projects/project-storage.ts",
         "apps/server/src/routes/projects.ts",
-        "apps/web/src/features/projects/ProjectHome.tsx"
+        "apps/web/src/features/projects/ProjectHome.tsx",
+        "apps/web/src/features/projects/BackupManager.tsx"
       ],
       "tests": [
+        "apps/server/test/integration/backup-recovery.test.ts",
         "apps/server/test/integration/project-lifecycle.test.ts",
         "apps/web/src/App.test.tsx",
-        "scripts/verify-phase3.mjs"
+        "apps/web/src/features/projects/BackupManager.test.tsx",
+        "scripts/verify-phase3.mjs",
+        "scripts/verify-phase17.mjs"
       ],
-      "evidence": ["artifacts/phase3/project-lifecycle-validation.json"]
+      "evidence": [
+        "artifacts/phase3/project-lifecycle-validation.json",
+        "artifacts/phase17/backup-export-import-recovery-validation.json",
+        "artifacts/phase17/browser-backup-recovery-validation.json"
+      ]
     },
     {
       "id": "REQ-036",
@@ -698,17 +708,27 @@
       "phase": 3,
       "status": "VERIFIED",
       "implementation": [
+        "apps/server/src/backup/backup-storage.ts",
+        "apps/server/src/backup/backup-service.ts",
         "apps/server/src/metadata/database.ts",
         "apps/server/src/projects/project-repository.ts",
         "apps/server/src/projects/project-service.ts",
-        "apps/server/src/routes/system.ts"
+        "apps/server/src/routes/system.ts",
+        "apps/web/src/features/projects/BackupManager.tsx"
       ],
       "tests": [
+        "apps/server/test/integration/backup-recovery.test.ts",
         "apps/server/test/integration/project-lifecycle.test.ts",
         "apps/server/test/unit/metadata-migration.test.ts",
-        "scripts/verify-phase3.mjs"
+        "apps/web/src/features/projects/BackupManager.test.tsx",
+        "scripts/verify-phase3.mjs",
+        "scripts/verify-phase17.mjs"
       ],
-      "evidence": ["artifacts/phase3/project-lifecycle-validation.json"]
+      "evidence": [
+        "artifacts/phase3/project-lifecycle-validation.json",
+        "artifacts/phase17/backup-export-import-recovery-validation.json",
+        "artifacts/phase17/browser-backup-recovery-validation.json"
+      ]
     },
     {
       "id": "REQ-037",
