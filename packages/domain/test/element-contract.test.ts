@@ -159,7 +159,7 @@ describe("element canvas contract", () => {
       expect(definition.category).toBe("basic");
       expect(definition.supportedRenderStates).toEqual(["DATA"]);
     }
-    expect(ELEMENT_TYPES.slice(21)).toEqual([
+    expect(ELEMENT_TYPES.slice(21, 32)).toEqual([
       "text-input",
       "text-area",
       "select",
@@ -172,7 +172,7 @@ describe("element canvas contract", () => {
       "slider",
       "file-upload",
     ]);
-    for (const definition of ELEMENT_DEFINITIONS.slice(21)) {
+    for (const definition of ELEMENT_DEFINITIONS.slice(21, 32)) {
       expect(definition.category).toBe("input");
       expect(definition.supportedRenderStates).toEqual([
         "EMPTY",
@@ -184,6 +184,37 @@ describe("element canvas contract", () => {
           id: "value",
           direction: "output",
           side: "right",
+        }),
+      ]);
+    }
+    expect(ELEMENT_TYPES.slice(32, 38)).toEqual([
+      "list",
+      "tree",
+      "pagination",
+      "search",
+      "filter",
+      "detail-view",
+    ]);
+    for (const definition of ELEMENT_DEFINITIONS.slice(32, 38)) {
+      expect(definition.category).toBe("data");
+      expect(definition.supportedRenderStates).toEqual(ELEMENT_RENDER_STATES);
+    }
+    expect(ELEMENT_TYPES.slice(38)).toEqual([
+      "heatmap",
+      "distribution-plot",
+      "control-chart",
+      "pareto-chart",
+      "gauge",
+      "correlation-matrix",
+    ]);
+    for (const definition of ELEMENT_DEFINITIONS.slice(38)) {
+      expect(definition.category).toBe("statistics");
+      expect(definition.supportedRenderStates).toEqual(ELEMENT_RENDER_STATES);
+      expect(definition.bindingPorts).toEqual([
+        expect.objectContaining({
+          required: true,
+          direction: "input",
+          side: "left",
         }),
       ]);
     }

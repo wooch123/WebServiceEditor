@@ -48,7 +48,7 @@ describe("element registry and grid geometry", () => {
       "tabs",
       "accordion",
     ]);
-    expect(types.slice(21)).toEqual([
+    expect(types.slice(21, 32)).toEqual([
       "text-input",
       "text-area",
       "select",
@@ -60,6 +60,22 @@ describe("element registry and grid geometry", () => {
       "date-range",
       "slider",
       "file-upload",
+    ]);
+    expect(types.slice(32, 38)).toEqual([
+      "list",
+      "tree",
+      "pagination",
+      "search",
+      "filter",
+      "detail-view",
+    ]);
+    expect(types.slice(38)).toEqual([
+      "heatmap",
+      "distribution-plot",
+      "control-chart",
+      "pareto-chart",
+      "gauge",
+      "correlation-matrix",
     ]);
     expect(elementRegistry().checksum).toMatch(/^[0-9a-f]{64}$/);
     expect(elementDefinition("text").defaultProps).toMatchObject({
@@ -98,11 +114,25 @@ describe("element registry and grid geometry", () => {
       expect(definition.category).toBe("basic");
       expect(definition.supportedRenderStates).toEqual(["DATA"]);
     }
-    for (const type of types.slice(21)) {
+    for (const type of types.slice(21, 32)) {
       const definition = elementDefinition(type as never);
       expect(definition.category).toBe("input");
       expect(definition.bindingPorts).toEqual([
         expect.objectContaining({ direction: "output", side: "right" }),
+      ]);
+    }
+    for (const type of types.slice(32, 38)) {
+      expect(elementDefinition(type as never).category).toBe("data");
+    }
+    for (const type of types.slice(38)) {
+      const definition = elementDefinition(type as never);
+      expect(definition.category).toBe("statistics");
+      expect(definition.bindingPorts).toEqual([
+        expect.objectContaining({
+          required: true,
+          direction: "input",
+          side: "left",
+        }),
       ]);
     }
     expect(() => elementDefinition("chart")).toThrow("Element type is invalid");

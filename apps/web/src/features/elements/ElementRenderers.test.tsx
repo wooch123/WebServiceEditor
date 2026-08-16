@@ -258,6 +258,93 @@ describe("Phase 6 editor and immutable runtime renderers", () => {
     );
   });
 
+  it.each([
+    "list",
+    "tree",
+    "pagination",
+    "search",
+    "filter",
+    "detail-view",
+  ] as const)("renders the %s data element in both trees", (type) => {
+    const entry = makeEntry(type);
+    const definition = definitionFor(type);
+    const renderData = {
+      columns: ["name", "score"],
+      rows: [{ name: "Ada", score: 42 }],
+    };
+    const editor = render(
+      <ElementRenderer
+        entry={entry}
+        definition={definition}
+        compact={false}
+        renderState="DATA"
+        renderData={renderData}
+      />,
+    );
+    expect(
+      editor.container.querySelector(`[data-element-type="${type}"]`),
+    ).toHaveAttribute("data-renderer-key", type);
+    editor.unmount();
+    const runtime = render(
+      <RuntimeElementRenderer
+        entry={entry}
+        definition={definition}
+        renderState="DATA"
+        renderData={renderData}
+      />,
+    );
+    expect(
+      runtime.container.querySelector(`[data-element-type="${type}"]`),
+    ).toHaveAttribute("data-renderer-key", type);
+  });
+
+  it.each([
+    "heatmap",
+    "distribution-plot",
+    "control-chart",
+    "pareto-chart",
+    "gauge",
+    "correlation-matrix",
+  ] as const)("renders real %s marks in Editor and Runtime", (type) => {
+    const entry = makeEntry(type);
+    const definition = definitionFor(type);
+    const renderData = {
+      values: [12, 18, 24],
+      series: [
+        { label: "A", value: 12 },
+        { label: "B", value: 18 },
+      ],
+      summary: [
+        { label: "A", value: 1 },
+        { label: "B", value: 0.42 },
+      ],
+    };
+    const editor = render(
+      <ElementRenderer
+        entry={entry}
+        definition={definition}
+        compact={false}
+        renderState="DATA"
+        renderData={renderData}
+      />,
+    );
+    expect(
+      editor.container.querySelector(`[data-element-type="${type}"]`),
+    ).toHaveAttribute("data-render-state", "DATA");
+    editor.unmount();
+    const runtime = render(
+      <RuntimeElementRenderer
+        entry={entry}
+        definition={definition}
+        renderState="DATA"
+        renderData={renderData}
+      />,
+    );
+    expect(
+      runtime.container.querySelector(`[data-element-type="${type}"]`),
+    ).toHaveAttribute("data-render-state", "DATA");
+  });
+
   it("projects semantic heading, tabs, accordion, image, and link controls", () => {
     const heading = makeEntry("heading", {
       props: { text: "Analysis", level: "3" },

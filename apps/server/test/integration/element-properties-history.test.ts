@@ -182,7 +182,7 @@ describe("Phase 6 Element Registry, properties, history, and Runtime", () => {
       "tabs",
       "accordion",
     ]);
-    expect(registry.definitions.map(({ type }) => type).slice(21)).toEqual([
+    expect(registry.definitions.map(({ type }) => type).slice(21, 32)).toEqual([
       "text-input",
       "text-area",
       "select",
@@ -194,6 +194,22 @@ describe("Phase 6 Element Registry, properties, history, and Runtime", () => {
       "date-range",
       "slider",
       "file-upload",
+    ]);
+    expect(registry.definitions.map(({ type }) => type).slice(32, 38)).toEqual([
+      "list",
+      "tree",
+      "pagination",
+      "search",
+      "filter",
+      "detail-view",
+    ]);
+    expect(registry.definitions.map(({ type }) => type).slice(38)).toEqual([
+      "heatmap",
+      "distribution-plot",
+      "control-chart",
+      "pareto-chart",
+      "gauge",
+      "correlation-matrix",
     ]);
     expect(registry.tabs.map(({ id }) => id)).toEqual([
       "general",

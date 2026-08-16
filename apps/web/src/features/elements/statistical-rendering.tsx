@@ -50,7 +50,13 @@ export type StatisticalElementType =
   | "histogram"
   | "scatter-plot"
   | "box-plot"
-  | "summary-statistics";
+  | "summary-statistics"
+  | "heatmap"
+  | "distribution-plot"
+  | "control-chart"
+  | "pareto-chart"
+  | "gauge"
+  | "correlation-matrix";
 
 export interface SeriesPoint {
   readonly label: string;
@@ -282,7 +288,13 @@ function SeriesChart({
   compact,
   options,
 }: {
-  kind: "line-chart" | "bar-chart" | "histogram";
+  kind:
+    | "line-chart"
+    | "bar-chart"
+    | "histogram"
+    | "distribution-plot"
+    | "control-chart"
+    | "pareto-chart";
   title: string;
   data: StatisticalRenderData;
   compact: boolean;
@@ -304,10 +316,12 @@ function SeriesChart({
     ["vertical", "horizontal"] as const,
     "vertical",
   );
-  const horizontal = kind === "bar-chart" && orientation === "horizontal";
+  const horizontal =
+    (kind === "bar-chart" || kind === "pareto-chart") &&
+    orientation === "horizontal";
   const binCount = Math.trunc(numberOption(options, "binCount", 2, 100, 10));
   const points =
-    kind === "histogram"
+    kind === "histogram" || kind === "distribution-plot"
       ? histogramBins(data.values, binCount)
       : (data.series ?? []);
   const grid = compact || !showGrid ? null : <CartesianGrid vertical={false} />;
@@ -362,7 +376,9 @@ function SeriesChart({
         config={chartConfig}
         initialDimension={{ width: 480, height: compact ? 120 : 240 }}
       >
-        {kind === "line-chart" ? (
+        {kind === "line-chart" ||
+        kind === "distribution-plot" ||
+        kind === "control-chart" ? (
           <LineChart accessibilityLayer data={points}>
             {grid}
             {axes}
@@ -410,6 +426,80 @@ function SeriesChart({
         )}
       </ChartContainer>
     </figure>
+  );
+}
+
+function Heatmap({
+  title,
+  data,
+}: {
+  title: string;
+  data: StatisticalRenderData;
+}) {
+  const values = (data.values ?? data.series?.map(({ value }) => value) ?? [])
+    .filter(Number.isFinite)
+    .slice(0, 64);
+  const maximum = Math.max(...values.map((value) => Math.abs(value)), 1);
+  return (
+    <figure className="statistical-heatmap" aria-label={title}>
+      <figcaption>{title}</figcaption>
+      <div className="statistical-heatmap-grid">
+        {values.map((value, index) => (
+          <span
+            key={`${value}:${index}`}
+            style={{ opacity: 0.25 + (Math.abs(value) / maximum) * 0.75 }}
+            aria-label={`${index + 1}: ${value}`}
+          />
+        ))}
+      </div>
+    </figure>
+  );
+}
+
+function GaugeChart({
+  title,
+  data,
+}: {
+  title: string;
+  data: StatisticalRenderData;
+}) {
+  const value =
+    data.values?.find(Number.isFinite) ?? data.series?.[0]?.value ?? 0;
+  const bounded = Math.max(0, Math.min(100, value));
+  return (
+    <figure className="statistical-gauge" aria-label={title}>
+      <figcaption>{title}</figcaption>
+      <meter min={0} max={100} value={bounded} aria-label={title} />
+      <strong>{bounded.toLocaleString()}</strong>
+    </figure>
+  );
+}
+
+function CorrelationMatrix({
+  title,
+  data,
+}: {
+  title: string;
+  data: StatisticalRenderData;
+}) {
+  const points = (data.summary ?? data.series ?? []).slice(0, 12);
+  return (
+    <Table aria-label={title} className="statistical-correlation-matrix">
+      <TableHeader>
+        <TableRow>
+          <TableHead>Variable</TableHead>
+          <TableHead>Correlation</TableHead>
+        </TableRow>
+      </TableHeader>
+      <TableBody>
+        {points.map((point) => (
+          <TableRow key={point.label}>
+            <TableCell>{point.label}</TableCell>
+            <TableCell>{point.value.toFixed(2)}</TableCell>
+          </TableRow>
+        ))}
+      </TableBody>
+    </Table>
   );
 }
 
@@ -666,16 +756,23 @@ export function StatisticalVisualization({
         ? hasValues(data)
         : type === "box-plot"
           ? hasBoxes(data)
-          : type === "summary-statistics"
+          : type === "summary-statistics" || type === "correlation-matrix"
             ? hasSummary(data)
-            : hasSeries(data);
+            : type === "heatmap" ||
+                type === "gauge" ||
+                type === "distribution-plot"
+              ? hasValues(data) || hasSeries(data)
+              : hasSeries(data);
   const effectiveState = state === "DATA" && !hasData ? "EMPTY" : state;
   return (
     <StatisticalDataBoundary state={effectiveState} emptyLabel={emptyLabel}>
       {data &&
         (type === "line-chart" ||
         type === "bar-chart" ||
-        type === "histogram" ? (
+        type === "histogram" ||
+        type === "distribution-plot" ||
+        type === "control-chart" ||
+        type === "pareto-chart" ? (
           <SeriesChart
             kind={type}
             title={title}
@@ -697,6 +794,12 @@ export function StatisticalVisualization({
             compact={compact}
             options={options}
           />
+        ) : type === "heatmap" ? (
+          <Heatmap title={title} data={data} />
+        ) : type === "gauge" ? (
+          <GaugeChart title={title} data={data} />
+        ) : type === "correlation-matrix" ? (
+          <CorrelationMatrix title={title} data={data} />
         ) : (
           <SummaryStatistics
             title={title}

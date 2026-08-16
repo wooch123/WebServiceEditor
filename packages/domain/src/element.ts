@@ -43,6 +43,18 @@ export const ELEMENT_TYPES = [
   "date-range",
   "slider",
   "file-upload",
+  "list",
+  "tree",
+  "pagination",
+  "search",
+  "filter",
+  "detail-view",
+  "heatmap",
+  "distribution-plot",
+  "control-chart",
+  "pareto-chart",
+  "gauge",
+  "correlation-matrix",
 ] as const;
 export const STATISTICAL_ELEMENT_TYPES = [
   "line-chart",
@@ -1353,6 +1365,334 @@ function additionalInputDefinition(
   };
 }
 
+type AdditionalDataElementType = Extract<
+  ElementType,
+  "list" | "tree" | "pagination" | "search" | "filter" | "detail-view"
+>;
+
+interface AdditionalDataElementSpec {
+  readonly type: AdditionalDataElementType;
+  readonly label: string;
+  readonly description: string;
+  readonly iconName: string;
+  readonly defaultProps: Readonly<Record<string, unknown>>;
+  readonly layout: ElementSizeRule;
+  readonly fields: readonly ElementPropertyField[];
+  readonly ports: readonly ElementBindingPortDefinition[];
+  readonly events: readonly ElementEventDefinition[];
+}
+
+const additionalDataElementSpecs = [
+  {
+    type: "list",
+    label: "List",
+    description: "Bound record list.",
+    iconName: "List",
+    defaultProps: { title: "List", emptyLabel: "No items" },
+    layout: { defaultW: 8, defaultH: 14, minW: 4, minH: 8, maxW: 24, maxH: 60 },
+    fields: [
+      textProperty("general.title", "general", "Title"),
+      textProperty("data.emptyLabel", "data", "Empty Label"),
+    ],
+    ports: [
+      {
+        id: "rows",
+        label: "Rows",
+        direction: "input",
+        side: "left",
+        valueType: "rows",
+        required: true,
+        maxConnections: 1,
+      },
+      {
+        id: "selection",
+        label: "Selection",
+        direction: "output",
+        side: "right",
+        valueType: "row",
+        required: false,
+        maxConnections: null,
+      },
+    ],
+    events: [{ id: "onSelect", label: "Select" }],
+  },
+  {
+    type: "tree",
+    label: "Tree",
+    description: "Hierarchical record tree.",
+    iconName: "ListTree",
+    defaultProps: { title: "Tree", emptyLabel: "No nodes" },
+    layout: { defaultW: 8, defaultH: 16, minW: 4, minH: 8, maxW: 24, maxH: 60 },
+    fields: [
+      textProperty("general.title", "general", "Title"),
+      textProperty("data.emptyLabel", "data", "Empty Label"),
+    ],
+    ports: [
+      {
+        id: "rows",
+        label: "Rows",
+        direction: "input",
+        side: "left",
+        valueType: "rows",
+        required: true,
+        maxConnections: 1,
+      },
+      {
+        id: "selection",
+        label: "Selection",
+        direction: "output",
+        side: "right",
+        valueType: "row",
+        required: false,
+        maxConnections: null,
+      },
+    ],
+    events: [{ id: "onSelect", label: "Select" }],
+  },
+  {
+    type: "pagination",
+    label: "Pagination",
+    description: "Page navigation control.",
+    iconName: "GalleryHorizontalEnd",
+    defaultProps: { label: "Pages", page: 1, pageCount: 10 },
+    layout: { defaultW: 8, defaultH: 5, minW: 4, minH: 4, maxW: 18, maxH: 10 },
+    fields: [
+      textProperty("general.label", "general", "Label"),
+      numberProperty("data.page", "data", "Current Page", 1, 100_000),
+      numberProperty("data.pageCount", "data", "Page Count", 1, 100_000),
+    ],
+    ports: [
+      {
+        id: "page",
+        label: "Page",
+        direction: "output",
+        side: "right",
+        valueType: "number",
+        required: false,
+        maxConnections: null,
+      },
+    ],
+    events: [{ id: "onPageChange", label: "Page Change" }],
+  },
+  {
+    type: "search",
+    label: "Search",
+    description: "Search query control.",
+    iconName: "Search",
+    defaultProps: { label: "Search", placeholder: "Search", defaultValue: "" },
+    layout: { defaultW: 7, defaultH: 7, minW: 3, minH: 5, maxW: 18, maxH: 14 },
+    fields: [
+      textProperty("general.label", "general", "Label"),
+      inputPlaceholderField,
+      textProperty("data.defaultValue", "data", "Default Value", "text", false),
+    ],
+    ports: [
+      {
+        id: "query",
+        label: "Query",
+        direction: "output",
+        side: "right",
+        valueType: "string",
+        required: false,
+        maxConnections: null,
+      },
+    ],
+    events: [{ id: "onSearch", label: "Search" }],
+  },
+  {
+    type: "filter",
+    label: "Filter",
+    description: "Filter value control.",
+    iconName: "ListFilter",
+    defaultProps: {
+      label: "Filter",
+      options: "All,Active,Inactive",
+      defaultValue: "All",
+    },
+    layout: { defaultW: 6, defaultH: 7, minW: 3, minH: 5, maxW: 16, maxH: 14 },
+    fields: [
+      textProperty("general.label", "general", "Label"),
+      textProperty("data.options", "data", "Options"),
+      textProperty("data.defaultValue", "data", "Default Value"),
+    ],
+    ports: [
+      {
+        id: "filter",
+        label: "Filter",
+        direction: "output",
+        side: "right",
+        valueType: "string",
+        required: false,
+        maxConnections: null,
+      },
+    ],
+    events: [{ id: "onFilterChange", label: "Filter Change" }],
+  },
+  {
+    type: "detail-view",
+    label: "Detail View",
+    description: "Bound record detail display.",
+    iconName: "PanelsTopLeft",
+    defaultProps: { title: "Details", emptyLabel: "No record" },
+    layout: {
+      defaultW: 10,
+      defaultH: 16,
+      minW: 5,
+      minH: 8,
+      maxW: 24,
+      maxH: 60,
+    },
+    fields: [
+      textProperty("general.title", "general", "Title"),
+      textProperty("data.emptyLabel", "data", "Empty Label"),
+    ],
+    ports: [
+      {
+        id: "record",
+        label: "Record",
+        direction: "input",
+        side: "left",
+        valueType: "row",
+        required: true,
+        maxConnections: 1,
+      },
+    ],
+    events: [],
+  },
+] as const satisfies readonly AdditionalDataElementSpec[];
+
+function additionalDataDefinition(
+  spec: AdditionalDataElementSpec,
+): ElementDefinition {
+  return {
+    type: spec.type,
+    typeVersion: ELEMENT_TYPE_VERSION,
+    label: spec.label,
+    description: spec.description,
+    category: "data",
+    iconName: spec.iconName,
+    rendererKey: spec.type,
+    editorRendererKey: spec.type,
+    runtimeRendererKey: spec.type,
+    validatorKey: spec.type,
+    defaultName: spec.label,
+    defaultProps: {
+      internalName: spec.type.replaceAll("-", "_"),
+      disabled: false,
+      tooltip: "",
+      accessibilityLabel: spec.label,
+      ...spec.defaultProps,
+    },
+    defaultStyle: commonDefaultStyle,
+    defaultEvents: [],
+    layout: spec.layout,
+    propertySchema: { fields: [...commonPropertyFields, ...spec.fields] },
+    bindingPorts: spec.ports,
+    events: spec.events,
+    supportedRenderStates: ELEMENT_RENDER_STATES,
+    migrations: [],
+  };
+}
+
+type AdditionalStatisticalElementType = Extract<
+  ElementType,
+  | "heatmap"
+  | "distribution-plot"
+  | "control-chart"
+  | "pareto-chart"
+  | "gauge"
+  | "correlation-matrix"
+>;
+
+const additionalStatisticalElementSpecs = [
+  ["heatmap", "Heatmap", "Grid intensity heatmap.", "Grid3X3"],
+  [
+    "distribution-plot",
+    "Distribution Plot",
+    "Value distribution curve.",
+    "ChartSpline",
+  ],
+  [
+    "control-chart",
+    "Control Chart",
+    "Process control trend chart.",
+    "ChartNoAxesCombined",
+  ],
+  [
+    "pareto-chart",
+    "Pareto Chart",
+    "Ordered frequency and cumulative chart.",
+    "ChartColumnIncreasing",
+  ],
+  ["gauge", "Gauge", "Bounded scalar gauge.", "Gauge"],
+  [
+    "correlation-matrix",
+    "Correlation Matrix",
+    "Pairwise correlation matrix.",
+    "TableProperties",
+  ],
+] as const satisfies readonly (readonly [
+  AdditionalStatisticalElementType,
+  string,
+  string,
+  string,
+])[];
+
+function additionalStatisticalDefinition(
+  spec: (typeof additionalStatisticalElementSpecs)[number],
+): ElementDefinition {
+  const [type, label, description, iconName] = spec;
+  return {
+    type,
+    typeVersion: ELEMENT_TYPE_VERSION,
+    label,
+    description,
+    category: "statistics",
+    iconName,
+    rendererKey: type,
+    editorRendererKey: type,
+    runtimeRendererKey: type,
+    validatorKey: type,
+    defaultName: label,
+    defaultProps: {
+      internalName: type.replaceAll("-", "_"),
+      disabled: false,
+      tooltip: "",
+      accessibilityLabel: label,
+      title: label,
+      emptyLabel: "No data",
+      xLabel: "X",
+      yLabel: "Y",
+      showGrid: true,
+    },
+    defaultStyle: commonDefaultStyle,
+    defaultEvents: [],
+    layout: statisticalChartLayout,
+    propertySchema: {
+      fields: [
+        ...commonPropertyFields,
+        ...statisticalTitleFields,
+        ...statisticalAxisFields,
+        statisticalChartFields[1]!,
+      ],
+    },
+    bindingPorts: [
+      {
+        id: "values",
+        label: "Values",
+        direction: "input",
+        side: "left",
+        valueType: type === "correlation-matrix" ? "matrix" : "numbers",
+        required: true,
+        maxConnections: 1,
+      },
+    ],
+    events: [{ id: "onMarkClick", label: "Mark Click" }],
+    supportedRenderStates: ELEMENT_RENDER_STATES,
+    migrations: [],
+  };
+}
+
 export const ELEMENT_DEFINITIONS = [
   {
     type: "text",
@@ -2270,6 +2610,8 @@ export const ELEMENT_DEFINITIONS = [
   },
   ...additionalBasicElementSpecs.map(additionalBasicDefinition),
   ...additionalInputElementSpecs.map(additionalInputDefinition),
+  ...additionalDataElementSpecs.map(additionalDataDefinition),
+  ...additionalStatisticalElementSpecs.map(additionalStatisticalDefinition),
 ] as const satisfies readonly ElementDefinition[];
 
 export interface ElementDto {

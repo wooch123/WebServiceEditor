@@ -53,14 +53,18 @@ Current verified slice:
 - The exact 11 Binding Type inventory is represented in the validation report
   with executable READ, CRUD, Parameter, and Navigation evidence; `read-one`
   now has a real single-row preview assertion.
-- The Element Registry now contains 32 of the canonical 55 types. Heading,
+- The Element Registry now contains 44 of the canonical 55 types. Heading,
   Divider, Image, Badge, Icon, Link, Spacer, Tabs, and Accordion have real,
   separate Editor and Published Runtime renderers, generated Property schemas,
   Registry persistence, and keyboard-accessible shadcn primitives. Text Input,
   Text Area, Select, Multi Select, Checkbox, Radio, Switch, Date Picker, Date
   Range, Slider, and File Upload add real typed form controls and output ports.
+  List, Tree, Pagination, Search, Filter, and Detail View add bound data
+  surfaces and controls. Heatmap, Distribution, Control, Pareto, Gauge, and
+  Correlation Matrix add semantic-token statistical renderers without demo data
+  in persisted definitions.
 - Workspace verification after this expansion passes 13 domain unit, 42 server
-  unit, 83 server integration, 167 web component, and 122 validation tests,
+  unit, 83 server integration, 179 web component, and 122 validation tests,
   plus format, lint, typecheck, and production build gates.
 
 ## Phase ledger

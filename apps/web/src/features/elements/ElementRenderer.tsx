@@ -763,6 +763,144 @@ function DataTableRenderer({
   );
 }
 
+function DataDisplayRenderer({
+  entry,
+  compact,
+  renderState,
+  renderData,
+}: CanvasRendererProps) {
+  const presentation = elementPresentation(entry);
+  const title = stringValue(entry.element.props, "title", entry.element.name);
+  const rows = renderData?.rows ?? [];
+  const firstValues = rows
+    .map((row) => Object.values(row)[0])
+    .slice(0, compact ? 3 : 12);
+
+  if (entry.element.type === "search") {
+    const id = `canvas-search-${entry.element.id}`;
+    return (
+      <FieldGroup className="canvas-form-element">
+        <Field>
+          <FieldLabel htmlFor={id}>{inputLabel(entry)}</FieldLabel>
+          <Input
+            id={id}
+            className="element-interactive"
+            type="search"
+            value={stringValue(entry.element.props, "defaultValue", "")}
+            placeholder={stringValue(
+              entry.element.props,
+              "placeholder",
+              "검색",
+            )}
+            disabled={presentation.disabled}
+            readOnly
+          />
+        </Field>
+      </FieldGroup>
+    );
+  }
+  if (entry.element.type === "filter") {
+    const options = inputOptions(entry);
+    const configured = stringValue(
+      entry.element.props,
+      "defaultValue",
+      options[0] ?? "",
+    );
+    return (
+      <FieldGroup className="canvas-form-element">
+        <Field>
+          <FieldLabel htmlFor={`canvas-filter-${entry.element.id}`}>
+            {inputLabel(entry)}
+          </FieldLabel>
+          <NativeSelect
+            id={`canvas-filter-${entry.element.id}`}
+            className="element-interactive canvas-native-select"
+            value={
+              options.includes(configured) ? configured : (options[0] ?? "")
+            }
+            disabled={presentation.disabled}
+            onChange={() => undefined}
+          >
+            {options.map((option) => (
+              <NativeSelectOption key={option} value={option}>
+                {option}
+              </NativeSelectOption>
+            ))}
+          </NativeSelect>
+        </Field>
+      </FieldGroup>
+    );
+  }
+  if (entry.element.type === "pagination") {
+    const page = finiteNumber(entry.element.props.page) ?? 1;
+    const pageCount = finiteNumber(entry.element.props.pageCount) ?? 1;
+    return (
+      <nav className="canvas-pagination" aria-label={inputLabel(entry)}>
+        <Button
+          className="element-interactive"
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled
+        >
+          이전
+        </Button>
+        <span>
+          {page} / {pageCount}
+        </span>
+        <Button
+          className="element-interactive"
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled
+        >
+          다음
+        </Button>
+      </nav>
+    );
+  }
+  if (renderState !== "DATA" || rows.length === 0) {
+    return (
+      <EmptyData
+        label={stringValue(entry.element.props, "emptyLabel", "데이터 없음")}
+        ariaLabel={title}
+      />
+    );
+  }
+  if (entry.element.type === "detail-view") {
+    const record = rows[0] ?? {};
+    return (
+      <Table aria-label={title}>
+        <TableBody>
+          {Object.entries(record).map(([key, value]) => (
+            <TableRow key={key}>
+              <TableHead>{key}</TableHead>
+              <TableCell>{String(value ?? "")}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    );
+  }
+  return (
+    <div
+      className="canvas-record-list"
+      role={entry.element.type === "tree" ? "tree" : "list"}
+      aria-label={title}
+    >
+      {firstValues.map((value, index) => (
+        <div
+          key={index}
+          role={entry.element.type === "tree" ? "treeitem" : "listitem"}
+        >
+          {String(value ?? "")}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function StatisticalRenderer({
   entry,
   compact,
@@ -817,6 +955,18 @@ export const editorRendererByKey: Readonly<
   "date-range": InputControlRenderer,
   slider: InputControlRenderer,
   "file-upload": InputControlRenderer,
+  list: DataDisplayRenderer,
+  tree: DataDisplayRenderer,
+  pagination: DataDisplayRenderer,
+  search: DataDisplayRenderer,
+  filter: DataDisplayRenderer,
+  "detail-view": DataDisplayRenderer,
+  heatmap: StatisticalRenderer,
+  "distribution-plot": StatisticalRenderer,
+  "control-chart": StatisticalRenderer,
+  "pareto-chart": StatisticalRenderer,
+  gauge: StatisticalRenderer,
+  "correlation-matrix": StatisticalRenderer,
 };
 
 export function assertEditorRendererDefinitions(

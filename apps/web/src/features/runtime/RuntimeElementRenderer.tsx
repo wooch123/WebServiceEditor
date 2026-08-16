@@ -799,6 +799,164 @@ function RuntimeDataTable({
   );
 }
 
+function RuntimeDataDisplay({
+  entry,
+  renderState,
+  renderData,
+  value,
+  pending,
+  onValueChange,
+}: RuntimeRendererProps) {
+  const presentation = elementPresentation(entry);
+  const disabled = presentation.disabled || pending === true;
+  const title = stringValue(entry.element.props, "title", entry.element.name);
+  const rows =
+    renderData && "rows" in renderData ? (renderData.rows ?? []) : [];
+
+  if (entry.element.type === "search") {
+    const id = `runtime-search-${entry.element.id}`;
+    const current =
+      value === undefined
+        ? stringValue(entry.element.props, "defaultValue", "")
+        : value === null
+          ? ""
+          : String(value);
+    return (
+      <FieldGroup className="runtime-form-element">
+        <Field>
+          <FieldLabel htmlFor={id}>{inputLabel(entry)}</FieldLabel>
+          <Input
+            id={id}
+            type="search"
+            value={current}
+            placeholder={stringValue(
+              entry.element.props,
+              "placeholder",
+              "검색",
+            )}
+            disabled={disabled}
+            onChange={(event) =>
+              onValueChange?.(entry.element.id, event.target.value)
+            }
+            readOnly={onValueChange === undefined}
+          />
+        </Field>
+      </FieldGroup>
+    );
+  }
+  if (entry.element.type === "filter") {
+    const options = inputOptions(entry);
+    const current =
+      value === undefined
+        ? stringValue(entry.element.props, "defaultValue", options[0] ?? "")
+        : String(value ?? "");
+    return (
+      <FieldGroup className="runtime-form-element">
+        <Field>
+          <FieldLabel htmlFor={`runtime-filter-${entry.element.id}`}>
+            {inputLabel(entry)}
+          </FieldLabel>
+          <NativeSelect
+            id={`runtime-filter-${entry.element.id}`}
+            className="runtime-native-select"
+            value={options.includes(current) ? current : (options[0] ?? "")}
+            disabled={disabled}
+            onChange={(event) =>
+              onValueChange?.(entry.element.id, event.target.value)
+            }
+          >
+            {options.map((option) => (
+              <NativeSelectOption key={option} value={option}>
+                {option}
+              </NativeSelectOption>
+            ))}
+          </NativeSelect>
+        </Field>
+      </FieldGroup>
+    );
+  }
+  if (entry.element.type === "pagination") {
+    const page =
+      typeof value === "number"
+        ? value
+        : (finiteNumber(entry.element.props.page) ?? 1);
+    const pageCount = finiteNumber(entry.element.props.pageCount) ?? 1;
+    return (
+      <nav className="runtime-pagination" aria-label={inputLabel(entry)}>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={disabled || page <= 1}
+          onClick={() => onValueChange?.(entry.element.id, page - 1)}
+        >
+          이전
+        </Button>
+        <span>
+          {page} / {pageCount}
+        </span>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          disabled={disabled || page >= pageCount}
+          onClick={() => onValueChange?.(entry.element.id, page + 1)}
+        >
+          다음
+        </Button>
+      </nav>
+    );
+  }
+  if (renderState !== "DATA" || rows.length === 0) {
+    return (
+      <Empty className="runtime-data-empty" aria-label={title}>
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Database />
+          </EmptyMedia>
+          <EmptyTitle>
+            {stringValue(entry.element.props, "emptyLabel", "데이터 없음")}
+          </EmptyTitle>
+          <EmptyDescription>
+            <Badge variant="secondary">미연결</Badge>
+          </EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
+  }
+  if (entry.element.type === "detail-view") {
+    const record = rows[0] ?? {};
+    return (
+      <Table aria-label={title}>
+        <TableBody>
+          {Object.entries(record).map(([key, cell]) => (
+            <TableRow key={key}>
+              <TableHead>{key}</TableHead>
+              <TableCell>{String(cell ?? "")}</TableCell>
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    );
+  }
+  return (
+    <div
+      className="runtime-record-list"
+      role={entry.element.type === "tree" ? "tree" : "list"}
+      aria-label={title}
+    >
+      {rows.slice(0, 50).map((row, index) => (
+        <div
+          key={index}
+          role={entry.element.type === "tree" ? "treeitem" : "listitem"}
+        >
+          {String(Object.values(row)[0] ?? "")}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function RuntimeStatistical({
   entry,
   renderState = "EMPTY",
@@ -852,6 +1010,18 @@ export const runtimeRendererByKey: Readonly<
   "date-range": RuntimeInputControl,
   slider: RuntimeInputControl,
   "file-upload": RuntimeInputControl,
+  list: RuntimeDataDisplay,
+  tree: RuntimeDataDisplay,
+  pagination: RuntimeDataDisplay,
+  search: RuntimeDataDisplay,
+  filter: RuntimeDataDisplay,
+  "detail-view": RuntimeDataDisplay,
+  heatmap: RuntimeStatistical,
+  "distribution-plot": RuntimeStatistical,
+  "control-chart": RuntimeStatistical,
+  "pareto-chart": RuntimeStatistical,
+  gauge: RuntimeStatistical,
+  "correlation-matrix": RuntimeStatistical,
 };
 
 export function assertRuntimeRendererDefinitions(
