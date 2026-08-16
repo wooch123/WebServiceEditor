@@ -793,6 +793,7 @@ describe("Phase 9 Data Relationship Canvas", () => {
       error: { code: "IDEMPOTENCY_PAYLOAD_CONFLICT" },
     });
     state = await graph(app, seeded.project.id);
+    expect(moved.routes).toEqual(state.routes);
 
     const routePositions = state.nodes.map((node) => ({
       nodeId: node.id,

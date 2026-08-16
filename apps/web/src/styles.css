@@ -1518,6 +1518,10 @@ svg {
   min-height: 0;
 }
 
+.editor-workspace.is-relationship-canvas {
+  grid-template-columns: 17em minmax(34em, 1fr);
+}
+
 .editor-left-panel,
 .inspector-panel {
   min-width: 0;
@@ -1789,32 +1793,6 @@ svg {
   margin-top: 0.3em;
   color: var(--success);
   font-size: 0.65em;
-}
-
-.resize-dot {
-  position: absolute;
-  width: 0.55em;
-  height: 0.55em;
-  border: 1px solid var(--selection-foreground);
-  border-radius: 2px;
-  background: var(--selection);
-}
-
-.resize-dot.top-left {
-  top: -0.3em;
-  left: -0.3em;
-}
-.resize-dot.top-right {
-  top: -0.3em;
-  right: -0.3em;
-}
-.resize-dot.bottom-left {
-  bottom: -0.3em;
-  left: -0.3em;
-}
-.resize-dot.bottom-right {
-  right: -0.3em;
-  bottom: -0.3em;
 }
 
 .chart-card {
@@ -3813,6 +3791,21 @@ svg {
   box-shadow: 0 0.2rem 0.65rem
     color-mix(in srgb, var(--foreground) 8%, transparent);
   outline: none;
+  cursor: grab;
+}
+
+.placed-element.react-draggable-dragging {
+  cursor: grabbing;
+}
+
+.placed-element button,
+.placed-element input,
+.placed-element textarea,
+.placed-element select,
+.placed-element a,
+.placed-element label,
+.placed-element .element-resize-handle {
+  cursor: initial;
 }
 
 .placed-element:hover,
@@ -3850,7 +3843,7 @@ svg {
   white-space: nowrap;
 }
 
-.element-drag-handle,
+.element-drag-affordance,
 .element-lock-control,
 .element-delete-control {
   width: var(--element-control-size);
@@ -3860,13 +3853,17 @@ svg {
   border-radius: calc(var(--control-radius) - 0.15rem);
 }
 
-.element-drag-handle {
-  cursor: grab;
-  touch-action: none;
+.element-drag-affordance {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--muted-foreground);
+  pointer-events: none;
 }
 
-.element-drag-handle:active {
-  cursor: grabbing;
+.element-drag-affordance svg {
+  width: 1rem;
+  height: 1rem;
 }
 
 .element-render-surface,
@@ -3948,64 +3945,153 @@ svg {
 .element-resize-handle {
   position: absolute;
   display: block;
-  width: 0.65rem;
-  height: 0.65rem;
   padding: 0;
-  border: 1px solid var(--selection-foreground);
-  border-radius: 2px;
+  border: 0;
   opacity: 0;
-  background: var(--selection);
+  background: transparent;
   pointer-events: none;
+  touch-action: none;
+  transition: opacity 120ms ease;
+}
+
+.element-resize-handle::after {
+  position: absolute;
+  display: block;
+  content: "";
 }
 
 .placed-element.is-selected > .element-resize-handle {
-  opacity: 1;
+  opacity: 0.74;
   pointer-events: auto;
 }
 
+.placed-element.is-selected > .element-resize-handle:hover {
+  opacity: 1;
+}
+
 .element-resize-handle.react-resizable-handle-n {
-  top: -0.35rem;
+  top: -0.7rem;
   left: 50%;
-  margin-left: -0.325rem;
+  width: 2.5rem;
+  height: 0.8rem;
+  margin-left: -1.25rem;
   cursor: ns-resize;
 }
 .element-resize-handle.react-resizable-handle-s {
-  bottom: -0.35rem;
+  bottom: -0.7rem;
   left: 50%;
-  margin-left: -0.325rem;
+  width: 2.5rem;
+  height: 0.8rem;
+  margin-left: -1.25rem;
   cursor: ns-resize;
 }
 .element-resize-handle.react-resizable-handle-e {
   top: 50%;
-  right: -0.35rem;
-  margin-top: -0.325rem;
+  right: -0.7rem;
+  width: 0.8rem;
+  height: 2.5rem;
+  margin-top: -1.25rem;
   cursor: ew-resize;
 }
 .element-resize-handle.react-resizable-handle-w {
   top: 50%;
-  left: -0.35rem;
-  margin-top: -0.325rem;
+  left: -0.7rem;
+  width: 0.8rem;
+  height: 2.5rem;
+  margin-top: -1.25rem;
   cursor: ew-resize;
 }
+
+.element-resize-handle.react-resizable-handle-n::after,
+.element-resize-handle.react-resizable-handle-s::after {
+  top: 0.35rem;
+  left: 0.45rem;
+  width: 1.6rem;
+  height: 2px;
+  border-radius: 999px;
+  background: var(--selection);
+}
+
+.element-resize-handle.react-resizable-handle-e::after,
+.element-resize-handle.react-resizable-handle-w::after {
+  top: 0.45rem;
+  left: 0.35rem;
+  width: 2px;
+  height: 1.6rem;
+  border-radius: 999px;
+  background: var(--selection);
+}
+
 .element-resize-handle.react-resizable-handle-ne {
-  top: -0.35rem;
-  right: -0.35rem;
+  top: -0.7rem;
+  right: -0.7rem;
+  width: 0.9rem;
+  height: 0.9rem;
   cursor: nesw-resize;
 }
 .element-resize-handle.react-resizable-handle-nw {
-  top: -0.35rem;
-  left: -0.35rem;
+  top: -0.7rem;
+  left: -0.7rem;
+  width: 0.9rem;
+  height: 0.9rem;
   cursor: nwse-resize;
 }
 .element-resize-handle.react-resizable-handle-se {
-  right: -0.35rem;
-  bottom: -0.35rem;
+  right: -0.7rem;
+  bottom: -0.7rem;
+  width: 0.9rem;
+  height: 0.9rem;
   cursor: nwse-resize;
 }
 .element-resize-handle.react-resizable-handle-sw {
-  bottom: -0.35rem;
-  left: -0.35rem;
+  bottom: -0.7rem;
+  left: -0.7rem;
+  width: 0.9rem;
+  height: 0.9rem;
   cursor: nesw-resize;
+}
+
+.element-resize-handle.react-resizable-handle-ne::after,
+.element-resize-handle.react-resizable-handle-nw::after,
+.element-resize-handle.react-resizable-handle-se::after,
+.element-resize-handle.react-resizable-handle-sw::after {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-color: var(--selection);
+  border-style: solid;
+  border-width: 0;
+}
+
+.element-resize-handle.react-resizable-handle-ne::after {
+  top: 0.2rem;
+  right: 0.2rem;
+  border-top-width: 2px;
+  border-right-width: 2px;
+  border-radius: 0 0.25rem 0 0;
+}
+
+.element-resize-handle.react-resizable-handle-nw::after {
+  top: 0.2rem;
+  left: 0.2rem;
+  border-top-width: 2px;
+  border-left-width: 2px;
+  border-radius: 0.25rem 0 0;
+}
+
+.element-resize-handle.react-resizable-handle-se::after {
+  right: 0.2rem;
+  bottom: 0.2rem;
+  border-right-width: 2px;
+  border-bottom-width: 2px;
+  border-radius: 0 0 0.25rem;
+}
+
+.element-resize-handle.react-resizable-handle-sw::after {
+  bottom: 0.2rem;
+  left: 0.2rem;
+  border-bottom-width: 2px;
+  border-left-width: 2px;
+  border-radius: 0 0 0 0.25rem;
 }
 
 .element-resize-tooltip,
@@ -5081,7 +5167,7 @@ svg {
 .relationship-selection {
   display: grid;
   min-height: var(--control-height);
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 7rem;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 14.5rem;
   align-items: center;
   gap: 0.75rem;
   border: 1px solid var(--border);
@@ -5111,6 +5197,12 @@ svg {
 .relationship-selection [data-slot="button"] {
   width: 100%;
   min-height: var(--control-height);
+}
+
+.relationship-selection-actions {
+  display: grid !important;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
 }
 
 .relationship-dialog-actions {

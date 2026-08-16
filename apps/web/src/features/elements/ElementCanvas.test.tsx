@@ -591,7 +591,11 @@ function installCanvasGeometry() {
         return domRect(250, 50, 1100, 850);
       }
       if (this.classList.contains("element-canvas-document")) {
-        return domRect(300, 100, 960, 640);
+        const configuredHeight = cssPixels(
+          this.parentElement?.style.getPropertyValue("--canvas-base-height") ??
+            "",
+        );
+        return domRect(300, 100, 960, configuredHeight ?? 640);
       }
       const paletteItem = this.classList.contains("palette-item");
       const canvasControl =
@@ -1144,7 +1148,11 @@ describe("ElementCanvas Phase 5 interaction", () => {
     },
     { edge: "left", inside: { x: 301, y: 260 }, outside: { x: 299, y: 260 } },
     { edge: "top", inside: { x: 500, y: 101 }, outside: { x: 500, y: 99 } },
-    { edge: "bottom", inside: { x: 500, y: 260 }, outside: { x: 500, y: 741 } },
+    {
+      edge: "bottom",
+      inside: { x: 500, y: 1667 },
+      outside: { x: 500, y: 1669 },
+    },
   ])(
     "moves a pointer inside to one pixel outside, replaces valid with invalid placement-placeholder candidate, and blocks commit at the $edge boundary",
     async ({ inside, outside }) => {
@@ -2046,15 +2054,16 @@ describe("ElementCanvas Phase 5 interaction", () => {
     installCanvasGeometry();
     render(<Harness />);
     let option = await screen.findByTestId("placed-element-rgl-escape-target");
-    const dragInstance = option;
     const originalTransform = option.style.transform;
 
-    fireEvent.mouseDown(
-      within(option).getByRole("button", {
-        name: "Container rgl-escape-target 이동",
-      }),
-      { button: 0, buttons: 1, clientX: 410, clientY: 220 },
-    );
+    const emptyDragSurface = option.querySelector(".element-render-surface");
+    expect(emptyDragSurface).not.toBeNull();
+    fireEvent.mouseDown(emptyDragSurface as HTMLElement, {
+      button: 0,
+      buttons: 1,
+      clientX: 410,
+      clientY: 220,
+    });
     fireEvent.mouseMove(document, {
       buttons: 1,
       clientX: 580,
@@ -2063,7 +2072,6 @@ describe("ElementCanvas Phase 5 interaction", () => {
     fireEvent.keyDown(document, { key: "Escape" });
     fireEvent.mouseUp(document, { button: 0, clientX: 580, clientY: 300 });
     option = await screen.findByTestId("placed-element-rgl-escape-target");
-    expect(option).not.toBe(dragInstance);
     expect(option).not.toHaveClass("react-draggable-dragging");
     expect(option.style.transform).toBe(originalTransform);
     expect(mutationCalls(api.calls)).toHaveLength(0);
@@ -2233,7 +2241,7 @@ describe("ElementCanvas Phase 5 interaction", () => {
     )!;
     expect(candidateCall.body).toMatchObject({
       canvasWidth: 960,
-      canvasHeight: 640,
+      canvasHeight: 1568,
     });
     expect(candidateCall.body.pointer).toEqual({
       rawCanvasX: 250,

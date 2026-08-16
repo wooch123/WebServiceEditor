@@ -1335,10 +1335,20 @@ export class RelationshipService {
         "Relationship graph changed before the Node moved",
       );
       const position = this.repository.layoutRepository.positionDto(row);
-      const nextGraph = this.graph(projectId);
+      const nextNodes = graph.nodes.map((currentNode) =>
+        currentNode.id === position.nodeId
+          ? {
+              ...currentNode,
+              x: position.x,
+              y: position.y,
+              pinned: position.pinned,
+              positionRevision: position.revision,
+            }
+          : currentNode,
+      );
       const response: RelationshipNodePositionMutationDto = {
         position,
-        routes: nextGraph.routes,
+        routes: routeRelationshipEdges(nextNodes, graph.edges),
         ...revisions,
         commandId,
       };

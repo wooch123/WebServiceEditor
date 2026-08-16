@@ -804,6 +804,23 @@ describe("WebEditor persistent project home", () => {
     expect(document.body.clientHeight).toBe(pageBaselineHeight);
   });
 
+  it("expands the relationship canvas and only shows edge details after selection", async () => {
+    installMockApi({ active: [healthProject] });
+    const user = userEvent.setup();
+    render(<App />);
+
+    await screen.findByRole("heading", { name: healthProject.name });
+    await user.click(screen.getByRole("button", { name: "열기" }));
+    await screen.findByText("빈 캔버스");
+    await user.click(screen.getByRole("button", { name: /02\s*데이터/ }));
+    await user.click(screen.getByRole("radio", { name: "관계" }));
+
+    const workspace = document.querySelector<HTMLElement>(".editor-workspace");
+    expect(workspace).toHaveClass("is-relationship-canvas");
+    expect(document.querySelector(".inspector-panel")).toBeNull();
+    expect(screen.queryByLabelText("선택 Binding")).not.toBeInTheDocument();
+  });
+
   it("shows a load error and retries the real list endpoints", async () => {
     const { fetchMock } = installMockApi({ failFirstProjectLoad: true });
     const user = userEvent.setup();

@@ -523,6 +523,7 @@ function OrthogonalRelationshipEdge({
 
 const nodeTypes = { relationship: RelationshipFlowNodeView };
 const edgeTypes = { orthogonal: OrthogonalRelationshipEdge };
+const ROUTE_PREVIEW_INTERVAL_MS = 80;
 
 function positionDto(node: RelationshipFlowNode): RelationshipNodePositionDto {
   return {
@@ -662,6 +663,9 @@ function RelationshipCanvasInner({
   const flowNodesRef = useRef(flowNodes);
   const routeFrameRef = useRef<number | null>(null);
   const routeSequenceRef = useRef(0);
+  const routePreviewStartedAtRef = useRef(0);
+  const routePreviewInFlightRef = useRef(false);
+  const nodeMoveQueueRef = useRef<Promise<void>>(Promise.resolve());
   const { fitView } = useReactFlow<
     RelationshipFlowNode,
     RelationshipFlowEdge
@@ -801,29 +805,68 @@ function RelationshipCanvasInner({
   );
 
   const saveNode = useCallback(
-    async (node: RelationshipFlowNode, pinned = node.data.value.pinned) => {
-      const current = graphRef.current;
-      if (!current || busy) return;
-      setBusy(true);
-      setError(null);
-      try {
-        const result = await dataRelationshipApi.moveNode(projectId, node.id, {
-          x: node.position.x,
-          y: node.position.y,
-          pinned,
-          expectedPositionRevision: node.data.value.positionRevision,
-          expectedGraphRevision: current.graphRevision,
-          expectedProjectRevision: current.projectRevision,
-          idempotencyKey: idempotencyKey("relationship-node"),
+    (node: RelationshipFlowNode, pinned = node.data.value.pinned) => {
+      if (busy) return Promise.resolve();
+      const requested = {
+        nodeId: node.id,
+        x: node.position.x,
+        y: node.position.y,
+        pinned,
+      };
+      const queued = nodeMoveQueueRef.current
+        .catch(() => undefined)
+        .then(async () => {
+          const current = graphRef.current;
+          const currentNode = current?.nodes.find(
+            ({ id }) => id === requested.nodeId,
+          );
+          if (!current || !currentNode) return;
+          setError(null);
+          try {
+            const result = await dataRelationshipApi.moveNode(
+              projectId,
+              requested.nodeId,
+              {
+                x: requested.x,
+                y: requested.y,
+                pinned: requested.pinned,
+                expectedPositionRevision: currentNode.positionRevision,
+                expectedGraphRevision: current.graphRevision,
+                expectedProjectRevision: current.projectRevision,
+                idempotencyKey: idempotencyKey("relationship-node"),
+              },
+            );
+            const nextGraph: DataRelationshipGraphDto = {
+              ...current,
+              graphRevision: result.graphRevision,
+              projectRevision: result.projectRevision,
+              routes: result.routes,
+              nodes: current.nodes.map((value) =>
+                value.id === requested.nodeId
+                  ? {
+                      ...value,
+                      x: result.position.x,
+                      y: result.position.y,
+                      pinned: result.position.pinned,
+                      positionRevision: result.position.revision,
+                    }
+                  : value,
+              ),
+            };
+            graphRef.current = nextGraph;
+            setGraph(nextGraph);
+            publishRevision(result.projectRevision);
+            void dataRelationshipApi
+              .layoutHistory(projectId)
+              .then(setLayoutHistory)
+              .catch(() => undefined);
+          } catch (requestError) {
+            setError(errorText(requestError));
+            await load();
+          }
         });
-        publishRevision(result.projectRevision);
-        await load();
-      } catch (requestError) {
-        setError(errorText(requestError));
-        await load();
-      } finally {
-        setBusy(false);
-      }
+      nodeMoveQueueRef.current = queued;
+      return queued;
     },
     [busy, load, projectId, publishRevision],
   );
@@ -863,13 +906,20 @@ function RelationshipCanvasInner({
   }, [beginSource, busy, graph, sourcePort, targetPort, togglePin]);
 
   const scheduleRoutes = useCallback(() => {
-    if (routeFrameRef.current !== null) {
-      cancelAnimationFrame(routeFrameRef.current);
-    }
+    if (routeFrameRef.current !== null) return;
     routeFrameRef.current = requestAnimationFrame(() => {
       routeFrameRef.current = null;
+      const startedAt = performance.now();
+      if (
+        routePreviewInFlightRef.current ||
+        startedAt - routePreviewStartedAtRef.current < ROUTE_PREVIEW_INTERVAL_MS
+      ) {
+        return;
+      }
       const current = graphRef.current;
       if (!current) return;
+      routePreviewStartedAtRef.current = startedAt;
+      routePreviewInFlightRef.current = true;
       const sequence = ++routeSequenceRef.current;
       const positions = flowNodesRef.current.map(positionDto);
       void dataRelationshipApi
@@ -886,7 +936,10 @@ function RelationshipCanvasInner({
               : { ...value, routes: result.routes },
           );
         })
-        .catch(() => undefined);
+        .catch(() => undefined)
+        .finally(() => {
+          routePreviewInFlightRef.current = false;
+        });
     });
   }, [projectId]);
 
@@ -1691,6 +1744,7 @@ function RelationshipCanvasInner({
             onNodeDrag={() => scheduleRoutes()}
             onNodeDragStop={(_event, node) => void saveNode(node)}
             onConnect={connect}
+            onPaneClick={() => setSelectedBindingId(null)}
             connectionLineType={ConnectionLineType.Straight}
             minZoom={0.25}
             maxZoom={2}
@@ -1719,21 +1773,30 @@ function RelationshipCanvasInner({
         </div>
       )}
 
-      <aside className="relationship-selection" aria-label="선택 Binding">
-        {selectedBinding ? (
-          <>
-            <div>
-              <Badge variant="secondary">
-                {bindingLabels[selectedBinding.bindingType]}
-              </Badge>
-              <strong>{selectedBinding.id.slice(0, 8)}</strong>
-              <span>r{selectedBinding.revision}</span>
-            </div>
-            <span>
-              {selectedBinding.source.portRole}
-              <ArrowRight aria-hidden="true" />
-              {selectedBinding.target.portRole}
-            </span>
+      {selectedBinding && (
+        <aside className="relationship-selection" aria-label="선택 Binding">
+          <div>
+            <Badge variant="secondary">
+              {bindingLabels[selectedBinding.bindingType]}
+            </Badge>
+            <strong>{selectedBinding.id.slice(0, 8)}</strong>
+            <span>r{selectedBinding.revision}</span>
+          </div>
+          <span>
+            {selectedBinding.source.portRole}
+            <ArrowRight aria-hidden="true" />
+            {selectedBinding.target.portRole}
+          </span>
+          <div className="relationship-selection-actions">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => setSelectedBindingId(null)}
+            >
+              <X data-icon="inline-start" aria-hidden="true" />
+              닫기
+            </Button>
             <Button
               type="button"
               variant="destructive"
@@ -1743,11 +1806,9 @@ function RelationshipCanvasInner({
               <Trash2 data-icon="inline-start" aria-hidden="true" />
               삭제
             </Button>
-          </>
-        ) : (
-          <span>Edge 선택</span>
-        )}
-      </aside>
+          </div>
+        </aside>
+      )}
 
       <Dialog
         open={preview !== null}

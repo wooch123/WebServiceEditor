@@ -250,20 +250,11 @@ interface PlacedElementProps extends Omit<
   className?: string;
   style?: CSSProperties;
   children?: ReactNode;
-  onDragActivate: () => void;
 }
 
 const PlacedElement = forwardRef<HTMLDivElement, PlacedElementProps>(
   function PlacedElement(
-    {
-      entry,
-      resizePreview,
-      className,
-      style,
-      children,
-      onDragActivate,
-      ...gridItemProps
-    },
+    { entry, resizePreview, className, style, children, ...gridItemProps },
     forwardedRef,
   ) {
     const workspace = useElementWorkspace();
@@ -350,18 +341,10 @@ const PlacedElement = forwardRef<HTMLDivElement, PlacedElementProps>(
         }}
         onKeyDown={handleKeyDown}
       >
-        <div className="element-item-toolbar">
-          <Button
-            className="element-drag-handle"
-            variant="ghost"
-            size="icon-sm"
-            type="button"
-            aria-label={`${entry.element.name} 이동`}
-            disabled={entry.element.locked || workspace.mutating}
-            onMouseDown={onDragActivate}
-          >
+        <div className="element-item-toolbar element-node-drag-area">
+          <span className="element-drag-affordance" aria-hidden="true">
             <Grip />
-          </Button>
+          </span>
           <strong>{entry.element.name}</strong>
           <Button
             className="element-lock-control element-interactive"
@@ -394,7 +377,7 @@ const PlacedElement = forwardRef<HTMLDivElement, PlacedElementProps>(
             <Trash2 />
           </Button>
         </div>
-        <div className="element-render-surface">
+        <div className="element-render-surface element-node-drag-area">
           {definition ? (
             <ElementRenderer
               entry={entry}
@@ -456,8 +439,8 @@ export function ElementCanvas() {
   );
   const renderedLayout = rollbackLayout ?? layout;
   const contentRows = Math.max(
-    38,
-    ...workspace.entries.map((entry) => entry.layout.y + entry.layout.h + 2),
+    96,
+    ...workspace.entries.map((entry) => entry.layout.y + entry.layout.h + 48),
   );
   const contentHeight = Math.max(
     640,
@@ -712,9 +695,9 @@ export function ElementCanvas() {
                 dragConfig={{
                   enabled: !workspace.mutating,
                   bounded: true,
-                  handle: ".element-drag-handle",
+                  handle: ".element-node-drag-area",
                   cancel:
-                    ".element-interactive, .element-render-surface button, .element-render-surface input, .element-render-surface textarea, .element-render-surface select",
+                    ".element-interactive, .element-resize-handle, button, input, textarea, select, a, label, [contenteditable='true']",
                 }}
                 resizeConfig={{
                   enabled: !workspace.mutating,
@@ -743,7 +726,6 @@ export function ElementCanvas() {
                     key={entry.element.id}
                     entry={entry}
                     resizePreview={resizePreview}
-                    onDragActivate={() => beginGridInteraction("drag")}
                   />
                 ))}
               </GridLayout>

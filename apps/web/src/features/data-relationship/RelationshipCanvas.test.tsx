@@ -1029,7 +1029,13 @@ describe("RelationshipCanvas", () => {
         onProjectRevisionChange={vi.fn()}
       />,
     );
+    expect(screen.queryByLabelText("선택 Binding")).not.toBeInTheDocument();
     const edge = await screen.findByRole("button", { name: "조회 Binding" });
+    await user.click(edge);
+    const selection = screen.getByLabelText("선택 Binding");
+    expect(selection).toBeInTheDocument();
+    await user.click(within(selection).getByRole("button", { name: "닫기" }));
+    expect(screen.queryByLabelText("선택 Binding")).not.toBeInTheDocument();
     await user.click(edge);
     await user.click(screen.getByRole("button", { name: "삭제" }));
     const alert = await screen.findByRole("alertdialog");
@@ -1189,6 +1195,7 @@ describe("RelationshipCanvas", () => {
 
   it("persists pin state through the node-position command without changing coordinates", async () => {
     let current = graph();
+    let releasePositionResponse: (() => void) | undefined;
     const calls: Array<{ url: string; method: string; body: unknown }> = [];
     vi.stubGlobal(
       "fetch",
@@ -1218,6 +1225,9 @@ describe("RelationshipCanvas", () => {
             projectRevision: 5,
             nodes: [nextPage, elementNode, tableNode],
           };
+          await new Promise<void>((resolve) => {
+            releasePositionResponse = resolve;
+          });
           return response({
             position: {
               nodeId: nextPage.id,
@@ -1249,6 +1259,12 @@ describe("RelationshipCanvas", () => {
       await screen.findAllByRole("button", { name: "고정" })
     )[0] as HTMLElement;
     await user.click(pin);
+    await waitFor(() => expect(releasePositionResponse).toBeDefined());
+    expect(screen.getByRole("button", { name: "새로고침" })).toBeEnabled();
+    expect(
+      calls.filter(({ url }) => url.endsWith("/relationship-graph")),
+    ).toHaveLength(1);
+    releasePositionResponse?.();
     expect(
       await screen.findByRole("button", { name: "고정 해제" }),
     ).toHaveAttribute("aria-pressed", "true");
@@ -1266,5 +1282,8 @@ describe("RelationshipCanvas", () => {
       expectedGraphRevision: 0,
       expectedProjectRevision: 4,
     });
+    expect(
+      calls.filter(({ url }) => url.endsWith("/relationship-graph")),
+    ).toHaveLength(1);
   });
 });

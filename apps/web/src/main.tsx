@@ -11,6 +11,8 @@ if (!root) {
   throw new Error("WebEditor root element was not found.");
 }
 
+root.dataset.buildPhase = "19.1";
+
 createRoot(root).render(
   <StrictMode>
     <AuthBoundary>

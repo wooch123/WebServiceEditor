@@ -1,6 +1,5 @@
 import {
   ArrowLeft,
-  ArrowRight,
   Blocks,
   ChevronRight,
   Database,
@@ -46,6 +45,7 @@ import {
   DraftPreviewRuntime,
   PublishedRuntime,
 } from "@/features/runtime/PublishedRuntime";
+import { cn } from "@/lib/utils";
 import { listPages, type PageDto } from "@/services/pages-api";
 import type { ProjectDto } from "@/services/projects-api";
 import {
@@ -312,7 +312,14 @@ function EditorSurface({
           })}
         </nav>
 
-        <div className="editor-workspace">
+        <div
+          className={cn(
+            "editor-workspace",
+            step === "data" &&
+              dataView === "relationship" &&
+              "is-relationship-canvas",
+          )}
+        >
           <aside className="editor-left-panel">
             <PageManager
               project={project}
@@ -387,62 +394,52 @@ function EditorSurface({
             )}
           </main>
 
-          <aside className="inspector-panel">
-            <div className="panel-heading">
-              <div>
-                <strong>
-                  {step === "page"
-                    ? "속성"
-                    : step === "data"
-                      ? dataView === "schema"
-                        ? "스키마"
-                        : "Binding"
-                      : "검증 요약"}
-                </strong>
+          {!(step === "data" && dataView === "relationship") && (
+            <aside className="inspector-panel">
+              <div className="panel-heading">
+                <div>
+                  <strong>
+                    {step === "page"
+                      ? "속성"
+                      : step === "data"
+                        ? dataView === "schema"
+                          ? "스키마"
+                          : "Binding"
+                        : "검증 요약"}
+                  </strong>
+                </div>
               </div>
-            </div>
-            {step === "page" && <ElementPropertyInspector />}
-            {step === "data" && dataView === "schema" && (
-              <div className="inspector-summary">
-                <span>
-                  <Database aria-hidden="true" />
-                  Test DB
-                </span>
-                <span>
-                  <Waypoints aria-hidden="true" />
-                  관계
-                </span>
-              </div>
-            )}
-            {step === "data" && dataView === "relationship" && (
-              <div className="inspector-summary">
-                <span>
-                  <Waypoints aria-hidden="true" />
-                  Page · Element · Table
-                </span>
-                <span>
-                  <ArrowRight aria-hidden="true" />
-                  Output → Input
-                </span>
-              </div>
-            )}
-            {step === "validation" && (
-              <div className="inspector-summary">
-                <span>
-                  <ShieldCheck aria-hidden="true" />
-                  정적
-                </span>
-                <span>
-                  <Database aria-hidden="true" />
-                  DB
-                </span>
-                <span>
-                  <Waypoints aria-hidden="true" />
-                  Binding
-                </span>
-              </div>
-            )}
-          </aside>
+              {step === "page" && <ElementPropertyInspector />}
+              {step === "data" && dataView === "schema" && (
+                <div className="inspector-summary">
+                  <span>
+                    <Database aria-hidden="true" />
+                    Test DB
+                  </span>
+                  <span>
+                    <Waypoints aria-hidden="true" />
+                    관계
+                  </span>
+                </div>
+              )}
+              {step === "validation" && (
+                <div className="inspector-summary">
+                  <span>
+                    <ShieldCheck aria-hidden="true" />
+                    정적
+                  </span>
+                  <span>
+                    <Database aria-hidden="true" />
+                    DB
+                  </span>
+                  <span>
+                    <Waypoints aria-hidden="true" />
+                    Binding
+                  </span>
+                </div>
+              )}
+            </aside>
+          )}
         </div>
 
         <footer className="editor-statusbar">
