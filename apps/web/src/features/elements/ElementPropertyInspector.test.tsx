@@ -588,7 +588,7 @@ describe("Phase 6 property inspector", () => {
     ).toBe(true);
   });
 
-  it("generates every canonical Registry field under its declared tab for all six definitions", async () => {
+  it("generates every registered field under its declared tab", async () => {
     const entries = ELEMENT_DEFINITIONS.map((definition) =>
       makeEntry(`schema-${definition.type}`, definition.type),
     );
@@ -637,7 +637,7 @@ describe("Phase 6 property inspector", () => {
         }
       }
     }
-  });
+  }, 20_000);
 
   it("projects one injected Number Input through Palette, Inventory, Inspector, Editor, and Runtime", async () => {
     const probe = makeEntry("registry-probe", "number-input", "page-1", {
@@ -678,7 +678,7 @@ describe("Phase 6 property inspector", () => {
     editor.unmount();
   });
 
-  it("projects twelve registry entries, six schema tabs, and truthful unconnected data without Custom CSS", async () => {
+  it("projects every registry entry, six schema tabs, and truthful unconnected data without Custom CSS", async () => {
     installInspectorApi({
       pageOneEntries: [
         makeEntry("no-port", "text"),

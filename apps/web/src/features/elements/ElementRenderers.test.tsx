@@ -1,5 +1,11 @@
-import { cleanup, render, screen, within } from "@testing-library/react";
-import { afterEach, describe, expect, it } from "vitest";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from "@testing-library/react";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   ELEMENT_DEFINITIONS,
   type ElementEntryDto,
@@ -159,6 +165,98 @@ describe("Phase 6 editor and immutable runtime renderers", () => {
       ).toHaveAttribute("data-renderer-key", type);
     },
   );
+
+  it.each([
+    "text-input",
+    "text-area",
+    "select",
+    "multi-select",
+    "checkbox",
+    "radio",
+    "switch",
+    "date-picker",
+    "date-range",
+    "slider",
+    "file-upload",
+  ] as const)("renders the %s input in separate form trees", (type) => {
+    const definition = definitionFor(type);
+    const entry = makeEntry(type);
+    const editor = render(
+      <ElementRenderer entry={entry} definition={definition} compact={false} />,
+    );
+    expect(
+      editor.container.querySelector('[data-slot="field-group"]'),
+    ).toBeInTheDocument();
+    editor.unmount();
+
+    const runtime = render(
+      <RuntimeElementRenderer entry={entry} definition={definition} />,
+    );
+    expect(
+      runtime.container.querySelector('[data-slot="field-group"]'),
+    ).toBeInTheDocument();
+  });
+
+  it("emits typed Runtime values from text, checkbox, and select controls", () => {
+    const onValueChange = vi.fn();
+    const textEntry = makeEntry("text-input", {
+      props: { label: "Name", defaultValue: "" },
+    });
+    const textView = render(
+      <RuntimeElementRenderer
+        entry={textEntry}
+        definition={definitionFor("text-input")}
+        value=""
+        onValueChange={onValueChange}
+      />,
+    );
+    fireEvent.change(screen.getByLabelText("Name"), {
+      target: { value: "Ada" },
+    });
+    expect(onValueChange).toHaveBeenLastCalledWith(textEntry.element.id, "Ada");
+    textView.unmount();
+
+    const checkboxEntry = makeEntry("checkbox", {
+      props: { label: "Enabled", defaultChecked: false },
+    });
+    const checkboxView = render(
+      <RuntimeElementRenderer
+        entry={checkboxEntry}
+        definition={definitionFor("checkbox")}
+        value={false}
+        onValueChange={onValueChange}
+      />,
+    );
+    fireEvent.click(screen.getByRole("checkbox", { name: "Enabled" }));
+    expect(onValueChange).toHaveBeenLastCalledWith(
+      checkboxEntry.element.id,
+      true,
+    );
+    checkboxView.unmount();
+
+    const selectEntry = makeEntry("select", {
+      props: {
+        label: "Status",
+        options: "Ready,Blocked",
+        defaultValue: "Ready",
+      },
+    });
+    render(
+      <RuntimeElementRenderer
+        entry={selectEntry}
+        definition={definitionFor("select")}
+        value="Ready"
+        onValueChange={onValueChange}
+      />,
+    );
+    fireEvent.change(screen.getByRole("combobox", { name: "Status" }), {
+      target: { value: "Blocked" },
+    });
+    expect(onValueChange).toHaveBeenLastCalledWith(
+      selectEntry.element.id,
+      "Blocked",
+    );
+  });
 
   it("projects semantic heading, tabs, accordion, image, and link controls", () => {
     const heading = makeEntry("heading", {

@@ -37,7 +37,7 @@ describe("element registry and grid geometry", () => {
       "box-plot",
       "summary-statistics",
     ]);
-    expect(types.slice(12)).toEqual([
+    expect(types.slice(12, 21)).toEqual([
       "heading",
       "divider",
       "image",
@@ -47,6 +47,19 @@ describe("element registry and grid geometry", () => {
       "spacer",
       "tabs",
       "accordion",
+    ]);
+    expect(types.slice(21)).toEqual([
+      "text-input",
+      "text-area",
+      "select",
+      "multi-select",
+      "checkbox",
+      "radio",
+      "switch",
+      "date-picker",
+      "date-range",
+      "slider",
+      "file-upload",
     ]);
     expect(elementRegistry().checksum).toMatch(/^[0-9a-f]{64}$/);
     expect(elementDefinition("text").defaultProps).toMatchObject({
@@ -80,10 +93,17 @@ describe("element registry and grid geometry", () => {
         ),
       ).toBe(true);
     }
-    for (const type of types.slice(12)) {
+    for (const type of types.slice(12, 21)) {
       const definition = elementDefinition(type as never);
       expect(definition.category).toBe("basic");
       expect(definition.supportedRenderStates).toEqual(["DATA"]);
+    }
+    for (const type of types.slice(21)) {
+      const definition = elementDefinition(type as never);
+      expect(definition.category).toBe("input");
+      expect(definition.bindingPorts).toEqual([
+        expect.objectContaining({ direction: "output", side: "right" }),
+      ]);
     }
     expect(() => elementDefinition("chart")).toThrow("Element type is invalid");
   });

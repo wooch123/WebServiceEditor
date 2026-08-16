@@ -5,7 +5,7 @@ import {
   Image as ImageIcon,
   LockKeyhole,
 } from "lucide-react";
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -30,9 +31,17 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -42,6 +51,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import type {
   ElementDefinitionDto,
   ElementEntryDto,
@@ -133,6 +143,22 @@ function itemLabels(entry: ElementEntryDto, fallback: readonly string[]) {
     .filter((item, index, values) => values.indexOf(item) === index)
     .slice(0, 12);
   return labels.length > 0 ? labels : fallback;
+}
+
+function inputOptions(entry: ElementEntryDto) {
+  const value = entry.element.props.options;
+  if (typeof value !== "string") return ["Option 1", "Option 2"];
+  const options = value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .filter((item, index, values) => values.indexOf(item) === index)
+    .slice(0, 50);
+  return options.length > 0 ? options : ["Option 1", "Option 2"];
+}
+
+function inputLabel(entry: ElementEntryDto) {
+  return stringValue(entry.element.props, "label", entry.element.name);
 }
 
 function safeImageSource(value: unknown): string | null {
@@ -414,6 +440,226 @@ function NumberInputRenderer({ entry }: CanvasRendererProps) {
   );
 }
 
+function InputControlRenderer({ entry }: CanvasRendererProps) {
+  const presentation = elementPresentation(entry);
+  const id = `canvas-input-${entry.element.id}`;
+  const label = inputLabel(entry);
+  const placeholder = stringValue(entry.element.props, "placeholder", "입력");
+  const defaultValue = stringValue(entry.element.props, "defaultValue", "");
+  const options = inputOptions(entry);
+  const disabled = presentation.disabled;
+  let control: ReactNode;
+
+  switch (entry.element.type) {
+    case "text-input":
+      control = (
+        <Input
+          id={id}
+          className="element-interactive"
+          value={defaultValue}
+          placeholder={placeholder}
+          required={entry.element.props.required === true}
+          maxLength={finiteNumber(entry.element.props.maxLength)}
+          disabled={disabled}
+          readOnly
+        />
+      );
+      break;
+    case "text-area":
+      control = (
+        <Textarea
+          id={id}
+          className="element-interactive"
+          value={defaultValue}
+          placeholder={placeholder}
+          required={entry.element.props.required === true}
+          maxLength={finiteNumber(entry.element.props.maxLength)}
+          disabled={disabled}
+          readOnly
+        />
+      );
+      break;
+    case "select":
+      control = (
+        <NativeSelect
+          id={id}
+          className="element-interactive canvas-native-select"
+          value={
+            options.includes(defaultValue) ? defaultValue : (options[0] ?? "")
+          }
+          required={entry.element.props.required === true}
+          disabled={disabled}
+          onChange={() => undefined}
+        >
+          {options.map((option) => (
+            <NativeSelectOption key={option} value={option}>
+              {option}
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
+      );
+      break;
+    case "multi-select": {
+      const selected = new Set(
+        defaultValue
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean),
+      );
+      control = (
+        <NativeSelect
+          id={id}
+          className="element-interactive canvas-native-select"
+          multiple
+          value={[...selected]}
+          disabled={disabled}
+          onChange={() => undefined}
+        >
+          {options.map((option) => (
+            <NativeSelectOption key={option} value={option}>
+              {option}
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
+      );
+      break;
+    }
+    case "checkbox":
+      control = (
+        <Checkbox
+          id={id}
+          className="element-interactive"
+          checked={entry.element.props.defaultChecked === true}
+          disabled={disabled}
+        />
+      );
+      break;
+    case "radio":
+      control = (
+        <RadioGroup
+          className="element-interactive"
+          value={
+            options.includes(defaultValue) ? defaultValue : (options[0] ?? "")
+          }
+          disabled={disabled}
+        >
+          {options.map((option, index) => (
+            <Field key={option} orientation="horizontal">
+              <RadioGroupItem id={`${id}-${index}`} value={option} />
+              <FieldLabel htmlFor={`${id}-${index}`}>{option}</FieldLabel>
+            </Field>
+          ))}
+        </RadioGroup>
+      );
+      break;
+    case "switch":
+      control = (
+        <Switch
+          id={id}
+          className="element-interactive"
+          checked={entry.element.props.defaultChecked === true}
+          disabled={disabled}
+        />
+      );
+      break;
+    case "date-picker":
+      control = (
+        <Input
+          id={id}
+          className="element-interactive"
+          type="date"
+          value={defaultValue}
+          required={entry.element.props.required === true}
+          disabled={disabled}
+          readOnly
+        />
+      );
+      break;
+    case "date-range":
+      control = (
+        <div className="canvas-date-range element-interactive">
+          <Input
+            id={`${id}-start`}
+            type="date"
+            value={stringValue(entry.element.props, "start", "")}
+            aria-label={`${label} 시작`}
+            disabled={disabled}
+            readOnly
+          />
+          <Input
+            id={`${id}-end`}
+            type="date"
+            value={stringValue(entry.element.props, "end", "")}
+            aria-label={`${label} 종료`}
+            disabled={disabled}
+            readOnly
+          />
+        </div>
+      );
+      break;
+    case "slider": {
+      const minimum = finiteNumber(entry.element.props.minimum) ?? 0;
+      const maximum = finiteNumber(entry.element.props.maximum) ?? 100;
+      const value = Math.min(
+        maximum,
+        Math.max(minimum, finiteNumber(entry.element.props.defaultValue) ?? 50),
+      );
+      control = (
+        <Slider
+          id={id}
+          className="element-interactive"
+          value={[value]}
+          min={minimum}
+          max={maximum}
+          step={finiteNumber(entry.element.props.step) ?? 1}
+          disabled={disabled}
+          aria-label={label}
+        />
+      );
+      break;
+    }
+    case "file-upload":
+      control = (
+        <Input
+          id={id}
+          className="element-interactive"
+          type="file"
+          accept={stringValue(entry.element.props, "accept", "") || undefined}
+          multiple={entry.element.props.multiple === true}
+          required={entry.element.props.required === true}
+          disabled={disabled}
+          onChange={() => undefined}
+        />
+      );
+      break;
+    default:
+      control = null;
+  }
+
+  const horizontal =
+    entry.element.type === "checkbox" || entry.element.type === "switch";
+  return (
+    <FieldGroup className="canvas-form-element">
+      <Field
+        orientation={horizontal ? "horizontal" : "vertical"}
+        data-disabled={disabled || undefined}
+      >
+        {horizontal ? (
+          <>
+            {control}
+            <FieldLabel htmlFor={id}>{label}</FieldLabel>
+          </>
+        ) : (
+          <>
+            <FieldLabel htmlFor={id}>{label}</FieldLabel>
+            {control}
+          </>
+        )}
+      </Field>
+    </FieldGroup>
+  );
+}
+
 function EmptyData({
   label,
   ariaLabel,
@@ -560,6 +806,17 @@ export const editorRendererByKey: Readonly<
   spacer: SpacerRenderer,
   tabs: TabsRenderer,
   accordion: AccordionRenderer,
+  "text-input": InputControlRenderer,
+  "text-area": InputControlRenderer,
+  select: InputControlRenderer,
+  "multi-select": InputControlRenderer,
+  checkbox: InputControlRenderer,
+  radio: InputControlRenderer,
+  switch: InputControlRenderer,
+  "date-picker": InputControlRenderer,
+  "date-range": InputControlRenderer,
+  slider: InputControlRenderer,
+  "file-upload": InputControlRenderer,
 };
 
 export function assertEditorRendererDefinitions(

@@ -1,5 +1,5 @@
 import { Database, Image as ImageIcon } from "lucide-react";
-import type { ComponentType } from "react";
+import type { ComponentType, ReactNode } from "react";
 import type { BindingRenderDataDto, BindingScalar } from "@webeditor/domain";
 
 import { Badge } from "@/components/ui/badge";
@@ -10,6 +10,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
   CardContent,
@@ -24,9 +25,22 @@ import {
   EmptyMedia,
   EmptyTitle,
 } from "@/components/ui/empty";
+import {
+  Field,
+  FieldError,
+  FieldGroup,
+  FieldLabel,
+} from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  NativeSelect,
+  NativeSelectOption,
+} from "@/components/ui/native-select";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Slider } from "@/components/ui/slider";
+import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
@@ -36,6 +50,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Textarea } from "@/components/ui/textarea";
 import { elementPresentation } from "@/features/elements/element-presentation";
 import {
   DynamicLucideIcon,
@@ -128,6 +143,22 @@ function itemLabels(entry: ElementEntryDto, fallback: readonly string[]) {
     .filter((item, index, values) => values.indexOf(item) === index)
     .slice(0, 12);
   return labels.length > 0 ? labels : fallback;
+}
+
+function inputOptions(entry: ElementEntryDto) {
+  const value = entry.element.props.options;
+  if (typeof value !== "string") return ["Option 1", "Option 2"];
+  const options = value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .filter((item, index, values) => values.indexOf(item) === index)
+    .slice(0, 50);
+  return options.length > 0 ? options : ["Option 1", "Option 2"];
+}
+
+function inputLabel(entry: ElementEntryDto) {
+  return stringValue(entry.element.props, "label", entry.element.name);
 }
 
 function safeImageSource(value: unknown): string | null {
@@ -389,6 +420,303 @@ function RuntimeNumberInput({
   );
 }
 
+function RuntimeInputControl({
+  entry,
+  value,
+  fieldError,
+  pending,
+  onValueChange,
+}: RuntimeRendererProps) {
+  const presentation = elementPresentation(entry);
+  const id = `runtime-input-${entry.element.id}`;
+  const label = inputLabel(entry);
+  const disabled = presentation.disabled || pending === true;
+  const stringInput =
+    value === undefined
+      ? stringValue(entry.element.props, "defaultValue", "")
+      : value === null
+        ? ""
+        : String(value);
+  const boolInput =
+    value === undefined
+      ? entry.element.props.defaultChecked === true
+      : value === true;
+  const options = inputOptions(entry);
+  let control: ReactNode;
+
+  switch (entry.element.type) {
+    case "text-input":
+      control = (
+        <Input
+          id={id}
+          type="text"
+          value={stringInput}
+          placeholder={stringValue(entry.element.props, "placeholder", "입력")}
+          required={entry.element.props.required === true}
+          maxLength={finiteNumber(entry.element.props.maxLength)}
+          disabled={disabled}
+          aria-invalid={fieldError ? true : undefined}
+          onChange={(event) =>
+            onValueChange?.(entry.element.id, event.target.value)
+          }
+          readOnly={onValueChange === undefined}
+        />
+      );
+      break;
+    case "text-area":
+      control = (
+        <Textarea
+          id={id}
+          value={stringInput}
+          placeholder={stringValue(entry.element.props, "placeholder", "입력")}
+          required={entry.element.props.required === true}
+          maxLength={finiteNumber(entry.element.props.maxLength)}
+          disabled={disabled}
+          aria-invalid={fieldError ? true : undefined}
+          onChange={(event) =>
+            onValueChange?.(entry.element.id, event.target.value)
+          }
+          readOnly={onValueChange === undefined}
+        />
+      );
+      break;
+    case "select":
+      control = (
+        <NativeSelect
+          id={id}
+          className="runtime-native-select"
+          value={
+            options.includes(stringInput) ? stringInput : (options[0] ?? "")
+          }
+          required={entry.element.props.required === true}
+          disabled={disabled}
+          aria-invalid={fieldError ? true : undefined}
+          onChange={(event) =>
+            onValueChange?.(entry.element.id, event.target.value)
+          }
+        >
+          {options.map((option) => (
+            <NativeSelectOption key={option} value={option}>
+              {option}
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
+      );
+      break;
+    case "multi-select": {
+      const selected = stringInput
+        .split(",")
+        .map((item) => item.trim())
+        .filter(Boolean);
+      control = (
+        <NativeSelect
+          id={id}
+          className="runtime-native-select"
+          multiple
+          value={selected}
+          required={entry.element.props.required === true}
+          disabled={disabled}
+          aria-invalid={fieldError ? true : undefined}
+          onChange={(event) =>
+            onValueChange?.(
+              entry.element.id,
+              [...event.currentTarget.selectedOptions]
+                .map((option) => option.value)
+                .join(","),
+            )
+          }
+        >
+          {options.map((option) => (
+            <NativeSelectOption key={option} value={option}>
+              {option}
+            </NativeSelectOption>
+          ))}
+        </NativeSelect>
+      );
+      break;
+    }
+    case "checkbox":
+      control = (
+        <Checkbox
+          id={id}
+          checked={boolInput}
+          required={entry.element.props.required === true}
+          disabled={disabled}
+          aria-invalid={fieldError ? true : undefined}
+          onCheckedChange={(checked) =>
+            onValueChange?.(entry.element.id, checked === true)
+          }
+        />
+      );
+      break;
+    case "radio":
+      control = (
+        <RadioGroup
+          value={
+            options.includes(stringInput) ? stringInput : (options[0] ?? "")
+          }
+          required={entry.element.props.required === true}
+          disabled={disabled}
+          aria-invalid={fieldError ? true : undefined}
+          onValueChange={(next) => onValueChange?.(entry.element.id, next)}
+        >
+          {options.map((option, index) => (
+            <Field key={option} orientation="horizontal">
+              <RadioGroupItem id={`${id}-${index}`} value={option} />
+              <FieldLabel htmlFor={`${id}-${index}`}>{option}</FieldLabel>
+            </Field>
+          ))}
+        </RadioGroup>
+      );
+      break;
+    case "switch":
+      control = (
+        <Switch
+          id={id}
+          checked={boolInput}
+          required={entry.element.props.required === true}
+          disabled={disabled}
+          aria-invalid={fieldError ? true : undefined}
+          onCheckedChange={(checked) =>
+            onValueChange?.(entry.element.id, checked)
+          }
+        />
+      );
+      break;
+    case "date-picker":
+      control = (
+        <Input
+          id={id}
+          type="date"
+          value={stringInput}
+          required={entry.element.props.required === true}
+          disabled={disabled}
+          aria-invalid={fieldError ? true : undefined}
+          onChange={(event) =>
+            onValueChange?.(entry.element.id, event.target.value)
+          }
+          readOnly={onValueChange === undefined}
+        />
+      );
+      break;
+    case "date-range": {
+      const [storedStart = "", storedEnd = ""] = stringInput.split("/");
+      const start =
+        value === undefined
+          ? stringValue(entry.element.props, "start", "")
+          : storedStart;
+      const end =
+        value === undefined
+          ? stringValue(entry.element.props, "end", "")
+          : storedEnd;
+      control = (
+        <div className="runtime-date-range">
+          <Input
+            id={`${id}-start`}
+            type="date"
+            value={start}
+            aria-label={`${label} 시작`}
+            disabled={disabled}
+            aria-invalid={fieldError ? true : undefined}
+            onChange={(event) =>
+              onValueChange?.(entry.element.id, `${event.target.value}/${end}`)
+            }
+            readOnly={onValueChange === undefined}
+          />
+          <Input
+            id={`${id}-end`}
+            type="date"
+            value={end}
+            aria-label={`${label} 종료`}
+            disabled={disabled}
+            aria-invalid={fieldError ? true : undefined}
+            onChange={(event) =>
+              onValueChange?.(
+                entry.element.id,
+                `${start}/${event.target.value}`,
+              )
+            }
+            readOnly={onValueChange === undefined}
+          />
+        </div>
+      );
+      break;
+    }
+    case "slider": {
+      const minimum = finiteNumber(entry.element.props.minimum) ?? 0;
+      const maximum = finiteNumber(entry.element.props.maximum) ?? 100;
+      const numericValue =
+        typeof value === "number"
+          ? value
+          : (finiteNumber(entry.element.props.defaultValue) ?? 50);
+      control = (
+        <Slider
+          id={id}
+          value={[Math.min(maximum, Math.max(minimum, numericValue))]}
+          min={minimum}
+          max={maximum}
+          step={finiteNumber(entry.element.props.step) ?? 1}
+          disabled={disabled}
+          aria-label={label}
+          aria-invalid={fieldError ? true : undefined}
+          onValueChange={(next) =>
+            onValueChange?.(entry.element.id, next[0] ?? minimum)
+          }
+        />
+      );
+      break;
+    }
+    case "file-upload":
+      control = (
+        <Input
+          id={id}
+          type="file"
+          accept={stringValue(entry.element.props, "accept", "") || undefined}
+          multiple={entry.element.props.multiple === true}
+          required={entry.element.props.required === true}
+          disabled={disabled}
+          aria-invalid={fieldError ? true : undefined}
+          onChange={(event) =>
+            onValueChange?.(
+              entry.element.id,
+              [...(event.currentTarget.files ?? [])]
+                .map((file) => file.name)
+                .join(","),
+            )
+          }
+        />
+      );
+      break;
+    default:
+      control = null;
+  }
+
+  const horizontal =
+    entry.element.type === "checkbox" || entry.element.type === "switch";
+  return (
+    <FieldGroup className="runtime-form-element">
+      <Field
+        orientation={horizontal ? "horizontal" : "vertical"}
+        data-disabled={disabled || undefined}
+        data-invalid={fieldError ? true : undefined}
+      >
+        {horizontal ? (
+          <>
+            {control}
+            <FieldLabel htmlFor={id}>{label}</FieldLabel>
+          </>
+        ) : (
+          <>
+            <FieldLabel htmlFor={id}>{label}</FieldLabel>
+            {control}
+          </>
+        )}
+        {fieldError && <FieldError>{fieldError}</FieldError>}
+      </Field>
+    </FieldGroup>
+  );
+}
+
 function RuntimeDataTable({
   entry,
   renderState,
@@ -513,6 +841,17 @@ export const runtimeRendererByKey: Readonly<
   spacer: RuntimeSpacer,
   tabs: RuntimeTabs,
   accordion: RuntimeAccordion,
+  "text-input": RuntimeInputControl,
+  "text-area": RuntimeInputControl,
+  select: RuntimeInputControl,
+  "multi-select": RuntimeInputControl,
+  checkbox: RuntimeInputControl,
+  radio: RuntimeInputControl,
+  switch: RuntimeInputControl,
+  "date-picker": RuntimeInputControl,
+  "date-range": RuntimeInputControl,
+  slider: RuntimeInputControl,
+  "file-upload": RuntimeInputControl,
 };
 
 export function assertRuntimeRendererDefinitions(

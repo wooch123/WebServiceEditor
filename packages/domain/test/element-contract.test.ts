@@ -144,7 +144,7 @@ describe("element canvas contract", () => {
       showMin: true,
       showMax: true,
     });
-    expect(ELEMENT_TYPES.slice(12)).toEqual([
+    expect(ELEMENT_TYPES.slice(12, 21)).toEqual([
       "heading",
       "divider",
       "image",
@@ -155,9 +155,37 @@ describe("element canvas contract", () => {
       "tabs",
       "accordion",
     ]);
-    for (const definition of ELEMENT_DEFINITIONS.slice(12)) {
+    for (const definition of ELEMENT_DEFINITIONS.slice(12, 21)) {
       expect(definition.category).toBe("basic");
       expect(definition.supportedRenderStates).toEqual(["DATA"]);
+    }
+    expect(ELEMENT_TYPES.slice(21)).toEqual([
+      "text-input",
+      "text-area",
+      "select",
+      "multi-select",
+      "checkbox",
+      "radio",
+      "switch",
+      "date-picker",
+      "date-range",
+      "slider",
+      "file-upload",
+    ]);
+    for (const definition of ELEMENT_DEFINITIONS.slice(21)) {
+      expect(definition.category).toBe("input");
+      expect(definition.supportedRenderStates).toEqual([
+        "EMPTY",
+        "ERROR",
+        "DATA",
+      ]);
+      expect(definition.bindingPorts).toEqual([
+        expect.objectContaining({
+          id: "value",
+          direction: "output",
+          side: "right",
+        }),
+      ]);
     }
   });
 });

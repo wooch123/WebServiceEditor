@@ -32,6 +32,17 @@ export const ELEMENT_TYPES = [
   "spacer",
   "tabs",
   "accordion",
+  "text-input",
+  "text-area",
+  "select",
+  "multi-select",
+  "checkbox",
+  "radio",
+  "switch",
+  "date-picker",
+  "date-range",
+  "slider",
+  "file-upload",
 ] as const;
 export const STATISTICAL_ELEMENT_TYPES = [
   "line-chart",
@@ -916,6 +927,428 @@ function additionalBasicDefinition(
     bindingPorts: [],
     events: spec.events,
     supportedRenderStates: ["DATA"],
+    migrations: [],
+  };
+}
+
+type AdditionalInputElementType = Extract<
+  ElementType,
+  | "text-input"
+  | "text-area"
+  | "select"
+  | "multi-select"
+  | "checkbox"
+  | "radio"
+  | "switch"
+  | "date-picker"
+  | "date-range"
+  | "slider"
+  | "file-upload"
+>;
+
+interface AdditionalInputElementSpec {
+  readonly type: AdditionalInputElementType;
+  readonly label: string;
+  readonly description: string;
+  readonly iconName: string;
+  readonly defaultName: string;
+  readonly defaultProps: Readonly<Record<string, unknown>>;
+  readonly layout: ElementSizeRule;
+  readonly fields: readonly ElementPropertyField[];
+  readonly outputType: string;
+  readonly events: readonly ElementEventDefinition[];
+}
+
+function booleanProperty(
+  id: string,
+  tab: ElementPropertyTabId,
+  label: string,
+): ElementPropertyField {
+  return {
+    id,
+    tab,
+    label,
+    control: "switch",
+    valueType: "boolean",
+    target: "props",
+    required: true,
+    readOnly: false,
+  };
+}
+
+function numberProperty(
+  id: string,
+  tab: ElementPropertyTabId,
+  label: string,
+  min: number,
+  max: number,
+  step = 1,
+): ElementPropertyField {
+  return {
+    id,
+    tab,
+    label,
+    control: "number",
+    valueType: "number",
+    target: "props",
+    required: true,
+    readOnly: false,
+    min,
+    max,
+    step,
+  };
+}
+
+const inputLabelField = textProperty("general.label", "general", "Label");
+const inputPlaceholderField = textProperty(
+  "general.placeholder",
+  "general",
+  "Placeholder",
+  "text",
+  false,
+);
+const inputRequiredField = booleanProperty(
+  "validation.required",
+  "validation",
+  "Required",
+);
+
+const additionalInputElementSpecs = [
+  {
+    type: "text-input",
+    label: "Text Input",
+    description: "Single-line text entry.",
+    iconName: "TextCursorInput",
+    defaultName: "Text Input",
+    defaultProps: {
+      label: "Text",
+      placeholder: "Enter text",
+      defaultValue: "",
+      required: false,
+      maxLength: 500,
+    },
+    layout: { defaultW: 6, defaultH: 7, minW: 3, minH: 5, maxW: 16, maxH: 14 },
+    fields: [
+      inputLabelField,
+      inputPlaceholderField,
+      textProperty("data.defaultValue", "data", "Default Value", "text", false),
+      inputRequiredField,
+      numberProperty(
+        "validation.maxLength",
+        "validation",
+        "Maximum Length",
+        1,
+        10_000,
+      ),
+    ],
+    outputType: "string",
+    events: [
+      { id: "onChange", label: "Change" },
+      { id: "onSubmit", label: "Submit" },
+    ],
+  },
+  {
+    type: "text-area",
+    label: "Text Area",
+    description: "Multi-line text entry.",
+    iconName: "TextQuote",
+    defaultName: "Text Area",
+    defaultProps: {
+      label: "Text",
+      placeholder: "Enter text",
+      defaultValue: "",
+      required: false,
+      maxLength: 10_000,
+    },
+    layout: { defaultW: 8, defaultH: 12, minW: 4, minH: 8, maxW: 24, maxH: 40 },
+    fields: [
+      inputLabelField,
+      inputPlaceholderField,
+      textProperty(
+        "data.defaultValue",
+        "data",
+        "Default Value",
+        "textarea",
+        false,
+      ),
+      inputRequiredField,
+      numberProperty(
+        "validation.maxLength",
+        "validation",
+        "Maximum Length",
+        1,
+        100_000,
+      ),
+    ],
+    outputType: "string",
+    events: [{ id: "onChange", label: "Change" }],
+  },
+  {
+    type: "select",
+    label: "Select",
+    description: "Single-choice selection.",
+    iconName: "ListFilter",
+    defaultName: "Select",
+    defaultProps: {
+      label: "Choice",
+      placeholder: "Select",
+      options: "Option 1,Option 2",
+      defaultValue: "Option 1",
+      required: false,
+    },
+    layout: { defaultW: 6, defaultH: 7, minW: 3, minH: 5, maxW: 16, maxH: 14 },
+    fields: [
+      inputLabelField,
+      inputPlaceholderField,
+      textProperty("data.options", "data", "Options"),
+      textProperty("data.defaultValue", "data", "Default Value", "text", false),
+      inputRequiredField,
+    ],
+    outputType: "string",
+    events: [{ id: "onChange", label: "Change" }],
+  },
+  {
+    type: "multi-select",
+    label: "Multi Select",
+    description: "Multiple-choice selection.",
+    iconName: "ListChecks",
+    defaultName: "Multi Select",
+    defaultProps: {
+      label: "Choices",
+      options: "Option 1,Option 2,Option 3",
+      defaultValue: "",
+      required: false,
+    },
+    layout: { defaultW: 7, defaultH: 12, minW: 4, minH: 8, maxW: 18, maxH: 30 },
+    fields: [
+      inputLabelField,
+      textProperty("data.options", "data", "Options"),
+      textProperty(
+        "data.defaultValue",
+        "data",
+        "Default Values",
+        "text",
+        false,
+      ),
+      inputRequiredField,
+    ],
+    outputType: "strings",
+    events: [{ id: "onChange", label: "Change" }],
+  },
+  {
+    type: "checkbox",
+    label: "Checkbox",
+    description: "Boolean checkbox input.",
+    iconName: "SquareCheck",
+    defaultName: "Checkbox",
+    defaultProps: { label: "Checkbox", defaultChecked: false, required: false },
+    layout: { defaultW: 5, defaultH: 5, minW: 2, minH: 4, maxW: 12, maxH: 10 },
+    fields: [
+      inputLabelField,
+      booleanProperty("data.defaultChecked", "data", "Checked"),
+      inputRequiredField,
+    ],
+    outputType: "boolean",
+    events: [{ id: "onChange", label: "Change" }],
+  },
+  {
+    type: "radio",
+    label: "Radio",
+    description: "Single-choice radio group.",
+    iconName: "CircleDot",
+    defaultName: "Radio",
+    defaultProps: {
+      label: "Choice",
+      options: "Option 1,Option 2",
+      defaultValue: "Option 1",
+      required: false,
+    },
+    layout: { defaultW: 7, defaultH: 10, minW: 4, minH: 7, maxW: 18, maxH: 30 },
+    fields: [
+      inputLabelField,
+      textProperty("data.options", "data", "Options"),
+      textProperty("data.defaultValue", "data", "Default Value"),
+      inputRequiredField,
+    ],
+    outputType: "string",
+    events: [{ id: "onChange", label: "Change" }],
+  },
+  {
+    type: "switch",
+    label: "Switch",
+    description: "Boolean switch input.",
+    iconName: "ToggleRight",
+    defaultName: "Switch",
+    defaultProps: { label: "Switch", defaultChecked: false, required: false },
+    layout: { defaultW: 5, defaultH: 5, minW: 2, minH: 4, maxW: 12, maxH: 10 },
+    fields: [
+      inputLabelField,
+      booleanProperty("data.defaultChecked", "data", "Enabled"),
+      inputRequiredField,
+    ],
+    outputType: "boolean",
+    events: [{ id: "onChange", label: "Change" }],
+  },
+  {
+    type: "date-picker",
+    label: "Date Picker",
+    description: "ISO date input.",
+    iconName: "CalendarDays",
+    defaultName: "Date Picker",
+    defaultProps: { label: "Date", defaultValue: "", required: false },
+    layout: { defaultW: 6, defaultH: 7, minW: 3, minH: 5, maxW: 16, maxH: 14 },
+    fields: [
+      inputLabelField,
+      textProperty("data.defaultValue", "data", "Default Date", "text", false),
+      inputRequiredField,
+    ],
+    outputType: "date",
+    events: [{ id: "onChange", label: "Change" }],
+  },
+  {
+    type: "date-range",
+    label: "Date Range",
+    description: "Start and end date input.",
+    iconName: "CalendarRange",
+    defaultName: "Date Range",
+    defaultProps: { label: "Date Range", start: "", end: "", required: false },
+    layout: {
+      defaultW: 10,
+      defaultH: 10,
+      minW: 6,
+      minH: 7,
+      maxW: 24,
+      maxH: 20,
+    },
+    fields: [
+      inputLabelField,
+      textProperty("data.start", "data", "Start Date", "text", false),
+      textProperty("data.end", "data", "End Date", "text", false),
+      inputRequiredField,
+    ],
+    outputType: "date-range",
+    events: [{ id: "onChange", label: "Change" }],
+  },
+  {
+    type: "slider",
+    label: "Slider",
+    description: "Bounded numeric slider.",
+    iconName: "SlidersHorizontal",
+    defaultName: "Slider",
+    defaultProps: {
+      label: "Value",
+      defaultValue: 50,
+      minimum: 0,
+      maximum: 100,
+      step: 1,
+      required: false,
+    },
+    layout: { defaultW: 7, defaultH: 7, minW: 4, minH: 5, maxW: 18, maxH: 14 },
+    fields: [
+      inputLabelField,
+      numberProperty(
+        "data.defaultValue",
+        "data",
+        "Default Value",
+        -1_000_000,
+        1_000_000,
+      ),
+      numberProperty(
+        "validation.minimum",
+        "validation",
+        "Minimum",
+        -1_000_000,
+        1_000_000,
+      ),
+      numberProperty(
+        "validation.maximum",
+        "validation",
+        "Maximum",
+        -1_000_000,
+        1_000_000,
+      ),
+      numberProperty(
+        "validation.step",
+        "validation",
+        "Step",
+        0.000_001,
+        1_000_000,
+        0.000_001,
+      ),
+      inputRequiredField,
+    ],
+    outputType: "number",
+    events: [{ id: "onChange", label: "Change" }],
+  },
+  {
+    type: "file-upload",
+    label: "File Upload",
+    description: "Browser file selection input.",
+    iconName: "Upload",
+    defaultName: "File Upload",
+    defaultProps: {
+      label: "File",
+      accept: "",
+      multiple: false,
+      required: false,
+    },
+    layout: { defaultW: 8, defaultH: 7, minW: 4, minH: 5, maxW: 20, maxH: 14 },
+    fields: [
+      inputLabelField,
+      textProperty(
+        "validation.accept",
+        "validation",
+        "Accepted Types",
+        "text",
+        false,
+      ),
+      booleanProperty("validation.multiple", "validation", "Multiple Files"),
+      inputRequiredField,
+    ],
+    outputType: "file",
+    events: [{ id: "onChange", label: "Change" }],
+  },
+] as const satisfies readonly AdditionalInputElementSpec[];
+
+function additionalInputDefinition(
+  spec: AdditionalInputElementSpec,
+): ElementDefinition {
+  return {
+    type: spec.type,
+    typeVersion: ELEMENT_TYPE_VERSION,
+    label: spec.label,
+    description: spec.description,
+    category: "input",
+    iconName: spec.iconName,
+    rendererKey: spec.type,
+    editorRendererKey: spec.type,
+    runtimeRendererKey: spec.type,
+    validatorKey: spec.type,
+    defaultName: spec.defaultName,
+    defaultProps: {
+      internalName: spec.type.replaceAll("-", "_"),
+      disabled: false,
+      tooltip: "",
+      accessibilityLabel: spec.defaultName,
+      ...spec.defaultProps,
+    },
+    defaultStyle: commonDefaultStyle,
+    defaultEvents: [],
+    layout: spec.layout,
+    propertySchema: { fields: [...commonPropertyFields, ...spec.fields] },
+    bindingPorts: [
+      {
+        id: "value",
+        label: "Value",
+        direction: "output",
+        side: "right",
+        valueType: spec.outputType,
+        required: false,
+        maxConnections: null,
+      },
+    ],
+    events: spec.events,
+    supportedRenderStates: ["EMPTY", "ERROR", "DATA"],
     migrations: [],
   };
 }
@@ -1836,6 +2269,7 @@ export const ELEMENT_DEFINITIONS = [
     migrations: [],
   },
   ...additionalBasicElementSpecs.map(additionalBasicDefinition),
+  ...additionalInputElementSpecs.map(additionalInputDefinition),
 ] as const satisfies readonly ElementDefinition[];
 
 export interface ElementDto {

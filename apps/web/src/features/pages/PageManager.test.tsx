@@ -62,7 +62,9 @@ function response(payload: unknown, status = 200) {
   });
 }
 
-function installPageApi(options: { largeIconCatalog?: boolean } = {}) {
+function installPageApi(
+  options: { largeIconCatalog?: boolean; deletePlanDelayMs?: number } = {},
+) {
   let pages = [page("first", "첫 페이지", 0), page("second", "둘째 페이지", 1)];
   let revision = project.revision;
   const iconItems = [
@@ -166,7 +168,9 @@ function installPageApi(options: { largeIconCatalog?: boolean } = {}) {
         });
       }
       if (path.endsWith("/delete-plan") && method === "POST") {
-        await new Promise((resolve) => window.setTimeout(resolve, 30));
+        await new Promise((resolve) =>
+          window.setTimeout(resolve, options.deletePlanDelayMs ?? 30),
+        );
         if (deletePlanFailures > 0) {
           deletePlanFailures -= 1;
           return response(
@@ -521,7 +525,7 @@ describe("PageManager behavior", () => {
   });
 
   it("loads page-specific delete impact, cancels safely, then undo restores the same ID", async () => {
-    const { calls } = installPageApi();
+    const { calls } = installPageApi({ deletePlanDelayMs: 200 });
     const user = userEvent.setup();
     render(<Harness />);
     await user.click(
