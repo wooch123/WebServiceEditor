@@ -571,4 +571,124 @@ describe("PublishedRuntime", () => {
     await user.keyboard("{Escape}");
     expect(trigger).toHaveFocus();
   });
+
+  it("renders Draft Preview from its immutable Test snapshot without calling Published routes", async () => {
+    const calls: string[] = [];
+    const page: RuntimePageDto = {
+      id: "page-0",
+      name: "초안 페이지",
+      route: "/draft",
+      sortOrder: 0,
+      iconName: "File",
+      iconCatalogVersion: "1.31.0",
+      navigationVisible: true,
+      navigationGroup: null,
+    };
+    const entry = publishedEntry("draft-table", "data-table", {
+      props: { title: "초안 표" },
+    });
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL) => {
+        const path = new URL(String(input), "http://local").pathname;
+        calls.push(path);
+        if (path === "/api/v1/elements/registry") {
+          return Response.json(registryPayload());
+        }
+        if (path === "/api/v1/draft-previews/preview-1/navigation") {
+          return Response.json({
+            projectId: "runtime-project",
+            previewId: "preview-1",
+            snapshotId: "preview-1",
+            sourceProjectRevision: 8,
+            themeId: "light-clean-paper",
+            definitionChecksum: "a".repeat(64),
+            registryChecksum: "b".repeat(64),
+            createdAt: "2026-08-16T00:00:00Z",
+            expiresAt: "2026-08-16T00:05:00Z",
+            pages: [page],
+          });
+        }
+        if (path === "/api/v1/draft-previews/preview-1/pages/page-0") {
+          return Response.json({
+            projectId: "runtime-project",
+            previewId: "preview-1",
+            snapshotId: "preview-1",
+            sourceProjectRevision: 8,
+            themeId: "light-clean-paper",
+            definitionChecksum: "a".repeat(64),
+            registryChecksum: "b".repeat(64),
+            createdAt: "2026-08-16T00:00:00Z",
+            expiresAt: "2026-08-16T00:05:00Z",
+            page,
+            elements: [entry],
+            bindings: [
+              {
+                id: "binding-1",
+                bindingType: "READ",
+                status: "READY",
+                target: { objectId: "draft-table" },
+              },
+            ],
+          });
+        }
+        if (path === "/api/v1/draft-previews/preview-1/query/binding-1") {
+          return Response.json({
+            bindingId: "binding-1",
+            projectId: "runtime-project",
+            targetElementId: "draft-table",
+            environment: "test",
+            planChecksum: "c".repeat(64),
+            snapshotId: "preview-1",
+            definitionChecksum: "a".repeat(64),
+            result: {
+              columns: [],
+              rows: [],
+              rowCount: 2,
+              truncated: false,
+              renderState: "DATA",
+              renderData: {
+                columns: ["이름", "값"],
+                rows: [
+                  { 이름: "A", 값: 12 },
+                  { 이름: "B", 값: 18 },
+                ],
+              },
+            },
+          });
+        }
+        if (path === "/api/v1/ui/icons/File") {
+          return Response.json({
+            item: {
+              name: "File",
+              dynamicName: "file",
+              categories: ["files"],
+              keywords: [],
+            },
+          });
+        }
+        return Response.json(
+          { error: { code: "UNHANDLED", message: path } },
+          { status: 500 },
+        );
+      }),
+    );
+    window.history.replaceState(
+      {},
+      "",
+      "/preview/runtime-project/preview-1/draft",
+    );
+    render(<App />);
+
+    expect(await screen.findByText("미리보기")).toBeInTheDocument();
+    const region = await screen.findByRole("region", {
+      name: "초안 엘리먼트",
+    });
+    expect(await within(region).findByText("A")).toBeInTheDocument();
+    expect(within(region).getByText("18")).toBeInTheDocument();
+    expect(calls).toContain("/api/v1/draft-previews/preview-1/query/binding-1");
+    expect(calls.some((path) => path.startsWith("/api/v1/runtime/"))).toBe(
+      false,
+    );
+  });
 });

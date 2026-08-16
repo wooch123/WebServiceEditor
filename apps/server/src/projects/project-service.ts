@@ -16,9 +16,11 @@ import {
   type ProjectDto,
   type ProjectExportDto,
   type ProjectExportFile,
+  type ProjectDefinitionSnapshotDto,
   type PublishedNavigationPageDto,
   type ProjectTombstoneDto,
   type RelationshipBindingsExportDto,
+  type RelationshipBindingDto,
   type PurgePlanDto,
   type PurgePlanRequest,
   type PurgeProjectRequest,
@@ -112,6 +114,103 @@ interface ImportablePublishedVersion {
   readonly pages: readonly PublishedNavigationPageDto[];
   readonly elements: readonly ElementEntryDto[];
   readonly layoutRevisions: readonly ImportableLayoutRevision[];
+  readonly definitionSchemaVersion?: 1;
+  readonly themeId?: string;
+  readonly registryChecksum?: string;
+  readonly dataSchema?: DataSchemaExportDto;
+  readonly bindings?: readonly RelationshipBindingDto[];
+}
+
+function remapSnapshotDataSchema(
+  source: DataSchemaExportDto,
+  projectId: string,
+  tableIdMap: ReadonlyMap<string, string>,
+  fieldIdMap: ReadonlyMap<string, string>,
+  relationIdMap: ReadonlyMap<string, string>,
+): DataSchemaExportDto {
+  return {
+    ...source,
+    tables: source.tables.map((table) => ({
+      ...table,
+      id: tableIdMap.get(table.id) as string,
+      projectId,
+      fields: table.fields.map((field) => ({
+        ...field,
+        id: fieldIdMap.get(field.id) as string,
+        projectId,
+        tableId: tableIdMap.get(field.tableId) as string,
+      })),
+    })),
+    relations: source.relations.map((relation) => ({
+      ...relation,
+      id: relationIdMap.get(relation.id) as string,
+      projectId,
+      sourceTableId: tableIdMap.get(relation.sourceTableId) as string,
+      sourceFieldId: fieldIdMap.get(relation.sourceFieldId) as string,
+      targetTableId: tableIdMap.get(relation.targetTableId) as string,
+      targetFieldId: fieldIdMap.get(relation.targetFieldId) as string,
+    })),
+  };
+}
+
+function remapSnapshotBindings(
+  source: readonly RelationshipBindingDto[],
+  projectId: string,
+  bindingIdMap: ReadonlyMap<string, string>,
+  pageIdMap: ReadonlyMap<string, string>,
+  elementIdMap: ReadonlyMap<string, string>,
+  tableIdMap: ReadonlyMap<string, string>,
+  fieldIdMap: ReadonlyMap<string, string>,
+): readonly RelationshipBindingDto[] {
+  const remapId = (value: string) =>
+    pageIdMap.get(value) ??
+    elementIdMap.get(value) ??
+    tableIdMap.get(value) ??
+    fieldIdMap.get(value) ??
+    value;
+  const remapValue = (value: unknown): unknown => {
+    if (typeof value === "string") return remapId(value);
+    if (Array.isArray(value)) return value.map(remapValue);
+    if (value !== null && typeof value === "object") {
+      return Object.fromEntries(
+        Object.entries(value).map(([key, entry]) => [key, remapValue(entry)]),
+      );
+    }
+    return value;
+  };
+  const remapEndpoint = (endpoint: RelationshipBindingDto["source"]) => {
+    const objectId = remapId(endpoint.objectId);
+    const nodeObjectId = endpoint.nodeId.slice(
+      endpoint.nodeId.indexOf(":") + 1,
+    );
+    const nodeId = `${endpoint.nodeType}:${remapId(nodeObjectId)}`;
+    const portRole =
+      endpoint.portRole === `field-${endpoint.objectId}`
+        ? `field-${objectId}`
+        : endpoint.portRole;
+    const portSuffix = endpoint.portId.slice(endpoint.objectId.length + 1);
+    const remappedPortSuffix = portSuffix.startsWith(`${endpoint.portRole}:`)
+      ? `${portRole}${portSuffix.slice(endpoint.portRole.length)}`
+      : portSuffix;
+    return {
+      ...endpoint,
+      nodeId,
+      objectId,
+      portId: endpoint.portId.startsWith(`${endpoint.objectId}:`)
+        ? `${objectId}:${remappedPortSuffix}`
+        : endpoint.portId,
+      portRole,
+    };
+  };
+  return source.map((binding) => ({
+    ...binding,
+    id: bindingIdMap.get(binding.id) as string,
+    projectId,
+    source: remapEndpoint(binding.source),
+    target: remapEndpoint(binding.target),
+    query: remapValue(binding.query) as Readonly<Record<string, unknown>>,
+    mapping: remapValue(binding.mapping) as Readonly<Record<string, unknown>>,
+  }));
 }
 
 interface ImportableLayoutRevision {
@@ -671,6 +770,68 @@ function parseImportPublishedVersions(
         pageIds,
         { versionIndex },
       );
+      let definitionFields: Pick<
+        ImportablePublishedVersion,
+        | "definitionSchemaVersion"
+        | "themeId"
+        | "registryChecksum"
+        | "dataSchema"
+        | "bindings"
+      > = {};
+      if (version.definitionSchemaVersion !== undefined) {
+        assertApi(
+          version.definitionSchemaVersion === 1 &&
+            typeof version.themeId === "string" &&
+            THEME_ID_PATTERN.test(version.themeId) &&
+            typeof version.registryChecksum === "string" &&
+            /^[0-9a-f]{64}$/u.test(version.registryChecksum),
+          400,
+          "INVALID_PROJECT_DEFINITION_SNAPSHOT",
+          "Published Project Definition metadata is invalid",
+          { versionIndex },
+        );
+        const dataSchema = parseDataSchemaExport(
+          version.dataSchema,
+          sourceProjectId,
+        );
+        const pageDtos: PageDto[] = pages.map((page) => ({
+          ...page,
+          projectId: sourceProjectId,
+          schemaVersion: 1,
+          revision: 1,
+          pageType: "blank",
+          deletedAt: null,
+        }));
+        const bindingExport = parseRelationshipBindingsExport(
+          {
+            schemaVersion: 1,
+            graphRevision: 0,
+            bindings: version.bindings,
+          },
+          sourceProjectId,
+          pageDtos,
+          elements,
+          dataSchema,
+        );
+        definitionFields = {
+          definitionSchemaVersion: 1,
+          themeId: version.themeId,
+          registryChecksum: version.registryChecksum,
+          dataSchema,
+          bindings: bindingExport.bindings,
+        };
+      } else {
+        assertApi(
+          version.registryChecksum === undefined &&
+            version.themeId === undefined &&
+            version.dataSchema === undefined &&
+            version.bindings === undefined,
+          400,
+          "INVALID_PROJECT_DEFINITION_SNAPSHOT",
+          "Published Project Definition fields require a schema version",
+          { versionIndex },
+        );
+      }
       return {
         id: version.id,
         sequence: version.sequence as number,
@@ -679,6 +840,7 @@ function parseImportPublishedVersions(
         pages,
         elements,
         layoutRevisions,
+        ...definitionFields,
       };
     },
   );
@@ -1367,6 +1529,16 @@ export class ProjectService {
           const snapshot = this.pageRepository.versionSnapshot(version);
           const pageIds = new Set(snapshot.pages.map(({ id }) => id));
           const detail = { versionSequence: version.sequence };
+          const definitionFields =
+            "definitionSchemaVersion" in snapshot
+              ? {
+                  definitionSchemaVersion: snapshot.definitionSchemaVersion,
+                  themeId: snapshot.themeId,
+                  registryChecksum: snapshot.registryChecksum,
+                  dataSchema: snapshot.dataSchema,
+                  bindings: snapshot.bindings,
+                }
+              : {};
           return {
             id: version.id,
             projectId: version.project_id,
@@ -1386,6 +1558,7 @@ export class ProjectService {
               pageIds,
               detail,
             ),
+            ...definitionFields,
           };
         }),
     };
@@ -1430,6 +1603,22 @@ export class ProjectService {
       for (const entry of version.elements) {
         if (!elementIdMap.has(entry.element.id)) {
           elementIdMap.set(entry.element.id, randomUUID());
+        }
+      }
+      for (const table of version.dataSchema?.tables ?? []) {
+        if (!tableIdMap.has(table.id)) tableIdMap.set(table.id, randomUUID());
+        for (const field of table.fields) {
+          if (!fieldIdMap.has(field.id)) fieldIdMap.set(field.id, randomUUID());
+        }
+      }
+      for (const relation of version.dataSchema?.relations ?? []) {
+        if (!relationIdMap.has(relation.id)) {
+          relationIdMap.set(relation.id, randomUUID());
+        }
+      }
+      for (const binding of version.bindings ?? []) {
+        if (!bindingIdMap.has(binding.id)) {
+          bindingIdMap.set(binding.id, randomUUID());
         }
       }
     }
@@ -1558,34 +1747,66 @@ export class ProjectService {
           );
         }
         for (const version of exportDto.publishedVersions) {
+          const pages = version.pages.map((page) => ({
+            ...page,
+            id: pageIdMap.get(page.id) as string,
+          }));
+          const elements = version.elements.map((entry) => ({
+            element: {
+              ...entry.element,
+              id: elementIdMap.get(entry.element.id) as string,
+              projectId: id,
+              pageId: pageIdMap.get(entry.element.pageId) as string,
+            },
+            layout: {
+              ...entry.layout,
+              elementId: elementIdMap.get(entry.element.id) as string,
+            },
+          }));
+          const layoutRevisions = version.layoutRevisions.map((revision) => ({
+            ...revision,
+            pageId: pageIdMap.get(revision.pageId) as string,
+          }));
+          const snapshot =
+            version.definitionSchemaVersion === 1 &&
+            version.themeId !== undefined &&
+            version.registryChecksum !== undefined &&
+            version.dataSchema !== undefined &&
+            version.bindings !== undefined
+              ? ({
+                  definitionSchemaVersion: 1,
+                  projectId: id,
+                  sourceProjectRevision: version.sourceProjectRevision,
+                  themeId: version.themeId,
+                  registryChecksum: version.registryChecksum,
+                  pages,
+                  elements,
+                  layoutRevisions,
+                  dataSchema: remapSnapshotDataSchema(
+                    version.dataSchema,
+                    id,
+                    tableIdMap,
+                    fieldIdMap,
+                    relationIdMap,
+                  ),
+                  bindings: remapSnapshotBindings(
+                    version.bindings,
+                    id,
+                    bindingIdMap,
+                    pageIdMap,
+                    elementIdMap,
+                    tableIdMap,
+                    fieldIdMap,
+                  ),
+                } satisfies ProjectDefinitionSnapshotDto)
+              : { pages, elements, layoutRevisions };
           this.pageRepository.insertImportedVersion({
             id: randomUUID(),
             projectId: id,
             sequence: version.sequence,
             sourceProjectRevision: version.sourceProjectRevision,
             publishedAt: version.publishedAt,
-            snapshot: {
-              pages: version.pages.map((page) => ({
-                ...page,
-                id: pageIdMap.get(page.id) as string,
-              })),
-              elements: version.elements.map((entry) => ({
-                element: {
-                  ...entry.element,
-                  id: elementIdMap.get(entry.element.id) as string,
-                  projectId: id,
-                  pageId: pageIdMap.get(entry.element.pageId) as string,
-                },
-                layout: {
-                  ...entry.layout,
-                  elementId: elementIdMap.get(entry.element.id) as string,
-                },
-              })),
-              layoutRevisions: version.layoutRevisions.map((revision) => ({
-                ...revision,
-                pageId: pageIdMap.get(revision.pageId) as string,
-              })),
-            },
+            snapshot,
           });
         }
         if (exportDto.publishedVersions.length > 0) {

@@ -3,6 +3,7 @@ import type {
   ElementEntryDto,
   PageDto,
   PageType,
+  ProjectDefinitionSnapshotDto,
   PublishedNavigationPageDto,
   RuntimeNavigationDto,
 } from "@webeditor/domain";
@@ -61,11 +62,14 @@ export interface ProjectVersionRow {
   readonly published_at: string;
 }
 
-export interface ProjectVersionSnapshot {
+export interface LegacyProjectVersionSnapshot {
   readonly pages: readonly PublishedNavigationPageDto[];
   readonly elements?: readonly ElementEntryDto[];
   readonly layoutRevisions?: readonly unknown[];
 }
+
+export type ProjectVersionSnapshot =
+  LegacyProjectVersionSnapshot | ProjectDefinitionSnapshotDto;
 
 const pageColumns = `
   id, project_id, schema_version, revision, name, route, page_type,

@@ -1047,6 +1047,38 @@ describe("Phase 5 validation infrastructure", () => {
     );
   });
 
+  it("accepts delegated immutable snapshots only when they include Element layouts", () => {
+    const delegated = sourceFile(
+      "apps/server/src/runtime/runtime-definition-service.ts",
+      `
+        function buildSnapshot(projectId) {
+          return {
+            pages: this.pageRepository.listActive(projectId),
+            elements: this.elementRepository.listActiveForProject(projectId),
+            layoutRevisions: this.elementRepository.layoutRevisionSnapshot(projectId),
+          };
+        }
+        const snapshotJson = JSON.stringify(buildSnapshot(projectId));
+      `,
+    );
+    assert.equal(
+      inspectLayoutProtocol([delegated]).publishIncludesElementLayouts,
+      true,
+    );
+    assert.equal(
+      inspectLayoutProtocol([
+        {
+          ...delegated,
+          source: delegated.source.replace(
+            "layoutRevisions: this.elementRepository.layoutRevisionSnapshot(projectId),",
+            "",
+          ),
+        },
+      ]).publishIncludesElementLayouts,
+      false,
+    );
+  });
+
   it("requires executable behavior and rejects keyword-only evidence", () => {
     const fixtures = behavioralTestFixtures();
     const baseline = inspectPhase5TestInventory(fixtures);

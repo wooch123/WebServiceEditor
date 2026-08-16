@@ -1,5 +1,6 @@
 import { Database } from "lucide-react";
 import type { ComponentType } from "react";
+import type { BindingRenderDataDto } from "@webeditor/domain";
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -18,6 +19,15 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { elementPresentation } from "@/features/elements/element-presentation";
 import {
   StatisticalVisualization,
@@ -35,7 +45,7 @@ interface RuntimeRendererProps {
   entry: ElementEntryDto;
   definition: ElementDefinitionDto;
   renderState?: ElementRenderState;
-  renderData?: StatisticalRenderData;
+  renderData?: BindingRenderDataDto | StatisticalRenderData;
 }
 
 function stringValue(
@@ -94,7 +104,24 @@ function RuntimeContainer({ entry, definition }: RuntimeRendererProps) {
   );
 }
 
-function RuntimeKpi({ entry }: RuntimeRendererProps) {
+function RuntimeKpi({ entry, renderState, renderData }: RuntimeRendererProps) {
+  if (renderState === "LOADING") return <Skeleton className="h-full w-full" />;
+  if (renderState === "DATA") {
+    return (
+      <div className="runtime-kpi-data">
+        <span>
+          {stringValue(entry.element.props, "label", entry.element.name)}
+        </span>
+        <strong>
+          {String(
+            renderData && "scalar" in renderData
+              ? (renderData.scalar ?? "-")
+              : "-",
+          )}
+        </strong>
+      </div>
+    );
+  }
   return (
     <Empty className="runtime-data-empty">
       <EmptyHeader>
@@ -136,7 +163,44 @@ function RuntimeNumberInput({ entry }: RuntimeRendererProps) {
   );
 }
 
-function RuntimeDataTable({ entry }: RuntimeRendererProps) {
+function RuntimeDataTable({
+  entry,
+  renderState,
+  renderData,
+}: RuntimeRendererProps) {
+  if (renderState === "LOADING") return <Skeleton className="h-full w-full" />;
+  const columns =
+    renderData && "columns" in renderData ? (renderData.columns ?? []) : [];
+  const rows =
+    renderData && "rows" in renderData ? (renderData.rows ?? []) : [];
+  if (renderState === "DATA" && columns.length > 0) {
+    return (
+      <Table
+        aria-label={stringValue(
+          entry.element.props,
+          "title",
+          entry.element.name,
+        )}
+      >
+        <TableHeader>
+          <TableRow>
+            {columns.map((column) => (
+              <TableHead key={column}>{column}</TableHead>
+            ))}
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          {rows.map((row, rowIndex) => (
+            <TableRow key={rowIndex}>
+              {columns.map((column) => (
+                <TableCell key={column}>{String(row[column] ?? "")}</TableCell>
+              ))}
+            </TableRow>
+          ))}
+        </TableBody>
+      </Table>
+    );
+  }
   return (
     <Empty
       className="runtime-data-empty"
@@ -170,7 +234,7 @@ function RuntimeStatistical({
       state={renderState}
       compact={false}
       options={entry.element.props}
-      {...(renderData ? { data: renderData } : {})}
+      {...(renderData ? { data: renderData as StatisticalRenderData } : {})}
     />
   );
 }

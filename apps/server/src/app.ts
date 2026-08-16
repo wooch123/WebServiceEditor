@@ -8,6 +8,7 @@ import {
 } from "./data-schema/schema-service.js";
 import { RelationshipService } from "./data-relationship/relationship-service.js";
 import { SampleDataService } from "./data-relationship/sample-data-service.js";
+import { RuntimeDefinitionService } from "./runtime/runtime-definition-service.js";
 import {
   ElementService,
   type ElementFailureInjector,
@@ -59,8 +60,14 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
     metadataDatabase.close();
     throw error;
   }
+  const runtimeDefinitionService = new RuntimeDefinitionService(
+    metadataDatabase,
+    projectService.storage,
+    options.clock ?? (() => new Date()),
+  );
   const pageService = new PageService({
     metadataDatabase,
+    runtimeDefinitionService,
     ...(options.clock === undefined ? {} : { clock: options.clock }),
   });
   const elementService = new ElementService({
@@ -88,6 +95,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   const relationshipService = new RelationshipService({
     metadataDatabase,
     projectStorage: projectService.storage,
+    runtimeDefinitionService,
     ...(options.clock === undefined ? {} : { clock: options.clock }),
   });
   const sampleDataService = new SampleDataService(

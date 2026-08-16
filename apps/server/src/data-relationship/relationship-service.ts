@@ -6,6 +6,7 @@ import {
   RELATIONSHIP_BINDING_TYPES,
   type BindingEndpointDto,
   type BindingExecutionDto,
+  type ExecuteBindingQueryRequest,
   type BindingQueryPreviewDto,
   type CreateRelationshipBindingRequest,
   type DataRelationshipGraphDto,
@@ -36,6 +37,7 @@ import {
   type RelationshipRoutePreviewDto,
   type RelationshipRoutePreviewRequest,
   type RelationshipViewportDto,
+  type RuntimeBindingResultDto,
   type UpdateRelationshipNodePositionRequest,
   type UpdateRelationshipViewportRequest,
 } from "@webeditor/domain";
@@ -47,6 +49,7 @@ import type { MetadataDatabase } from "../metadata/database.js";
 import { PageRepository } from "../pages/page-repository.js";
 import { ProjectRepository } from "../projects/project-repository.js";
 import type { ProjectStorage } from "../projects/project-storage.js";
+import type { RuntimeDefinitionService } from "../runtime/runtime-definition-service.js";
 import { SchemaRepository } from "../data-schema/schema-repository.js";
 import {
   RelationshipRepository,
@@ -311,6 +314,7 @@ function storedLayoutCommandResult<T>(
 export interface RelationshipServiceOptions {
   readonly metadataDatabase: MetadataDatabase;
   readonly projectStorage: ProjectStorage;
+  readonly runtimeDefinitionService: RuntimeDefinitionService;
   readonly clock?: () => Date;
 }
 
@@ -321,6 +325,7 @@ export class RelationshipService {
   readonly elementRepository: ElementRepository;
   readonly schemaRepository: SchemaRepository;
   readonly queryCompiler: BindingQueryCompiler;
+  readonly runtimeDefinitionService: RuntimeDefinitionService;
   readonly #clock: () => Date;
   readonly #previews = new Map<string, StoredConnectionPreview>();
   readonly #autoLayoutPreviews = new Map<string, StoredAutoLayoutPreview>();
@@ -336,6 +341,7 @@ export class RelationshipService {
       options.metadataDatabase,
       options.projectStorage,
     );
+    this.runtimeDefinitionService = options.runtimeDefinitionService;
     this.#clock = options.clock ?? (() => new Date());
     for (const project of this.projectRepository.listActive()) {
       this.graph(project.id);
@@ -647,19 +653,32 @@ export class RelationshipService {
     projectId: string,
     bindingId: string,
     parameters: unknown,
-  ): BindingExecutionDto {
-    assertUuid(projectId, "INVALID_PROJECT_ID", "Project ID");
-    const parameterSource =
-      parameters === undefined
-        ? {}
-        : safeConfiguration(parameters, "Runtime parameters");
-    assertApi(
-      Object.keys(parameterSource).length === 0,
-      400,
-      "UNSUPPORTED_BINDING_PARAMETER",
-      "This READ Binding does not declare Runtime parameters",
+  ): RuntimeBindingResultDto {
+    return this.runtimeDefinitionService.executePublishedBinding(
+      projectId,
+      bindingId,
+      {
+        parameters: (parameters ?? {}) as NonNullable<
+          ExecuteBindingQueryRequest["parameters"]
+        >,
+      },
     );
-    return this.#executeBinding(bindingId, "production", projectId);
+  }
+
+  executeDraftRuntimeBinding(
+    previewId: string,
+    bindingId: string,
+    parameters: unknown,
+  ): RuntimeBindingResultDto {
+    return this.runtimeDefinitionService.executeDraftBinding(
+      previewId,
+      bindingId,
+      {
+        parameters: (parameters ?? {}) as NonNullable<
+          ExecuteBindingQueryRequest["parameters"]
+        >,
+      },
+    );
   }
 
   create(

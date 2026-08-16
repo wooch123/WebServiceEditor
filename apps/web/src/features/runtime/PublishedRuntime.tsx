@@ -15,6 +15,10 @@ import {
   type CSSProperties,
 } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import type {
+  BindingRenderDataDto,
+  RelationshipBindingDto,
+} from "@webeditor/domain";
 
 import { ThemePicker } from "@/ThemePicker";
 import { Button } from "@/components/ui/button";
@@ -43,18 +47,25 @@ import {
 import { useIsMobile } from "@/hooks/use-mobile";
 import { cn } from "@/lib/utils";
 import {
+  getDraftRuntimeNavigation,
   getRuntimeNavigation,
+  type DraftRuntimeNavigationDto,
   type RuntimeNavigationDto,
   type RuntimePageDto,
 } from "@/services/pages-api";
 import {
-  getPublishedRuntimePage,
   listElementRegistry,
   type ElementDefinitionDto,
   type ElementRegistryDto,
   type ElementType,
-  type PublishedRuntimePageDto,
 } from "@/services/elements-api";
+import {
+  executeDraftRuntimeBinding,
+  executePublishedRuntimeBinding,
+  getDraftRuntimePage,
+  getPublishedRuntimeDefinitionPage,
+  type RuntimeDefinitionPage,
+} from "@/services/runtime-api";
 import { defaultTheme, themes, themeToCssVariables } from "@/theme";
 import { DynamicLucideIcon } from "@/features/pages/DynamicLucideIcon";
 import {
@@ -68,13 +79,21 @@ function cleanRoute(route: string) {
   return route.replace(/^\/+|\/+$/g, "");
 }
 
-function runtimePath(projectId: string, route: string) {
+function runtimePath(basePath: string, route: string) {
   const encodedRoute = cleanRoute(route)
     .split("/")
     .filter(Boolean)
     .map(encodeURIComponent)
     .join("/");
-  return `/runtime/${encodeURIComponent(projectId)}/${encodedRoute}`;
+  return `${basePath}/${encodedRoute}`;
+}
+
+type RuntimeNavigationPayload =
+  RuntimeNavigationDto | DraftRuntimeNavigationDto;
+
+interface RuntimeElementData {
+  readonly renderState: "EMPTY" | "LOADING" | "ERROR" | "DATA";
+  readonly renderData?: BindingRenderDataDto;
 }
 
 interface NavigationProps {
@@ -240,24 +259,28 @@ function RuntimeShell({
   navigation,
   activePage,
   runtimePage,
+  runtimeElementData,
   runtimePageLoading,
   runtimePageError,
   definitionByType,
+  preview,
   onNavigate,
 }: {
-  navigation: RuntimeNavigationDto;
+  navigation: RuntimeNavigationPayload;
   activePage: RuntimePageDto | null;
-  runtimePage: PublishedRuntimePageDto | null;
+  runtimePage: RuntimeDefinitionPage | null;
+  runtimeElementData: ReadonlyMap<string, RuntimeElementData>;
   runtimePageLoading: boolean;
   runtimePageError: string;
   definitionByType: ReadonlyMap<ElementType, ElementDefinitionDto>;
+  preview: boolean;
   onNavigate: (page: RuntimePageDto) => void;
 }) {
   const isMobile = useIsMobile();
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [fontSize, setFontSize] = useState(12);
-  const [themeId, setThemeId] = useState(defaultTheme.id);
+  const [themeId, setThemeId] = useState(navigation.themeId ?? defaultTheme.id);
   const selectedTheme =
     themes.find((theme) => theme.id === themeId) ?? defaultTheme;
 
@@ -319,6 +342,7 @@ function RuntimeShell({
           </Drawer>
         )}
         <strong className="runtime-app-name">WebEditor</strong>
+        {preview && <span className="runtime-preview-badge">미리보기</span>}
         <span className="runtime-breadcrumb">
           {activePage?.name ?? "페이지 없음"}
         </span>
@@ -368,11 +392,12 @@ function RuntimeShell({
                 <div
                   className="runtime-elements"
                   role="region"
-                  aria-label="게시 엘리먼트"
+                  aria-label={preview ? "초안 엘리먼트" : "게시 엘리먼트"}
                 >
                   {runtimePage.elements.map((entry) => {
                     const definition = definitionByType.get(entry.element.type);
                     if (!definition) return null;
+                    const data = runtimeElementData.get(entry.element.id);
                     return (
                       <div
                         className="runtime-element-grid-item"
@@ -385,6 +410,10 @@ function RuntimeShell({
                         <RuntimeElementRenderer
                           entry={entry}
                           definition={definition}
+                          {...(data ? { renderState: data.renderState } : {})}
+                          {...(data?.renderData
+                            ? { renderData: data.renderData }
+                            : {})}
                         />
                       </div>
                     );
@@ -403,18 +432,32 @@ function RuntimeShell({
   );
 }
 
-export function PublishedRuntime() {
-  const params = useParams<{ projectId: string; "*": string }>();
-  const projectId = params.projectId ?? "";
+function RuntimeApplication({
+  projectId,
+  previewId,
+}: {
+  projectId: string;
+  previewId?: string;
+}) {
+  const params = useParams<{ "*": string }>();
+  const preview = previewId !== undefined;
+  const sourceId = preview ? previewId : projectId;
+  const basePath = preview
+    ? `/preview/${encodeURIComponent(projectId)}/${encodeURIComponent(previewId)}`
+    : `/runtime/${encodeURIComponent(projectId)}`;
   const route = cleanRoute(params["*"] ?? "");
   const location = useLocation();
   const navigate = useNavigate();
-  const [navigation, setNavigation] = useState<RuntimeNavigationDto | null>(
+  const [navigation, setNavigation] = useState<RuntimeNavigationPayload | null>(
     null,
   );
   const [registry, setRegistry] = useState<ElementRegistryDto | null>(null);
-  const [runtimePage, setRuntimePage] =
-    useState<PublishedRuntimePageDto | null>(null);
+  const [runtimePage, setRuntimePage] = useState<RuntimeDefinitionPage | null>(
+    null,
+  );
+  const [runtimeElementData, setRuntimeElementData] = useState<
+    ReadonlyMap<string, RuntimeElementData>
+  >(new Map());
   const [runtimePageLoading, setRuntimePageLoading] = useState(false);
   const [runtimePageError, setRuntimePageError] = useState("");
   const [error, setError] = useState("");
@@ -423,12 +466,17 @@ export function PublishedRuntime() {
     const controller = new AbortController();
     setError("");
     void Promise.all([
-      getRuntimeNavigation(projectId),
+      preview
+        ? getDraftRuntimeNavigation(sourceId)
+        : getRuntimeNavigation(sourceId),
       listElementRegistry(controller.signal),
     ])
       .then(([navigationPayload, registryPayload]) => {
         assertRuntimeRendererDefinitions(registryPayload.definitions);
         if (!controller.signal.aborted) {
+          if (navigationPayload.projectId !== projectId) {
+            throw new Error("프로젝트 불일치");
+          }
           setNavigation({
             ...navigationPayload,
             pages: [...navigationPayload.pages].sort(
@@ -445,7 +493,7 @@ export function PublishedRuntime() {
     return () => {
       controller.abort();
     };
-  }, [projectId]);
+  }, [preview, projectId, sourceId]);
 
   const activePage =
     navigation?.pages.find((page) => cleanRoute(page.route) === route) ?? null;
@@ -455,8 +503,8 @@ export function PublishedRuntime() {
     const first =
       navigation.pages.find((page) => page.navigationVisible) ??
       navigation.pages[0];
-    if (first) navigate(runtimePath(projectId, first.route), { replace: true });
-  }, [navigate, navigation, projectId, route]);
+    if (first) navigate(runtimePath(basePath, first.route), { replace: true });
+  }, [basePath, navigate, navigation, route]);
 
   useEffect(() => {
     if (!navigation || !activePage) {
@@ -467,13 +515,34 @@ export function PublishedRuntime() {
     }
     const controller = new AbortController();
     setRuntimePage(null);
+    setRuntimeElementData(new Map());
     setRuntimePageError("");
     setRuntimePageLoading(true);
-    void getPublishedRuntimePage(projectId, activePage.id, controller.signal)
+    const request = preview
+      ? getDraftRuntimePage(sourceId, activePage.id, controller.signal)
+      : getPublishedRuntimeDefinitionPage(
+          sourceId,
+          activePage.id,
+          controller.signal,
+        );
+    void request
       .then((payload) => {
         if (controller.signal.aborted) return;
-        if (payload.versionId !== navigation.versionId) {
-          throw new Error("게시 버전 불일치");
+        if (
+          payload.snapshotId !== navigation.snapshotId &&
+          !(
+            "versionId" in payload &&
+            "versionId" in navigation &&
+            payload.versionId === navigation.versionId
+          )
+        ) {
+          throw new Error("런타임 버전 불일치");
+        }
+        if (
+          navigation.definitionChecksum !== undefined &&
+          payload.definitionChecksum !== navigation.definitionChecksum
+        ) {
+          throw new Error("런타임 정의 불일치");
         }
         setRuntimePage(payload);
       })
@@ -488,7 +557,61 @@ export function PublishedRuntime() {
         if (!controller.signal.aborted) setRuntimePageLoading(false);
       });
     return () => controller.abort();
-  }, [activePage, navigation, projectId]);
+  }, [activePage, navigation, preview, sourceId]);
+
+  useEffect(() => {
+    if (!runtimePage) {
+      setRuntimeElementData(new Map());
+      return;
+    }
+    const bindings = (runtimePage.bindings ?? []).filter(
+      (binding: RelationshipBindingDto) =>
+        binding.bindingType === "READ" && binding.status === "READY",
+    );
+    const loading = new Map<string, RuntimeElementData>();
+    for (const binding of bindings) {
+      loading.set(binding.target.objectId, { renderState: "LOADING" });
+    }
+    setRuntimeElementData(loading);
+    if (bindings.length === 0) return;
+    const controller = new AbortController();
+    for (const binding of bindings) {
+      const execution = preview
+        ? executeDraftRuntimeBinding(sourceId, binding.id, controller.signal)
+        : executePublishedRuntimeBinding(
+            sourceId,
+            binding.id,
+            controller.signal,
+          );
+      void execution
+        .then((payload) => {
+          if (controller.signal.aborted) return;
+          if (payload.snapshotId !== runtimePage.snapshotId) {
+            throw new Error("데이터 버전 불일치");
+          }
+          if (payload.definitionChecksum !== runtimePage.definitionChecksum) {
+            throw new Error("데이터 정의 불일치");
+          }
+          setRuntimeElementData((current) => {
+            const next = new Map(current);
+            next.set(payload.targetElementId, {
+              renderState: payload.result.renderState,
+              renderData: payload.result.renderData,
+            });
+            return next;
+          });
+        })
+        .catch(() => {
+          if (controller.signal.aborted) return;
+          setRuntimeElementData((current) => {
+            const next = new Map(current);
+            next.set(binding.target.objectId, { renderState: "ERROR" });
+            return next;
+          });
+        });
+    }
+    return () => controller.abort();
+  }, [preview, runtimePage, sourceId]);
 
   if (error)
     return (
@@ -507,9 +630,14 @@ export function PublishedRuntime() {
 
   return (
     <RuntimeShell
+      key={
+        navigation.snapshotId ??
+        ("versionId" in navigation ? navigation.versionId : sourceId)
+      }
       navigation={navigation}
       activePage={activePage}
       runtimePage={runtimePage}
+      runtimeElementData={runtimeElementData}
       runtimePageLoading={runtimePageLoading}
       runtimePageError={runtimePageError}
       definitionByType={
@@ -520,10 +648,26 @@ export function PublishedRuntime() {
           ]),
         )
       }
+      preview={preview}
       onNavigate={(page) => {
-        const next = runtimePath(projectId, page.route);
+        const next = runtimePath(basePath, page.route);
         if (next !== location.pathname) navigate(next);
       }}
+    />
+  );
+}
+
+export function PublishedRuntime() {
+  const params = useParams<{ projectId: string }>();
+  return <RuntimeApplication projectId={params.projectId ?? ""} />;
+}
+
+export function DraftPreviewRuntime() {
+  const params = useParams<{ projectId: string; previewId: string }>();
+  return (
+    <RuntimeApplication
+      projectId={params.projectId ?? ""}
+      previewId={params.previewId ?? ""}
     />
   );
 }

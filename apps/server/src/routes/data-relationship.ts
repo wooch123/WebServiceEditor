@@ -230,6 +230,18 @@ export async function registerDataRelationshipRoutes(
     },
   );
 
+  server.post<{ Params: { previewId: string; bindingId: string } }>(
+    "/api/v1/draft-previews/:previewId/query/:bindingId",
+    async (request) => {
+      const body = exactBody(request.body ?? {}, ["parameters"]);
+      return service.executeDraftRuntimeBinding(
+        request.params.previewId,
+        request.params.bindingId,
+        body.parameters,
+      );
+    },
+  );
+
   server.patch<{ Params: { bindingId: string } }>(
     "/api/v1/bindings/:bindingId",
     async (request) => {

@@ -520,6 +520,15 @@ describe("Phase 11 safe READ Binding Engine", () => {
     });
     expect(createResponse.statusCode, createResponse.body).toBe(201);
     const created = createResponse.json() as RelationshipBindingMutationDto;
+    const publishResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${seeded.project.id}/publish`,
+      payload: {
+        expectedProjectRevision: created.projectRevision,
+        idempotencyKey: `publish-binding-${randomUUID()}`,
+      },
+    });
+    expect(publishResponse.statusCode, publishResponse.body).toBe(200);
     const productionPath = join(
       storageRoot,
       "active",

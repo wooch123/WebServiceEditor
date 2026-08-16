@@ -54,7 +54,34 @@ export interface RuntimeNavigationDto {
   projectId: string;
   versionId: string;
   publishedAt: string;
+  snapshotId?: string;
+  sourceProjectRevision?: number;
+  themeId?: string;
+  definitionChecksum?: string;
+  registryChecksum?: string;
+  createdAt?: string;
   pages: RuntimePageDto[];
+}
+
+export interface DraftPreviewDto {
+  projectId: string;
+  previewId: string;
+  snapshotId: string;
+  sourceProjectRevision: number;
+  themeId: string;
+  definitionChecksum: string;
+  registryChecksum: string;
+  createdAt: string;
+  expiresAt: string;
+  defaultRoute: string | null;
+}
+
+export interface DraftRuntimeNavigationDto extends Omit<
+  RuntimeNavigationDto,
+  "versionId" | "publishedAt"
+> {
+  previewId: string;
+  expiresAt: string;
 }
 
 interface ApiErrorEnvelope {
@@ -281,5 +308,24 @@ export function publishProject(projectId: string, projectRevision: number) {
 export function getRuntimeNavigation(projectId: string) {
   return request<RuntimeNavigationDto>(
     `/api/v1/runtime/${encodeURIComponent(projectId)}/navigation`,
+  );
+}
+
+export function createDraftPreview(
+  projectId: string,
+  expectedProjectRevision: number,
+) {
+  return request<DraftPreviewDto>(
+    `/api/v1/projects/${encodeURIComponent(projectId)}/draft-previews`,
+    {
+      method: "POST",
+      body: JSON.stringify({ expectedProjectRevision }),
+    },
+  );
+}
+
+export function getDraftRuntimeNavigation(previewId: string) {
+  return request<DraftRuntimeNavigationDto>(
+    `/api/v1/draft-previews/${encodeURIComponent(previewId)}/navigation`,
   );
 }

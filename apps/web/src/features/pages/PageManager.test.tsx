@@ -246,6 +246,19 @@ function installPageApi(options: { largeIconCatalog?: boolean } = {}) {
             warnings: [],
           },
         });
+      if (path.endsWith("/draft-previews") && method === "POST")
+        return response({
+          projectId: project.id,
+          previewId: "preview-1",
+          snapshotId: "preview-1",
+          sourceProjectRevision: revision,
+          themeId: "light-clean-paper",
+          definitionChecksum: "a".repeat(64),
+          registryChecksum: "b".repeat(64),
+          createdAt: "2026-08-16T00:00:00Z",
+          expiresAt: "2026-08-16T00:05:00Z",
+          defaultRoute: "/first",
+        });
       if (path.endsWith("/publish"))
         return response({
           versionId: "v2",
@@ -267,7 +280,11 @@ function installPageApi(options: { largeIconCatalog?: boolean } = {}) {
   };
 }
 
-function Harness() {
+function Harness({
+  onOpenDraftPreview,
+}: {
+  onOpenDraftPreview?: (url: string) => void;
+} = {}) {
   const [selected, setSelected] = useState<PageDto | null>(null);
   const [currentProject, setCurrentProject] = useState(project);
   return (
@@ -277,6 +294,7 @@ function Harness() {
         project={currentProject}
         selectedPageId={selected?.id ?? null}
         onSelectPage={setSelected}
+        {...(onOpenDraftPreview ? { onOpenDraftPreview } : {})}
         onProjectRevisionChange={(revision) =>
           setCurrentProject((value) => ({ ...value, revision }))
         }
@@ -296,6 +314,24 @@ afterEach(() => {
 });
 
 describe("PageManager behavior", () => {
+  it("creates a server-owned Draft Preview and opens its isolated route", async () => {
+    const { calls } = installPageApi();
+    const onOpenDraftPreview = vi.fn();
+    const user = userEvent.setup();
+    render(<Harness onOpenDraftPreview={onOpenDraftPreview} />);
+
+    await user.click(await screen.findByRole("button", { name: "미리보기" }));
+    await waitFor(() => expect(onOpenDraftPreview).toHaveBeenCalledTimes(1));
+    expect(onOpenDraftPreview).toHaveBeenCalledWith(
+      "/preview/project-pages/preview-1/",
+    );
+    expect(
+      calls.find((call) => call.path.endsWith("/draft-previews")),
+    ).toMatchObject({
+      method: "POST",
+      body: { expectedProjectRevision: 5 },
+    });
+  });
   it("renames on Enter and blur, cancels on Escape, and keeps the route", async () => {
     const { calls } = installPageApi();
     const user = userEvent.setup();
@@ -657,16 +693,19 @@ describe("PageManager behavior", () => {
 
     const publish = await screen.findByRole("button", { name: "게시" });
     const blank = screen.getByRole("button", { name: "빈 페이지" });
+    const preview = screen.getByRole("button", { name: "미리보기" });
     expect(publish).toHaveAttribute("data-size", blank.dataset.size);
+    expect(preview).toHaveAttribute("data-size", blank.dataset.size);
     const actionGroup = publish.closest<HTMLElement>(".page-manager-actions")!;
     expect(actionGroup).toContainElement(blank);
+    expect(actionGroup).toContainElement(preview);
     expect(stylesCss).toMatch(
-      /\.page-manager-actions\s*\{[^}]*width:\s*6rem;/s,
+      /\.page-manager-actions\s*\{[^}]*width:\s*100%;[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/s,
     );
     expect(stylesCss).toMatch(
-      /\.page-manager-actions\s*>\s*\[data-slot="button"\]\s*\{[^}]*width:\s*100%;/s,
+      /\.page-manager-actions\s*>\s*\[data-slot="button"\]\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/s,
     );
-    const actionWidth = 6 * 16;
+    const actionWidth = 4.5 * 16;
     const actionHeight = 2.5 * 16;
     const actionRect = (top: number) =>
       ({
@@ -680,12 +719,16 @@ describe("PageManager behavior", () => {
         height: actionHeight,
         toJSON: () => ({}),
       }) as DOMRect;
+    vi.spyOn(preview, "getBoundingClientRect").mockReturnValue(actionRect(0));
     vi.spyOn(publish, "getBoundingClientRect").mockReturnValue(actionRect(0));
-    vi.spyOn(blank, "getBoundingClientRect").mockReturnValue(
-      actionRect(actionHeight + 8),
-    );
+    vi.spyOn(blank, "getBoundingClientRect").mockReturnValue(actionRect(0));
+    const previewRect = preview.getBoundingClientRect();
     const publishRect = publish.getBoundingClientRect();
     const blankRect = blank.getBoundingClientRect();
+    expect({ width: previewRect.width, height: previewRect.height }).toEqual({
+      width: blankRect.width,
+      height: blankRect.height,
+    });
     expect({ width: publishRect.width, height: publishRect.height }).toEqual({
       width: blankRect.width,
       height: blankRect.height,

@@ -617,6 +617,40 @@ describe("Phase 4 page/runtime validation infrastructure", () => {
     );
   });
 
+  it("accepts delegated immutable Runtime snapshot readers without allowing Draft reads", () => {
+    const delegated = `
+      function publishedNavigation(projectId) {
+        return this.#published(projectId);
+      }
+      function #published(projectId) {
+        const version = this.pageRepository.latestVersion(projectId);
+        const snapshot = this.pageRepository.versionSnapshot(version);
+        return { version, snapshot };
+      }
+      function latestVersion(projectId) {
+        return database.prepare(
+          "SELECT snapshot_json FROM project_versions ORDER BY sequence DESC LIMIT 1"
+        ).get(projectId);
+      }
+    `;
+    const inspection = inspectPageProtocol([
+      sourceFile("runtime-definition-service.ts", delegated),
+    ]);
+    assert.equal(inspection.runtimeReadsPublishedSnapshot, true);
+    assert.equal(inspection.runtimeAvoidsDraftPages, true);
+
+    const draftReader = delegated.replace(
+      "const snapshot = this.pageRepository.versionSnapshot(version);",
+      "const snapshot = this.pageRepository.listActive(projectId);",
+    );
+    assert.equal(
+      inspectPageProtocol([
+        sourceFile("runtime-definition-service.ts", draftReader),
+      ]).runtimeAvoidsDraftPages,
+      false,
+    );
+  });
+
   it("deterministically rejects tiny or eagerly loaded Lucide catalogs", () => {
     const catalog = makeCatalog();
     const generatedCatalog = generatedCatalogFile(catalog);

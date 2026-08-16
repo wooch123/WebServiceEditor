@@ -756,9 +756,14 @@ export function inspectLayoutProtocol(files) {
       /deleted_at/iu.test(source) &&
       /ELEMENT_DELETE|DELETE_ELEMENT|command_type/iu.test(source),
     publishIncludesElementLayouts:
-      /snapshot\s*:\s*\{[\s\S]{0,1200}\bpages\b[\s\S]{0,1200}\belements\b[\s\S]{0,1200}\blayoutRevisions\b/iu.test(
+      (/snapshot\s*:\s*\{[\s\S]{0,1200}\bpages\b[\s\S]{0,1200}\belements\b[\s\S]{0,1200}\blayoutRevisions\b/iu.test(
         source,
-      ) && /snapshot_json|snapshotJson|JSON\.stringify/iu.test(source),
+      ) ||
+        (/buildSnapshot\s*\(/u.test(source) &&
+          /pages:\s*this\.pageRepository/u.test(source) &&
+          /elements:\s*this\.elementRepository/u.test(source) &&
+          /layoutRevisions:\s*this\.elementRepository/u.test(source))) &&
+      /snapshot_json|snapshotJson|JSON\.stringify/iu.test(source),
     draftDoesNotRewriteVersions:
       /project_versions/iu.test(source) &&
       !/UPDATE\s+project_versions[\s\S]{0,400}(?:element|layout)/iu.test(

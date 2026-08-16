@@ -427,8 +427,8 @@ export function inspectPageProtocol(files) {
   );
   const runtime = forwardContextsFor(
     files,
-    /\bruntimeNavigation\s*\(|\bgetRuntimeNavigation\s*\(|\breadPublishedNavigation\s*\(|\blatestPublished\s*\(/iu,
-    5000,
+    /\bruntimeNavigation\s*\(|\bgetRuntimeNavigation\s*\(|\breadPublishedNavigation\s*\(|\blatestPublished\s*\(|\bpublishedNavigation\s*\(/iu,
+    9000,
   );
   const publish = contextsFor(
     files,
@@ -516,12 +516,20 @@ export function inspectPageProtocol(files) {
       (/project_versions/iu.test(runtime) && /snapshot_json/iu.test(runtime)) ||
       (/latestVersion\s*\(/u.test(runtime) &&
         /project_versions/iu.test(publishedRepository) &&
-        /snapshot_json/iu.test(publishedRepository)),
+        /snapshot_json/iu.test(publishedRepository)) ||
+      (/publishedNavigation\s*\(/u.test(runtime) &&
+        /#published\s*\(/u.test(runtime) &&
+        /latestVersion\s*\(/u.test(runtime) &&
+        /versionSnapshot\s*\(/u.test(runtime)),
     runtimeAvoidsDraftPages:
       ((/project_versions/iu.test(runtime) &&
         /snapshot_json/iu.test(runtime)) ||
         (/latestVersion\s*\(/u.test(runtime) &&
-          /project_versions/iu.test(publishedRepository))) &&
+          /project_versions/iu.test(publishedRepository)) ||
+        (/publishedNavigation\s*\(/u.test(runtime) &&
+          /#published\s*\(/u.test(runtime) &&
+          /latestVersion\s*\(/u.test(runtime) &&
+          /versionSnapshot\s*\(/u.test(runtime))) &&
       !/from\s+pages\b|\blistActive\s*\(/iu.test(runtime),
     idempotencyOccurrences,
   };

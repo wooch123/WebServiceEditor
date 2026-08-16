@@ -202,6 +202,32 @@ export async function registerPageRoutes(
     },
   );
 
+  server.post<{ Params: { projectId: string } }>(
+    "/api/v1/projects/:projectId/draft-previews",
+    async (request, reply) => {
+      const body = exactBody(request.body, ["expectedProjectRevision"]);
+      return reply
+        .code(201)
+        .send(
+          service.createDraftPreview(
+            request.params.projectId,
+            body.expectedProjectRevision,
+          ),
+        );
+    },
+  );
+
+  server.get<{ Params: { previewId: string } }>(
+    "/api/v1/draft-previews/:previewId/navigation",
+    async (request) => service.draftPreviewNavigation(request.params.previewId),
+  );
+
+  server.get<{ Params: { previewId: string; pageId: string } }>(
+    "/api/v1/draft-previews/:previewId/pages/:pageId",
+    async (request) =>
+      service.draftPreviewPage(request.params.previewId, request.params.pageId),
+  );
+
   server.get<{ Params: { projectId: string } }>(
     "/api/v1/runtime/:projectId/navigation",
     async (request) => service.runtimeNavigation(request.params.projectId),

@@ -19,6 +19,7 @@ import {
 import { CSS } from "@dnd-kit/utilities";
 import {
   AlertTriangle,
+  Eye,
   FilePlus2,
   GripVertical,
   RotateCcw,
@@ -60,6 +61,7 @@ import { cn } from "@/lib/utils";
 import type { ProjectDto } from "@/services/projects-api";
 import {
   createBlankPage,
+  createDraftPreview,
   deletePage,
   listPages,
   planPageDelete,
@@ -83,6 +85,7 @@ interface PageManagerProps {
   onSelectPage: (page: PageDto | null) => void;
   onPagesChange?: (pages: PageDto[]) => void;
   onProjectRevisionChange?: (revision: number) => void;
+  onOpenDraftPreview?: (url: string) => void;
 }
 
 interface SortablePageRowProps {
@@ -206,6 +209,7 @@ export function PageManager({
   onSelectPage,
   onPagesChange,
   onProjectRevisionChange,
+  onOpenDraftPreview,
 }: PageManagerProps) {
   const [pages, setPages] = useState<PageDto[]>([]);
   const projectRevision = project.revision;
@@ -440,6 +444,15 @@ export function PageManager({
     });
   }
 
+  async function openDraftPreview() {
+    await mutate(async () => {
+      const payload = await createDraftPreview(project.id, projectRevision);
+      const url = `/preview/${encodeURIComponent(project.id)}/${encodeURIComponent(payload.previewId)}/`;
+      if (onOpenDraftPreview) onOpenDraftPreview(url);
+      else window.location.assign(url);
+    });
+  }
+
   async function confirmPublish() {
     if (!publishPlan || publishPlan.errors.length > 0) return;
     await mutate(async () => {
@@ -457,6 +470,16 @@ export function PageManager({
       <div className="panel-heading page-manager-heading">
         <strong>페이지</strong>
         <div className="page-manager-actions">
+          <Button
+            variant="outline"
+            size="sm"
+            type="button"
+            disabled={busy || loading}
+            onClick={() => void openDraftPreview()}
+          >
+            <Eye data-icon="inline-start" />
+            미리보기
+          </Button>
           <Button
             variant="outline"
             size="sm"

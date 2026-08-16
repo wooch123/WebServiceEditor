@@ -269,6 +269,33 @@ Test plan:
   reachable, and both sibling action groups remain equal at 173.5×40px
 - Browser console errors and required request failures: 0
 
+## Phase 12 evidence
+
+- Static, behavioral, browser, and Phase 0–11 regression audit:
+  `artifacts/phase12/runtime-preview-validation.json`
+- Isolated browser evidence:
+  `artifacts/phase12/browser-runtime-preview-validation.json`
+- Published Runtime reads immutable Project Definition Snapshots and Production
+  data only; Draft Preview reads a five-minute server-owned Test snapshot
+- Snapshot checksum binds pages, Elements, layouts, Bindings, schema, Registry,
+  theme, and source Project revision
+- Published navigation and deep links remain unchanged after Draft edits;
+  preview navigation reflects the isolated Draft definition
+- Preview creation is write-free and bounded to 128 in-memory snapshots; expiry,
+  project/page mismatch, and stale snapshots fail closed
+- Export/import preserves published snapshot semantics while remapping Project,
+  Page, Element, Table, Field, Relation, and Binding identities
+- Browser QA at 1280×720: Published and Draft names stay separated, navigation
+  order/icons/deep links are exact, and Preview/Publish/Blank Page actions have
+  equal 176.61×40px geometry
+- Browser QA at 419×800: document width remains 419px, navigation and Draft
+  Preview remain reachable, and all three sibling actions remain equal at
+  392.61×40px
+- Project Home import/create actions are equal at 208×48px; Backup and its four
+  sibling navigation entries share the same 14.40px left coordinate and 39px
+  height
+- Browser console errors and required request failures: 0
+
 ## Deferred operational hardening
 
 - Sudden power-loss durability for directory rename/delete requires mount-backed

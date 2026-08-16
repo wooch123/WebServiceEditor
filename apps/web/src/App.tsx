@@ -34,7 +34,10 @@ import {
   WorkspaceElementPalette,
 } from "@/features/elements/ElementWorkspace";
 import { PageManager } from "@/features/pages/PageManager";
-import { PublishedRuntime } from "@/features/runtime/PublishedRuntime";
+import {
+  DraftPreviewRuntime,
+  PublishedRuntime,
+} from "@/features/runtime/PublishedRuntime";
 import type { PageDto } from "@/services/pages-api";
 import { updateProject } from "@/services/projects-api";
 import type { ProjectDto } from "@/services/projects-api";
@@ -557,6 +560,19 @@ export function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/runtime/:projectId/*" element={<PublishedRuntime />} />
+        </Routes>
+      </BrowserRouter>
+    );
+  }
+
+  if (pathname.startsWith("/preview/")) {
+    return (
+      <BrowserRouter>
+        <Routes>
+          <Route
+            path="/preview/:projectId/:previewId/*"
+            element={<DraftPreviewRuntime />}
+          />
         </Routes>
       </BrowserRouter>
     );

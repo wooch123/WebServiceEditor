@@ -16,6 +16,7 @@ import {
   type BindingRenderShape,
   type BindingScalar,
   type DataFieldDto,
+  type DataSchemaExportDto,
   type PreviewBindingQueryRequest,
   type ReadAggregateFunction,
   type ReadFilterDto,
@@ -300,6 +301,7 @@ export class BindingQueryCompiler {
     target: BindingEndpointDto,
     specValue: unknown,
     mappingValue: unknown,
+    snapshotSchema?: DataSchemaExportDto,
   ): CompiledBindingQuery {
     const specSource = exactObject(
       specValue,
@@ -327,19 +329,28 @@ export class BindingQueryCompiler {
     );
     const tableId = source.nodeId.slice("table:".length);
     uuid(tableId, "Source Table ID");
-    const table = this.schemaRepository.table(tableId);
+    const storedTable = this.schemaRepository.table(tableId);
+    const snapshotTable = snapshotSchema?.tables.find(
+      (candidate) => candidate.id === tableId,
+    );
+    const tablePhysicalName =
+      snapshotTable?.physicalName ?? storedTable?.physical_name;
     assertApi(
-      table !== undefined &&
-        table.project_id === projectId &&
-        table.deleted_at === null,
+      tablePhysicalName !== undefined &&
+        (snapshotTable
+          ? snapshotTable.projectId === projectId
+          : storedTable?.project_id === projectId &&
+            storedTable.deleted_at === null),
       404,
       "BINDING_SOURCE_TABLE_NOT_FOUND",
       "Source Table was not found",
     );
-    const fields = this.schemaRepository
-      .fields(projectId)
-      .filter((field) => field.table_id === tableId)
-      .map((field) => this.schemaRepository.fieldDto(field));
+    const fields = snapshotTable
+      ? [...snapshotTable.fields]
+      : this.schemaRepository
+          .fields(projectId)
+          .filter((field) => field.table_id === tableId)
+          .map((field) => this.schemaRepository.fieldDto(field));
     const fieldById = new Map(
       fields.map((field) => [field.id, field] as const),
     );
@@ -595,7 +606,7 @@ export class BindingQueryCompiler {
         `${identifier((fieldById.get(sort.fieldId) as DataFieldDto).physicalName, "field")} ${sort.direction}`,
     );
     const limit = mode === "SINGLE" ? 1 : (specSource.limit as number);
-    const sql = `SELECT ${aliases.join(", ")} FROM ${identifier(table.physical_name, "table")}${where.length ? ` WHERE ${where.join(" AND ")}` : ""}${order.length ? ` ORDER BY ${order.join(", ")}` : ""} LIMIT ${limit + 1}`;
+    const sql = `SELECT ${aliases.join(", ")} FROM ${identifier(tablePhysicalName, "table")}${where.length ? ` WHERE ${where.join(" AND ")}` : ""}${order.length ? ` ORDER BY ${order.join(", ")}` : ""} LIMIT ${limit + 1}`;
     const spec: ReadQuerySpecDto = {
       mode: mode as ReadQuerySpecDto["mode"],
       selectFieldIds,
@@ -635,6 +646,7 @@ export class BindingQueryCompiler {
     projectId: string,
     environment: "test" | "production",
     compiled: CompiledBindingQuery,
+    expectedAppliedRevision?: number,
   ): BindingQueryResultDto {
     const state = this.schemaRepository.state(projectId);
     assertApi(
@@ -648,7 +660,10 @@ export class BindingQueryCompiler {
         ? state.test_applied_revision
         : state.production_applied_revision;
     assertApi(
-      appliedRevision === state.draft_revision && appliedRevision > 0,
+      appliedRevision > 0 &&
+        (expectedAppliedRevision === undefined
+          ? appliedRevision === state.draft_revision
+          : appliedRevision === expectedAppliedRevision),
       409,
       "RUNTIME_SCHEMA_NOT_APPLIED",
       `${environment} schema is not applied`,
@@ -760,6 +775,7 @@ export class BindingQueryCompiler {
     target: BindingEndpointDto,
     queryValue: unknown,
     mappingValue: unknown,
+    snapshotSchema?: DataSchemaExportDto,
   ): CompiledBindingQuery {
     const query = exactObject(
       queryValue,
@@ -797,6 +813,13 @@ export class BindingQueryCompiler {
       "BINDING_MAPPING_TARGET_MISMATCH",
       "Stored mapping target does not match the Binding endpoint",
     );
-    return this.compile(projectId, source, target, query.spec, mapping.render);
+    return this.compile(
+      projectId,
+      source,
+      target,
+      query.spec,
+      mapping.render,
+      snapshotSchema,
+    );
   }
 }
