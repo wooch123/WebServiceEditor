@@ -345,6 +345,71 @@ describe("Phase 6 editor and immutable runtime renderers", () => {
     ).toHaveAttribute("data-render-state", "DATA");
   });
 
+  it.each([
+    "board",
+    "comment",
+    "chat",
+    "file-list",
+    "notification",
+    "log-viewer",
+    "menu",
+    "breadcrumb",
+    "page-link",
+    "button-navigation",
+    "tabs-navigation",
+  ] as const)("renders the %s collaboration or navigation element", (type) => {
+    const entry = makeEntry(type);
+    const definition = definitionFor(type);
+    const editor = render(
+      <ElementRenderer entry={entry} definition={definition} compact={false} />,
+    );
+    expect(
+      editor.container.querySelector(`[data-element-type="${type}"]`),
+    ).toHaveAttribute("data-renderer-key", type);
+    editor.unmount();
+
+    const runtime = render(
+      <RuntimeElementRenderer entry={entry} definition={definition} />,
+    );
+    expect(
+      runtime.container.querySelector(`[data-element-type="${type}"]`),
+    ).toHaveAttribute("data-renderer-key", type);
+  });
+
+  it("uses semantic chat and breadcrumb primitives in separate render trees", () => {
+    const chat = makeEntry("chat", {
+      props: { sender: "Analyst", message: "Ready" },
+    });
+    const chatView = render(
+      <ElementRenderer
+        entry={chat}
+        definition={definitionFor("chat")}
+        compact={false}
+      />,
+    );
+    expect(
+      chatView.container.querySelector('[data-slot="message"]'),
+    ).toBeInTheDocument();
+    expect(
+      chatView.container.querySelector('[data-slot="bubble"]'),
+    ).toBeInTheDocument();
+    chatView.unmount();
+
+    const breadcrumb = makeEntry("breadcrumb", {
+      props: { items: "Home,Reports,Current", target: "/reports" },
+    });
+    const breadcrumbView = render(
+      <RuntimeElementRenderer
+        entry={breadcrumb}
+        definition={definitionFor("breadcrumb")}
+      />,
+    );
+    expect(
+      breadcrumbView.container.querySelector('[data-slot="breadcrumb"]'),
+    ).toBeInTheDocument();
+    expect(breadcrumbView.container.querySelectorAll("a")).toHaveLength(2);
+  });
+
   it("projects semantic heading, tabs, accordion, image, and link controls", () => {
     const heading = makeEntry("heading", {
       props: { text: "Analysis", level: "3" },

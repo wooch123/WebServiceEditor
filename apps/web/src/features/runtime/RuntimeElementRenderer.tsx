@@ -2,6 +2,7 @@ import { Database, Image as ImageIcon } from "lucide-react";
 import type { ComponentType, ReactNode } from "react";
 import type { BindingRenderDataDto, BindingScalar } from "@webeditor/domain";
 
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
 import {
   Accordion,
@@ -10,6 +11,15 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
+import { Bubble, BubbleContent } from "@/components/ui/bubble";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
@@ -32,6 +42,11 @@ import {
   FieldLabel,
 } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Message,
+  MessageContent,
+  MessageHeader,
+} from "@/components/ui/message";
 import {
   NativeSelect,
   NativeSelectOption,
@@ -957,6 +972,142 @@ function RuntimeDataDisplay({
   );
 }
 
+function RuntimeCollaboration({ entry }: RuntimeRendererProps) {
+  const labels = itemLabels(entry, ["Item 1", "Item 2"]);
+  if (entry.element.type === "chat") {
+    return (
+      <Message className="runtime-chat-element" align="start">
+        <MessageContent>
+          <MessageHeader>
+            {stringValue(entry.element.props, "sender", "Member")}
+          </MessageHeader>
+          <Bubble variant="muted" align="start">
+            <BubbleContent>
+              {stringValue(entry.element.props, "message", "Message")}
+            </BubbleContent>
+          </Bubble>
+        </MessageContent>
+      </Message>
+    );
+  }
+  if (entry.element.type === "comment") {
+    return (
+      <Card className="runtime-collaboration-card">
+        <CardHeader>
+          <CardTitle>
+            {stringValue(entry.element.props, "author", "Author")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {stringValue(entry.element.props, "body", "Comment")}
+        </CardContent>
+      </Card>
+    );
+  }
+  if (entry.element.type === "notification") {
+    return (
+      <Alert className="runtime-notification">
+        <AlertTitle>
+          {stringValue(entry.element.props, "title", "Notification")}
+        </AlertTitle>
+        <AlertDescription>
+          {stringValue(entry.element.props, "body", "Update")}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  if (entry.element.type === "log-viewer") {
+    return (
+      <pre className="runtime-log-viewer" aria-label={entry.element.name}>
+        {labels.join("\n")}
+      </pre>
+    );
+  }
+  return (
+    <div
+      className={
+        entry.element.type === "board" ? "runtime-board" : "runtime-file-list"
+      }
+      role="list"
+      aria-label={stringValue(entry.element.props, "title", entry.element.name)}
+    >
+      {labels.map((label) => (
+        <Card key={label} role="listitem">
+          <CardHeader>
+            <CardTitle>{label}</CardTitle>
+          </CardHeader>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function RuntimeNavigation({ entry, pending, onAction }: RuntimeRendererProps) {
+  const labels = itemLabels(entry, ["Home", "Current"]);
+  const target = safeLink(entry.element.props.target);
+  if (entry.element.type === "breadcrumb") {
+    return (
+      <Breadcrumb className="runtime-element-breadcrumb">
+        <BreadcrumbList>
+          {labels.map((label, index) => (
+            <BreadcrumbItem key={label}>
+              {index === labels.length - 1 ? (
+                <BreadcrumbPage>{label}</BreadcrumbPage>
+              ) : (
+                <BreadcrumbLink href={target}>{label}</BreadcrumbLink>
+              )}
+              {index < labels.length - 1 && <BreadcrumbSeparator />}
+            </BreadcrumbItem>
+          ))}
+        </BreadcrumbList>
+      </Breadcrumb>
+    );
+  }
+  if (entry.element.type === "button-navigation") {
+    return (
+      <Button
+        type="button"
+        disabled={pending}
+        onClick={() => onAction?.(entry.element.id)}
+      >
+        {stringValue(entry.element.props, "label", "Continue")}
+      </Button>
+    );
+  }
+  if (entry.element.type === "page-link") {
+    return (
+      <a className="runtime-element-page-link" href={target}>
+        {stringValue(entry.element.props, "label", "Open Page")}
+      </a>
+    );
+  }
+  if (entry.element.type === "tabs-navigation") {
+    return (
+      <Tabs
+        className="runtime-tabs-navigation"
+        defaultValue={labels[0] ?? "Home"}
+      >
+        <TabsList>
+          {labels.map((label) => (
+            <TabsTrigger key={label} value={label}>
+              {label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+    );
+  }
+  return (
+    <nav className="runtime-element-menu" aria-label={entry.element.name}>
+      {labels.map((label) => (
+        <a key={label} href={target}>
+          {label}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
 function RuntimeStatistical({
   entry,
   renderState = "EMPTY",
@@ -1022,6 +1173,17 @@ export const runtimeRendererByKey: Readonly<
   "pareto-chart": RuntimeStatistical,
   gauge: RuntimeStatistical,
   "correlation-matrix": RuntimeStatistical,
+  board: RuntimeCollaboration,
+  comment: RuntimeCollaboration,
+  chat: RuntimeCollaboration,
+  "file-list": RuntimeCollaboration,
+  notification: RuntimeCollaboration,
+  "log-viewer": RuntimeCollaboration,
+  menu: RuntimeNavigation,
+  breadcrumb: RuntimeNavigation,
+  "page-link": RuntimeNavigation,
+  "button-navigation": RuntimeNavigation,
+  "tabs-navigation": RuntimeNavigation,
 };
 
 export function assertRuntimeRendererDefinitions(

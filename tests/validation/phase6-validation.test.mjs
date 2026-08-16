@@ -650,9 +650,8 @@ describe("Phase 6 validation contract", () => {
       assert.equal(inspected[property], true, property);
 
     const forwardCompatibleDefinition = registryDefinition(
-      "future-chart",
-      "statistics",
-      "input",
+      "future-collaboration",
+      "collaboration",
     );
     const forwardCompatibleRegistry = {
       ...baseline,

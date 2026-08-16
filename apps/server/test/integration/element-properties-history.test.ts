@@ -203,13 +203,26 @@ describe("Phase 6 Element Registry, properties, history, and Runtime", () => {
       "filter",
       "detail-view",
     ]);
-    expect(registry.definitions.map(({ type }) => type).slice(38)).toEqual([
+    expect(registry.definitions.map(({ type }) => type).slice(38, 44)).toEqual([
       "heatmap",
       "distribution-plot",
       "control-chart",
       "pareto-chart",
       "gauge",
       "correlation-matrix",
+    ]);
+    expect(registry.definitions.map(({ type }) => type).slice(44)).toEqual([
+      "board",
+      "comment",
+      "chat",
+      "file-list",
+      "notification",
+      "log-viewer",
+      "menu",
+      "breadcrumb",
+      "page-link",
+      "button-navigation",
+      "tabs-navigation",
     ]);
     expect(registry.tabs.map(({ id }) => id)).toEqual([
       "general",

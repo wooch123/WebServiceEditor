@@ -83,6 +83,17 @@ describe("Phase 5 canvas contract", () => {
       { type: "pareto-chart", defaultSizeLabel: "12 × 18" },
       { type: "gauge", defaultSizeLabel: "12 × 18" },
       { type: "correlation-matrix", defaultSizeLabel: "12 × 18" },
+      { type: "board", defaultSizeLabel: "16 × 20" },
+      { type: "comment", defaultSizeLabel: "8 × 8" },
+      { type: "chat", defaultSizeLabel: "10 × 18" },
+      { type: "file-list", defaultSizeLabel: "8 × 12" },
+      { type: "notification", defaultSizeLabel: "8 × 8" },
+      { type: "log-viewer", defaultSizeLabel: "12 × 18" },
+      { type: "menu", defaultSizeLabel: "6 × 12" },
+      { type: "breadcrumb", defaultSizeLabel: "10 × 5" },
+      { type: "page-link", defaultSizeLabel: "5 × 4" },
+      { type: "button-navigation", defaultSizeLabel: "5 × 5" },
+      { type: "tabs-navigation", defaultSizeLabel: "10 × 6" },
     ]);
   });
 

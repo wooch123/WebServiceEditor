@@ -5,7 +5,7 @@ import {
   Image as ImageIcon,
   LockKeyhole,
 } from "lucide-react";
-import type { ComponentType, ReactNode } from "react";
+import type { ComponentType, MouseEvent, ReactNode } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import {
@@ -16,6 +16,15 @@ import {
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Bubble, BubbleContent } from "@/components/ui/bubble";
+import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
   Card,
@@ -33,6 +42,11 @@ import {
 } from "@/components/ui/empty";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
+import {
+  Message,
+  MessageContent,
+  MessageHeader,
+} from "@/components/ui/message";
 import {
   NativeSelect,
   NativeSelectOption,
@@ -901,6 +915,155 @@ function DataDisplayRenderer({
   );
 }
 
+function CollaborationRenderer({ entry }: CanvasRendererProps) {
+  const labels = itemLabels(entry, ["Item 1", "Item 2"]);
+  if (entry.element.type === "chat") {
+    return (
+      <Message className="canvas-chat-element" align="start">
+        <MessageContent>
+          <MessageHeader>
+            {stringValue(entry.element.props, "sender", "Member")}
+          </MessageHeader>
+          <Bubble variant="muted" align="start">
+            <BubbleContent>
+              {stringValue(entry.element.props, "message", "Message")}
+            </BubbleContent>
+          </Bubble>
+        </MessageContent>
+      </Message>
+    );
+  }
+  if (entry.element.type === "comment") {
+    return (
+      <Card className="canvas-collaboration-card">
+        <CardHeader>
+          <CardTitle>
+            {stringValue(entry.element.props, "author", "Author")}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {stringValue(entry.element.props, "body", "Comment")}
+        </CardContent>
+      </Card>
+    );
+  }
+  if (entry.element.type === "notification") {
+    return (
+      <Alert className="canvas-notification">
+        <AlertTitle>
+          {stringValue(entry.element.props, "title", "Notification")}
+        </AlertTitle>
+        <AlertDescription>
+          {stringValue(entry.element.props, "body", "Update")}
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  if (entry.element.type === "log-viewer") {
+    return (
+      <pre className="canvas-log-viewer" aria-label={entry.element.name}>
+        {labels.join("\n")}
+      </pre>
+    );
+  }
+  return (
+    <div
+      className={
+        entry.element.type === "board" ? "canvas-board" : "canvas-file-list"
+      }
+      role="list"
+      aria-label={stringValue(entry.element.props, "title", entry.element.name)}
+    >
+      {labels.map((label) => (
+        <Card key={label} role="listitem">
+          <CardHeader>
+            <CardTitle>{label}</CardTitle>
+          </CardHeader>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
+function NavigationRenderer({ entry }: CanvasRendererProps) {
+  const labels = itemLabels(entry, ["Home", "Current"]);
+  const target = safeLink(entry.element.props.target);
+  const stop = (event: MouseEvent) => event.preventDefault();
+  if (entry.element.type === "breadcrumb") {
+    return (
+      <Breadcrumb className="canvas-element-breadcrumb">
+        <BreadcrumbList>
+          {labels.map((label, index) => (
+            <BreadcrumbItem key={label}>
+              {index === labels.length - 1 ? (
+                <BreadcrumbPage>{label}</BreadcrumbPage>
+              ) : (
+                <BreadcrumbLink
+                  className="element-interactive"
+                  href={target}
+                  onClick={stop}
+                >
+                  {label}
+                </BreadcrumbLink>
+              )}
+              {index < labels.length - 1 && <BreadcrumbSeparator />}
+            </BreadcrumbItem>
+          ))}
+        </BreadcrumbList>
+      </Breadcrumb>
+    );
+  }
+  if (entry.element.type === "button-navigation") {
+    return (
+      <Button className="element-interactive" type="button">
+        {stringValue(entry.element.props, "label", "Continue")}
+      </Button>
+    );
+  }
+  if (entry.element.type === "page-link") {
+    return (
+      <a
+        className="element-interactive canvas-element-page-link"
+        href={target}
+        onClick={stop}
+      >
+        {stringValue(entry.element.props, "label", "Open Page")}
+      </a>
+    );
+  }
+  if (entry.element.type === "tabs-navigation") {
+    return (
+      <Tabs className="canvas-tabs-element" defaultValue={labels[0] ?? "Home"}>
+        <TabsList>
+          {labels.map((label) => (
+            <TabsTrigger
+              className="element-interactive"
+              key={label}
+              value={label}
+            >
+              {label}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+    );
+  }
+  return (
+    <nav className="canvas-element-menu" aria-label={entry.element.name}>
+      {labels.map((label) => (
+        <a
+          className="element-interactive"
+          key={label}
+          href={target}
+          onClick={stop}
+        >
+          {label}
+        </a>
+      ))}
+    </nav>
+  );
+}
+
 function StatisticalRenderer({
   entry,
   compact,
@@ -967,6 +1130,17 @@ export const editorRendererByKey: Readonly<
   "pareto-chart": StatisticalRenderer,
   gauge: StatisticalRenderer,
   "correlation-matrix": StatisticalRenderer,
+  board: CollaborationRenderer,
+  comment: CollaborationRenderer,
+  chat: CollaborationRenderer,
+  "file-list": CollaborationRenderer,
+  notification: CollaborationRenderer,
+  "log-viewer": CollaborationRenderer,
+  menu: NavigationRenderer,
+  breadcrumb: NavigationRenderer,
+  "page-link": NavigationRenderer,
+  "button-navigation": NavigationRenderer,
+  "tabs-navigation": NavigationRenderer,
 };
 
 export function assertEditorRendererDefinitions(

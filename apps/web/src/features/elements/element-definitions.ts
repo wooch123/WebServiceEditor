@@ -10,6 +10,8 @@ export const elementCategoryLabels: Readonly<Record<ElementCategory, string>> =
     input: "입력",
     data: "데이터",
     statistics: "통계",
+    collaboration: "협업",
+    navigation: "탐색",
   };
 
 export function elementDefinitionSizeLabel(

@@ -69,13 +69,26 @@ describe("element registry and grid geometry", () => {
       "filter",
       "detail-view",
     ]);
-    expect(types.slice(38)).toEqual([
+    expect(types.slice(38, 44)).toEqual([
       "heatmap",
       "distribution-plot",
       "control-chart",
       "pareto-chart",
       "gauge",
       "correlation-matrix",
+    ]);
+    expect(types.slice(44)).toEqual([
+      "board",
+      "comment",
+      "chat",
+      "file-list",
+      "notification",
+      "log-viewer",
+      "menu",
+      "breadcrumb",
+      "page-link",
+      "button-navigation",
+      "tabs-navigation",
     ]);
     expect(elementRegistry().checksum).toMatch(/^[0-9a-f]{64}$/);
     expect(elementDefinition("text").defaultProps).toMatchObject({
@@ -124,7 +137,7 @@ describe("element registry and grid geometry", () => {
     for (const type of types.slice(32, 38)) {
       expect(elementDefinition(type as never).category).toBe("data");
     }
-    for (const type of types.slice(38)) {
+    for (const type of types.slice(38, 44)) {
       const definition = elementDefinition(type as never);
       expect(definition.category).toBe("statistics");
       expect(definition.bindingPorts).toEqual([
@@ -133,6 +146,16 @@ describe("element registry and grid geometry", () => {
           direction: "input",
           side: "left",
         }),
+      ]);
+    }
+    for (const type of types.slice(44, 50)) {
+      expect(elementDefinition(type as never).category).toBe("collaboration");
+    }
+    for (const type of types.slice(50)) {
+      const definition = elementDefinition(type as never);
+      expect(definition.category).toBe("navigation");
+      expect(definition.events).toEqual([
+        { id: "onNavigate", label: "Navigate" },
       ]);
     }
     expect(() => elementDefinition("chart")).toThrow("Element type is invalid");

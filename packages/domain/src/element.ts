@@ -55,6 +55,17 @@ export const ELEMENT_TYPES = [
   "pareto-chart",
   "gauge",
   "correlation-matrix",
+  "board",
+  "comment",
+  "chat",
+  "file-list",
+  "notification",
+  "log-viewer",
+  "menu",
+  "breadcrumb",
+  "page-link",
+  "button-navigation",
+  "tabs-navigation",
 ] as const;
 export const STATISTICAL_ELEMENT_TYPES = [
   "line-chart",
@@ -198,7 +209,8 @@ export interface ElementDefinition {
   readonly typeVersion: typeof ELEMENT_TYPE_VERSION;
   readonly label: string;
   readonly description: string;
-  readonly category: "basic" | "input" | "data" | "statistics";
+  readonly category:
+    "basic" | "input" | "data" | "statistics" | "collaboration" | "navigation";
   readonly iconName: string;
   readonly rendererKey: ElementType;
   readonly editorRendererKey: ElementType;
@@ -1693,6 +1705,178 @@ function additionalStatisticalDefinition(
   };
 }
 
+type CollaborationNavigationElementType = Extract<
+  ElementType,
+  | "board"
+  | "comment"
+  | "chat"
+  | "file-list"
+  | "notification"
+  | "log-viewer"
+  | "menu"
+  | "breadcrumb"
+  | "page-link"
+  | "button-navigation"
+  | "tabs-navigation"
+>;
+
+const collaborationNavigationSpecs = [
+  [
+    "board",
+    "Board",
+    "Kanban-style board.",
+    "Columns3",
+    "collaboration",
+    { title: "Board", items: "Planned,Active,Done" },
+    { defaultW: 16, defaultH: 20, minW: 8, minH: 12, maxW: 24, maxH: 80 },
+  ],
+  [
+    "comment",
+    "Comment",
+    "Author and comment content.",
+    "MessageSquare",
+    "collaboration",
+    { author: "Author", body: "Comment" },
+    { defaultW: 8, defaultH: 8, minW: 4, minH: 6, maxW: 20, maxH: 30 },
+  ],
+  [
+    "chat",
+    "Chat",
+    "Accessible message conversation.",
+    "MessagesSquare",
+    "collaboration",
+    { sender: "Member", message: "Message" },
+    { defaultW: 10, defaultH: 18, minW: 6, minH: 10, maxW: 24, maxH: 60 },
+  ],
+  [
+    "file-list",
+    "File List",
+    "File attachment list.",
+    "Files",
+    "collaboration",
+    { title: "Files", items: "report.pdf,data.csv" },
+    { defaultW: 8, defaultH: 12, minW: 4, minH: 8, maxW: 20, maxH: 40 },
+  ],
+  [
+    "notification",
+    "Notification",
+    "Status notification surface.",
+    "Bell",
+    "collaboration",
+    { title: "Notification", body: "Update available" },
+    { defaultW: 8, defaultH: 8, minW: 4, minH: 6, maxW: 20, maxH: 24 },
+  ],
+  [
+    "log-viewer",
+    "Log Viewer",
+    "Structured log output.",
+    "ScrollText",
+    "collaboration",
+    { title: "Logs", items: "INFO Ready,WARN Check" },
+    { defaultW: 12, defaultH: 18, minW: 6, minH: 10, maxW: 24, maxH: 80 },
+  ],
+  [
+    "menu",
+    "Menu",
+    "Navigation menu links.",
+    "Menu",
+    "navigation",
+    { items: "Home,Reports,Settings", target: "/" },
+    { defaultW: 6, defaultH: 12, minW: 3, minH: 8, maxW: 16, maxH: 40 },
+  ],
+  [
+    "breadcrumb",
+    "Breadcrumb",
+    "Hierarchical navigation trail.",
+    "ChevronRight",
+    "navigation",
+    { items: "Home,Reports,Current", target: "/" },
+    { defaultW: 10, defaultH: 5, minW: 5, minH: 4, maxW: 24, maxH: 10 },
+  ],
+  [
+    "page-link",
+    "Page Link",
+    "Page navigation link.",
+    "ExternalLink",
+    "navigation",
+    { label: "Open Page", target: "/" },
+    { defaultW: 5, defaultH: 4, minW: 2, minH: 3, maxW: 16, maxH: 8 },
+  ],
+  [
+    "button-navigation",
+    "Button Navigation",
+    "Button-based page navigation.",
+    "MousePointerClick",
+    "navigation",
+    { label: "Continue", target: "/" },
+    { defaultW: 5, defaultH: 5, minW: 2, minH: 4, maxW: 16, maxH: 10 },
+  ],
+  [
+    "tabs-navigation",
+    "Tabs Navigation",
+    "Tabbed page navigation.",
+    "PanelsTopLeft",
+    "navigation",
+    { items: "Overview,Details", target: "/" },
+    { defaultW: 10, defaultH: 6, minW: 5, minH: 5, maxW: 24, maxH: 12 },
+  ],
+] as const satisfies readonly (readonly [
+  CollaborationNavigationElementType,
+  string,
+  string,
+  string,
+  "collaboration" | "navigation",
+  Readonly<Record<string, unknown>>,
+  ElementSizeRule,
+])[];
+
+function collaborationNavigationDefinition(
+  spec: (typeof collaborationNavigationSpecs)[number],
+): ElementDefinition {
+  const [type, label, description, iconName, category, props, layout] = spec;
+  const fields = Object.keys(props).map((key) =>
+    textProperty(
+      `${key === "items" ? "data" : key === "target" ? "interaction" : "general"}.${key}`,
+      key === "items" ? "data" : key === "target" ? "interaction" : "general",
+      key
+        .replace(/([A-Z])/gu, " $1")
+        .replace(/^./u, (value) => value.toUpperCase()),
+      key === "body" || key === "message" ? "textarea" : "text",
+    ),
+  );
+  return {
+    type,
+    typeVersion: ELEMENT_TYPE_VERSION,
+    label,
+    description,
+    category,
+    iconName,
+    rendererKey: type,
+    editorRendererKey: type,
+    runtimeRendererKey: type,
+    validatorKey: type,
+    defaultName: label,
+    defaultProps: {
+      internalName: type.replaceAll("-", "_"),
+      disabled: false,
+      tooltip: "",
+      accessibilityLabel: label,
+      ...props,
+    },
+    defaultStyle: commonDefaultStyle,
+    defaultEvents: [],
+    layout,
+    propertySchema: { fields: [...commonPropertyFields, ...fields] },
+    bindingPorts: [],
+    events:
+      category === "navigation"
+        ? [{ id: "onNavigate", label: "Navigate" }]
+        : [],
+    supportedRenderStates: ["DATA"],
+    migrations: [],
+  };
+}
+
 export const ELEMENT_DEFINITIONS = [
   {
     type: "text",
@@ -2612,6 +2796,7 @@ export const ELEMENT_DEFINITIONS = [
   ...additionalInputElementSpecs.map(additionalInputDefinition),
   ...additionalDataElementSpecs.map(additionalDataDefinition),
   ...additionalStatisticalElementSpecs.map(additionalStatisticalDefinition),
+  ...collaborationNavigationSpecs.map(collaborationNavigationDefinition),
 ] as const satisfies readonly ElementDefinition[];
 
 export interface ElementDto {

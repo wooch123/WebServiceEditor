@@ -199,7 +199,7 @@ describe("element canvas contract", () => {
       expect(definition.category).toBe("data");
       expect(definition.supportedRenderStates).toEqual(ELEMENT_RENDER_STATES);
     }
-    expect(ELEMENT_TYPES.slice(38)).toEqual([
+    expect(ELEMENT_TYPES.slice(38, 44)).toEqual([
       "heatmap",
       "distribution-plot",
       "control-chart",
@@ -207,7 +207,7 @@ describe("element canvas contract", () => {
       "gauge",
       "correlation-matrix",
     ]);
-    for (const definition of ELEMENT_DEFINITIONS.slice(38)) {
+    for (const definition of ELEMENT_DEFINITIONS.slice(38, 44)) {
       expect(definition.category).toBe("statistics");
       expect(definition.supportedRenderStates).toEqual(ELEMENT_RENDER_STATES);
       expect(definition.bindingPorts).toEqual([
@@ -216,6 +216,29 @@ describe("element canvas contract", () => {
           direction: "input",
           side: "left",
         }),
+      ]);
+    }
+    expect(ELEMENT_TYPES.slice(44)).toEqual([
+      "board",
+      "comment",
+      "chat",
+      "file-list",
+      "notification",
+      "log-viewer",
+      "menu",
+      "breadcrumb",
+      "page-link",
+      "button-navigation",
+      "tabs-navigation",
+    ]);
+    for (const definition of ELEMENT_DEFINITIONS.slice(44, 50)) {
+      expect(definition.category).toBe("collaboration");
+      expect(definition.supportedRenderStates).toEqual(["DATA"]);
+    }
+    for (const definition of ELEMENT_DEFINITIONS.slice(50)) {
+      expect(definition.category).toBe("navigation");
+      expect(definition.events).toEqual([
+        { id: "onNavigate", label: "Navigate" },
       ]);
     }
   });

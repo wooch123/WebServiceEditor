@@ -316,7 +316,14 @@ export function inspectRegistrySnapshot(registry) {
         definition.runtimeRendererKey,
         definition.validatorKey,
       ].every((value) => value === definition.type) &&
-      ["basic", "input", "data", "statistics"].includes(definition.category) &&
+      [
+        "basic",
+        "input",
+        "data",
+        "statistics",
+        "collaboration",
+        "navigation",
+      ].includes(definition.category) &&
       definition.defaultProps !== null &&
       typeof definition.defaultProps === "object" &&
       !Array.isArray(definition.defaultProps) &&
