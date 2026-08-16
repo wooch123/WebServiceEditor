@@ -882,7 +882,7 @@ export function inspectPhase6Frontend(files) {
     rightInspectorLayout:
       /inspector-panel/u.test(app) &&
       /grid-template-columns/iu.test(workspaceCss) &&
-      /20em|inspector/iu.test(workspaceCss),
+      /20em|clamp\(15rem,\s*20vw,\s*18rem\)/iu.test(workspaceCss),
   };
 }
 

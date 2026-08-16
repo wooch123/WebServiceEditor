@@ -11,7 +11,7 @@ if (!root) {
   throw new Error("WebEditor root element was not found.");
 }
 
-root.dataset.buildPhase = "19.1";
+root.dataset.buildPhase = "20";
 
 createRoot(root).render(
   <StrictMode>

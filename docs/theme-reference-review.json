@@ -1,0 +1,143 @@
+{
+  "schemaVersion": 1,
+  "reviewedAt": "2026-08-16T00:00:00.000Z",
+  "result": "PASS",
+  "decision": "APPROVED_FOR_ADAPTED_REFERENCE_WITH_NOTICE",
+  "scope": "WebEditor semantic theme tokens and user-visible reference-family names",
+  "sourceManifestStatus": "reviewed-by-this-record",
+  "directCopyAllowed": false,
+  "thirdPartyNoticePath": "docs/theme-reference-notices.md",
+  "policy": {
+    "adaptationOnly": true,
+    "noEndorsement": true,
+    "retainReferenceNotice": true,
+    "reReviewOnSourceOrTokenChange": true
+  },
+  "references": [
+    {
+      "id": "nord",
+      "licenses": ["MIT"],
+      "licenseEvidenceUrl": "https://github.com/nordtheme/nord",
+      "disposition": "APPROVED_ADAPTED_REFERENCE",
+      "directCopy": false
+    },
+    {
+      "id": "solarized",
+      "licenses": ["MIT"],
+      "licenseEvidenceUrl": "https://github.com/altercation/solarized",
+      "disposition": "APPROVED_ADAPTED_REFERENCE",
+      "directCopy": false
+    },
+    {
+      "id": "catppuccin",
+      "licenses": ["MIT"],
+      "licenseEvidenceUrl": "https://github.com/catppuccin/catppuccin",
+      "disposition": "APPROVED_ADAPTED_REFERENCE",
+      "directCopy": false
+    },
+    {
+      "id": "dracula",
+      "licenses": ["MIT"],
+      "licenseEvidenceUrl": "https://github.com/dracula/dracula-theme",
+      "disposition": "APPROVED_ADAPTED_REFERENCE",
+      "directCopy": false
+    },
+    {
+      "id": "github-primer",
+      "licenses": ["MIT"],
+      "licenseEvidenceUrl": "https://github.com/primer/primitives",
+      "disposition": "APPROVED_ADAPTED_REFERENCE",
+      "directCopy": false
+    },
+    {
+      "id": "ibm-carbon",
+      "licenses": ["Apache-2.0"],
+      "licenseEvidenceUrl": "https://github.com/carbon-design-system/carbon",
+      "disposition": "APPROVED_ADAPTED_REFERENCE",
+      "directCopy": false
+    },
+    {
+      "id": "material3",
+      "licenses": ["Apache-2.0"],
+      "licenseEvidenceUrl": "https://github.com/material-components/material-web",
+      "disposition": "APPROVED_ADAPTED_REFERENCE",
+      "directCopy": false
+    },
+    {
+      "id": "radix",
+      "licenses": ["MIT"],
+      "licenseEvidenceUrl": "https://github.com/radix-ui/colors",
+      "disposition": "APPROVED_ADAPTED_REFERENCE",
+      "directCopy": false
+    },
+    {
+      "id": "gruvbox",
+      "licenses": ["MIT"],
+      "licenseEvidenceUrl": "https://github.com/morhetz/gruvbox",
+      "disposition": "APPROVED_ADAPTED_REFERENCE",
+      "directCopy": false
+    },
+    {
+      "id": "tokyo-night",
+      "licenses": ["Apache-2.0"],
+      "licenseEvidenceUrl": "https://github.com/folke/tokyonight.nvim",
+      "disposition": "APPROVED_ADAPTED_REFERENCE",
+      "directCopy": false
+    },
+    {
+      "id": "rose-pine",
+      "licenses": ["MIT"],
+      "licenseEvidenceUrl": "https://github.com/rose-pine/rose-pine-theme",
+      "disposition": "APPROVED_ADAPTED_REFERENCE",
+      "directCopy": false
+    },
+    {
+      "id": "everforest",
+      "licenses": ["MIT"],
+      "licenseEvidenceUrl": "https://github.com/sainnhe/everforest",
+      "disposition": "APPROVED_ADAPTED_REFERENCE",
+      "directCopy": false
+    },
+    {
+      "id": "ayu",
+      "licenses": ["MIT"],
+      "licenseEvidenceUrl": "https://github.com/ayu-theme/ayu-colors",
+      "disposition": "APPROVED_ADAPTED_REFERENCE",
+      "directCopy": false
+    },
+    {
+      "id": "night-owl",
+      "licenses": ["MIT"],
+      "licenseEvidenceUrl": "https://github.com/sdras/night-owl-vscode-theme",
+      "disposition": "APPROVED_ADAPTED_REFERENCE",
+      "directCopy": false
+    },
+    {
+      "id": "one",
+      "licenses": ["MIT"],
+      "licenseEvidenceUrl": "https://github.com/atom/one-dark-syntax",
+      "disposition": "APPROVED_ADAPTED_REFERENCE",
+      "directCopy": false
+    },
+    {
+      "id": "kanagawa",
+      "licenses": ["MIT"],
+      "licenseEvidenceUrl": "https://github.com/rebelot/kanagawa.nvim",
+      "disposition": "APPROVED_ADAPTED_REFERENCE",
+      "directCopy": false
+    },
+    {
+      "id": "mixed",
+      "licenses": ["MIT", "Apache-2.0"],
+      "licenseEvidenceUrl": "https://github.com/primer/primitives",
+      "disposition": "APPROVED_ADAPTED_REFERENCE",
+      "directCopy": false
+    }
+  ],
+  "additionalOriginalThemes": {
+    "count": 60,
+    "referenceIds": [],
+    "directCopy": false,
+    "disposition": "APPROVED_ORIGINAL"
+  }
+}

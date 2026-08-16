@@ -25,6 +25,25 @@ export {
   type PerformanceSummaryDto,
 } from "./performance.js";
 export {
+  PROJECT_CORPUS_RESULT_STATUSES,
+  PROJECT_CORPUS_RUN_STATUSES,
+  type FeatureShowcaseProjectDto,
+  type GenerateProjectCorpusRequest,
+  type ProjectCorpusCoverageDto,
+  type ProjectCorpusPerformanceDistributionDto,
+  type ProjectCorpusPerformanceDto,
+  type ProjectCorpusResultDto,
+  type ProjectCorpusResultStatus,
+  type ProjectCorpusRunDetailDto,
+  type ProjectCorpusRunDto,
+  type ProjectCorpusRunStatus,
+  type ProjectCorpusScaleDto,
+  type ProjectCorpusSummaryDto,
+  type ProjectCorpusVerificationDto,
+  type ProjectCorpusVerificationSummaryDto,
+  type VerifyProjectCorpusRequest,
+} from "./project-corpus.js";
+export {
   VALIDATION_INVENTORY_CATEGORIES,
   VALIDATION_LEVELS,
   VALIDATION_RESULTS,

@@ -1,0 +1,22 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-16T12:51:45.958Z",
+  "result": "PASS",
+  "evidenceComplete": true,
+  "source": "artifacts/phase0/theme-manifest-validation.json",
+  "sourceSha256": "bb1578e878eaf86288d7a4583ea32884368d8bd74fbcb71b932542f9c2cf9b7c",
+  "summary": {
+    "total": 60,
+    "passed": 60,
+    "failed": 0,
+    "skipped": 0,
+    "selectableTotal": 120,
+    "provenanceReferences": 17
+  },
+  "groupCounts": {
+    "dark": 20,
+    "gray": 20,
+    "light": 20
+  },
+  "provenanceDecision": "APPROVED_FOR_ADAPTED_REFERENCE_WITH_NOTICE"
+}

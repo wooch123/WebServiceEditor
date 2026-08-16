@@ -581,6 +581,7 @@ function expectSameComputedStyle(
 }
 
 afterEach(() => {
+  window.localStorage.clear();
   Object.defineProperty(globalThis, "fetch", {
     configurable: true,
     writable: true,
@@ -600,6 +601,52 @@ afterEach(() => {
 });
 
 describe("WebEditor persistent project home", () => {
+  it("persists the project-home theme and restores it after leaving the editor", async () => {
+    installMockApi({ active: [healthProject] });
+    const user = userEvent.setup();
+    const rendered = render(<App />);
+    await screen.findByRole("heading", { name: healthProject.name });
+
+    await user.click(screen.getByRole("button", { name: /테마 선택/ }));
+    const picker = await screen.findByLabelText("테마 선택기");
+    const homeTheme = picker.querySelector<HTMLButtonElement>(
+      '[data-theme-id="light-github"]',
+    );
+    expect(homeTheme).not.toBeNull();
+    await user.click(homeTheme as HTMLButtonElement);
+    await user.click(within(picker).getByRole("button", { name: "적용" }));
+    expect(window.localStorage.getItem("webeditor:home-theme-id")).toBe(
+      "light-github",
+    );
+    expect(rendered.container.querySelector(".webeditor-app")).toHaveAttribute(
+      "data-theme-id",
+      "light-github",
+    );
+
+    await user.click(screen.getByRole("button", { name: "열기" }));
+    await screen.findByLabelText("페이지 캔버스");
+    expect(rendered.container.querySelector(".webeditor-app")).toHaveAttribute(
+      "data-theme-id",
+      healthProject.themeId,
+    );
+    await user.click(screen.getByRole("button", { name: "프로젝트 홈으로" }));
+    expect(
+      await screen.findByRole("heading", { name: healthProject.name }),
+    ).toBeInTheDocument();
+    expect(rendered.container.querySelector(".webeditor-app")).toHaveAttribute(
+      "data-theme-id",
+      "light-github",
+    );
+
+    rendered.unmount();
+    const reloaded = render(<App />);
+    await screen.findByRole("heading", { name: healthProject.name });
+    expect(reloaded.container.querySelector(".webeditor-app")).toHaveAttribute(
+      "data-theme-id",
+      "light-github",
+    );
+  });
+
   it("loads both server lists, preserves control order, searches, and opens the editor", async () => {
     const { fetchMock } = installMockApi();
     const user = userEvent.setup();
@@ -693,6 +740,48 @@ describe("WebEditor persistent project home", () => {
     );
     expect(screen.getByText("Draft r25")).toBeInTheDocument();
     expect(screen.queryByText("Draft r19")).not.toBeInTheDocument();
+  });
+
+  it("separates the page manager and element palette into independent left-panel regions", async () => {
+    installMockApi({ active: [healthProject] });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByRole("heading", { name: healthProject.name });
+    await user.click(screen.getByRole("button", { name: "열기" }));
+    await screen.findByLabelText("페이지 캔버스");
+
+    const leftPanel = document.querySelector<HTMLElement>(".editor-left-panel");
+    const pageManager = screen.getByLabelText("페이지 관리자");
+    const elementPalette = screen.getByTestId("element-palette");
+    expect(leftPanel).not.toBeNull();
+    expect(leftPanel).toHaveAttribute("data-layout", "pages-elements");
+    expect(pageManager.parentElement).toBe(leftPanel);
+    expect(elementPalette.parentElement).toBe(leftPanel);
+    expect(leftPanel?.children[0]).toBe(pageManager);
+    expect(leftPanel?.children[1]).toBe(elementPalette);
+    expect(pageManager).not.toContainElement(elementPalette);
+    expect(elementPalette).not.toContainElement(pageManager);
+    expect(stylesCss).toMatch(
+      /\.editor-left-panel\s*\{[^}]*display:\s*grid;[^}]*grid-template-columns:\s*minmax\(17rem,\s*1\.45fr\)\s*minmax\(11rem,\s*1fr\);[^}]*grid-template-rows:\s*minmax\(0,\s*1fr\);[^}]*gap:\s*0\.75rem;[^}]*overflow:\s*hidden;/s,
+    );
+    expect(stylesCss).toMatch(
+      /\.page-manager\s*\{[^}]*min-height:\s*0;[^}]*overflow:\s*hidden;[^}]*border:\s*1px solid var\(--sidebar-border\);/s,
+    );
+    expect(stylesCss).toMatch(
+      /\.element-palette\s*\{[^}]*grid-template-rows:\s*auto minmax\(0,\s*1fr\);[^}]*overflow:\s*hidden;[^}]*border:\s*1px solid var\(--sidebar-border\);/s,
+    );
+    expect(stylesCss).toMatch(
+      /\.element-palette \.palette-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);[^}]*overflow-x:\s*hidden;[^}]*overflow-y:\s*auto;/s,
+    );
+    expect(stylesCss).toMatch(
+      /\.page-manager-list\s*\{[^}]*width:\s*100%;[^}]*overflow-x:\s*hidden;[^}]*overflow-y:\s*auto;/s,
+    );
+    expect(stylesCss).toMatch(
+      /\.page-manager-row\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;[^}]*grid-template-columns:\s*auto auto minmax\(0,\s*1fr\) minmax\(0,\s*auto\) auto;/s,
+    );
+    expect(stylesCss).toMatch(
+      /\.page-row-name strong,[\s\S]*\.page-row-name small\s*\{[^}]*max-width:\s*100%;[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap;/s,
+    );
   });
 
   it("keeps the 200% canvas as the two-axis overflow owner in a constrained 1280x720 editor", async () => {
@@ -817,8 +906,20 @@ describe("WebEditor persistent project home", () => {
 
     const workspace = document.querySelector<HTMLElement>(".editor-workspace");
     expect(workspace).toHaveClass("is-relationship-canvas");
+    expect(document.querySelector(".editor-left-panel")).toBeNull();
     expect(document.querySelector(".inspector-panel")).toBeNull();
+    expect(workspace?.children).toHaveLength(1);
+    expect(workspace?.firstElementChild).toHaveClass("editor-main");
     expect(screen.queryByLabelText("선택 Binding")).not.toBeInTheDocument();
+    expect(stylesCss).toMatch(
+      /\.editor-workspace\.is-relationship-canvas\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\);/s,
+    );
+    expect(stylesCss).toMatch(
+      /\.relationship-workspace\s*\{[^}]*display:\s*flex;[^}]*height:\s*100%;[^}]*flex-direction:\s*column;/s,
+    );
+    expect(stylesCss).toMatch(
+      /\.relationship-viewport\s*\{[^}]*flex:\s*1 1 auto;[^}]*min-height:\s*0;/s,
+    );
   });
 
   it("shows a load error and retries the real list endpoints", async () => {

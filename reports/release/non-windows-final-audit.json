@@ -1,0 +1,75 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-16T12:53:50.697Z",
+  "result": "PASS",
+  "evidenceComplete": true,
+  "scope": "NON_WINDOWS_FINAL_AUDIT",
+  "overallState": "EXHAUSTIVELY VERIFIED",
+  "releaseRecommendation": "HOLD",
+  "releaseAllowed": false,
+  "criticalDefects": 0,
+  "highDefects": 0,
+  "nonWindowsAuditFormula": {
+    "reportEnvelopes": true,
+    "requirements": true,
+    "inventory": true,
+    "themes": true,
+    "canonicalInventory": true,
+    "corpus": true,
+    "performance": true
+  },
+  "windowsDeployment": {
+    "status": "NOT_RUN_BY_USER_DIRECTION",
+    "requiredForRelease": true,
+    "treatedAsPassing": false
+  },
+  "missingOperationalEvidence": [
+    "reports/deployment/windows-https-report.json",
+    "reports/recovery/backup-restore-report.json",
+    "reports/release/rollback-report.json",
+    "reports/release/final-verification-report.json"
+  ],
+  "summary": {
+    "requirements": 37,
+    "inventoryItems": 418,
+    "canonicalThemes": 60,
+    "selectableThemes": 120,
+    "layoutPresets": 22,
+    "elementTypes": 55,
+    "corpusProjects": 100
+  },
+  "sourceReports": {
+    "reports/exhaustive/feature-inventory.json": {
+      "sha256": "cedba37919ca9287c956de05f65061b0ec65bb91dc9a9fd0b8885dc1ccc52fe3"
+    },
+    "reports/exhaustive/requirement-matrix.json": {
+      "sha256": "810ef2f88b0c83c49b2131026395176cac0d9aff02faadd1163f6f5384310879"
+    },
+    "reports/exhaustive/theme-60-report.json": {
+      "sha256": "7cf838182bc5d96013474c610d55ecf98d5f05e82cf8f8bf95ceeceaeb50837f"
+    },
+    "reports/exhaustive/layout-element-report.json": {
+      "sha256": "d26c1c845c12e310f0c295a920765a393b014f2e86637d028336c8356f9b2bea"
+    },
+    "reports/corpus/project-corpus-manifest.json": {
+      "sha256": "997b92bbc18e136dd9c5591f87d5be2d082cafc63d4738bd97369c9ceb264285"
+    },
+    "reports/corpus/project-corpus-results.json": {
+      "sha256": "9289c5b2776a29b349d34f42029e11c671abfacc0dbb80ee119152059b54cde2"
+    },
+    "reports/corpus/project-corpus-performance.json": {
+      "sha256": "de05440cbb6a5e5f0406e06bd95ca8f34f73f85dd9c9ae8be684427e8d6b2785"
+    }
+  },
+  "residualRisks": [
+    "Windows install, reboot, service recovery, backup/restore, and rollback were not executed.",
+    "The canonical final release report cannot be produced until all operational evidence passes."
+  ],
+  "approvalBasis": {
+    "nonWindowsAutomatedGate": "PASS",
+    "windowsOperationalEvidence": "NOT_RUN",
+    "recoveryEvidence": "NOT_RUN",
+    "rollbackEvidence": "NOT_RUN",
+    "finalReleaseGate": "HOLD"
+  }
+}

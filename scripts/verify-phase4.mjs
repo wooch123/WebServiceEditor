@@ -420,13 +420,18 @@ function forwardContextsFor(files, pattern, radius = 5000) {
 
 export function inspectPageProtocol(files) {
   const source = combinedSource(files);
+  const runtimeOwnerFiles = files.filter(({ path }) =>
+    /apps\/server\/src\/(?:pages|runtime)\/|(?:runtime-definition-service|page-(?:service|repository))\.ts$/u.test(
+      path,
+    ),
+  );
   const reorder = contextsFor(
     files,
     /\breorderPages\s*\(|\breorder_pages\s*\(|\breorder\s*\(/iu,
     12000,
   );
   const runtime = forwardContextsFor(
-    files,
+    runtimeOwnerFiles,
     /\bruntimeNavigation\s*\(|\bgetRuntimeNavigation\s*\(|\breadPublishedNavigation\s*\(|\blatestPublished\s*\(|\bpublishedNavigation\s*\(/iu,
     24000,
   );

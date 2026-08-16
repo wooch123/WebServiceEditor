@@ -1,0 +1,21 @@
+<service>
+  <id>WebEditor</id>
+  <name>WebEditor</name>
+  <description>Local WebEditor production origin</description>
+  <executable>%SystemRoot%\System32\WindowsPowerShell\v1.0\powershell.exe</executable>
+  <arguments>-NoLogo -NoProfile -NonInteractive -ExecutionPolicy Bypass -File &quot;%BASE%\deployment\windows\Start-WebEditor.ps1&quot; -InstallRoot &quot;%BASE%&quot;</arguments>
+  <workingdirectory>%BASE%\app\server</workingdirectory>
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+  <depend>Tcpip</depend>
+  <stoptimeout>20 sec</stoptimeout>
+  <onfailure action="restart" delay="5 sec" />
+  <onfailure action="restart" delay="15 sec" />
+  <onfailure action="restart" delay="30 sec" />
+  <resetfailure>1 hour</resetfailure>
+  <logpath>%ProgramData%\WebEditor\logs</logpath>
+  <log mode="roll-by-size">
+    <sizeThreshold>10485760</sizeThreshold>
+    <keepFiles>8</keepFiles>
+  </log>
+</service>

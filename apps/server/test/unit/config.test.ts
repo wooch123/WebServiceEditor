@@ -6,6 +6,7 @@ import { describe, expect, it } from "vitest";
 import {
   resolveAuthenticationConfig,
   resolveMetadataDatabasePath,
+  resolveProjectCorpusManifestPath,
   resolveServerPort,
   resolveStorageRoot,
 } from "../../src/config.js";
@@ -19,6 +20,12 @@ describe("server configuration", () => {
     expect(resolveStorageRoot()).toBe(expectedDataRoot);
     expect(resolveMetadataDatabasePath()).toBe(
       join(expectedDataRoot, "metadata", "webeditor.sqlite"),
+    );
+    expect(resolveProjectCorpusManifestPath()).toBe(
+      join(repositoryRoot, "webeditor_project_corpus_v3.json"),
+    );
+    expect(resolveProjectCorpusManifestPath("C:\\WebEditor\\corpus.json")).toBe(
+      "C:\\WebEditor\\corpus.json",
     );
     expect(resolveServerPort("3211")).toBe(3211);
     expect(() => resolveServerPort("0")).toThrow(/between 1 and 65535/);

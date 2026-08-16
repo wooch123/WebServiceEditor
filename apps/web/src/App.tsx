@@ -71,6 +71,28 @@ const RelationshipCanvas = lazy(async () => {
   return { default: relationship.RelationshipCanvas };
 });
 
+const HOME_THEME_STORAGE_KEY = "webeditor:home-theme-id";
+
+function readHomeThemeId(): string {
+  if (typeof window === "undefined") return defaultTheme.id;
+  try {
+    const stored = window.localStorage.getItem(HOME_THEME_STORAGE_KEY);
+    return themes.some(({ id }) => id === stored)
+      ? (stored as string)
+      : defaultTheme.id;
+  } catch {
+    return defaultTheme.id;
+  }
+}
+
+function writeHomeThemeId(themeId: string): void {
+  try {
+    window.localStorage.setItem(HOME_THEME_STORAGE_KEY, themeId);
+  } catch {
+    // The selected theme remains active for this session when storage is unavailable.
+  }
+}
+
 type EditorStep = "page" | "data" | "validation";
 
 interface HeaderControlsProps {
@@ -320,15 +342,17 @@ function EditorSurface({
               "is-relationship-canvas",
           )}
         >
-          <aside className="editor-left-panel">
-            <PageManager
-              project={project}
-              selectedPageId={selectedPage?.id ?? null}
-              onSelectPage={setSelectedPage}
-              onProjectRevisionChange={onProjectRevisionChange}
-            />
-            <WorkspaceElementPalette disabled={step !== "page"} />
-          </aside>
+          {!(step === "data" && dataView === "relationship") && (
+            <aside className="editor-left-panel" data-layout="pages-elements">
+              <PageManager
+                project={project}
+                selectedPageId={selectedPage?.id ?? null}
+                onSelectPage={setSelectedPage}
+                onProjectRevisionChange={onProjectRevisionChange}
+              />
+              <WorkspaceElementPalette disabled={step !== "page"} />
+            </aside>
+          )}
 
           <main className="editor-main">
             <div className="canvas-toolbar">
@@ -461,7 +485,8 @@ function ProductApp() {
     null,
   );
   const [fontSize, setFontSize] = useState(12);
-  const [themeId, setThemeId] = useState(defaultTheme.id);
+  const [homeThemeId, setHomeThemeId] = useState(readHomeThemeId);
+  const [themeId, setThemeId] = useState(homeThemeId);
   const [themePending, setThemePending] = useState(false);
   const [themeStatus, setThemeStatus] = useState("");
   const themeRequestSequenceRef = useRef(0);
@@ -475,6 +500,12 @@ function ProductApp() {
     themePending,
     themeStatus,
     onThemeChange: (nextThemeId) => {
+      if (surface === "home") {
+        setHomeThemeId(nextThemeId);
+        setThemeId(nextThemeId);
+        writeHomeThemeId(nextThemeId);
+        return;
+      }
       const previousThemeId = selectedProject?.themeId ?? themeId;
       setThemeId(nextThemeId);
       if (surface === "editor" && selectedProject) {
@@ -593,6 +624,7 @@ function ProductApp() {
           project={selectedProject}
           onBack={() => {
             setThemeStatus("");
+            setThemeId(homeThemeId);
             setSurface("home");
           }}
           onProjectRevisionChange={(revision) =>
@@ -615,7 +647,7 @@ function ProductApp() {
           <ProjectHome
             headerBrand={<Brand />}
             headerControls={<HeaderControls {...controls} />}
-            themeId={themeId}
+            themeId={homeThemeId}
             onOpenProject={(project) => {
               setSelectedProject(project);
               setThemeId(project.themeId);

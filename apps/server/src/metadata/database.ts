@@ -7,7 +7,7 @@ import { themes } from "@webeditor/theme-core";
 import Database from "better-sqlite3";
 
 const METADATA_APPLICATION_ID = 0x57454245;
-export const LATEST_METADATA_SCHEMA_VERSION = 16;
+export const LATEST_METADATA_SCHEMA_VERSION = 17;
 
 const lifecycleSqlValues = PROJECT_LIFECYCLE_STATUSES.map(
   (status) => `'${status}'`,
@@ -1694,6 +1694,99 @@ export const FULL_INVENTORY_PAGE_TYPES_SCHEMA_CHECKSUM = createHash("sha256")
   .update(fullInventoryPageTypesSchemaSql)
   .digest("hex");
 
+const deterministicProjectCorpusSchemaSql = `
+  CREATE TABLE project_corpus_runs (
+    id TEXT PRIMARY KEY NOT NULL,
+    seed TEXT NOT NULL CHECK (length(seed) BETWEEN 1 AND 128),
+    project_count INTEGER NOT NULL CHECK (
+      typeof(project_count) = 'integer' AND project_count BETWEEN 1 AND 100
+    ),
+    generator_version TEXT NOT NULL CHECK (length(generator_version) BETWEEN 1 AND 64),
+    status TEXT NOT NULL CHECK (
+      status IN ('GENERATING', 'GENERATED', 'VERIFYING', 'VERIFIED', 'FAILED')
+    ),
+    idempotency_key TEXT NOT NULL UNIQUE CHECK (length(idempotency_key) BETWEEN 8 AND 128),
+    request_hash TEXT NOT NULL CHECK (
+      length(request_hash) = 64 AND request_hash = lower(request_hash) AND
+      request_hash NOT GLOB '*[^0-9a-f]*'
+    ),
+    manifest_checksum TEXT CHECK (
+      manifest_checksum IS NULL OR (
+        length(manifest_checksum) = 64 AND manifest_checksum = lower(manifest_checksum) AND
+        manifest_checksum NOT GLOB '*[^0-9a-f]*'
+      )
+    ),
+    manifest_json TEXT CHECK (
+      manifest_json IS NULL OR (
+        json_valid(manifest_json) AND json_type(manifest_json) = 'object'
+      )
+    ),
+    summary_json TEXT CHECK (
+      summary_json IS NULL OR (
+        json_valid(summary_json) AND json_type(summary_json) = 'object'
+      )
+    ),
+    evidence_path TEXT NOT NULL CHECK (length(evidence_path) BETWEEN 1 AND 500),
+    error_json TEXT CHECK (
+      error_json IS NULL OR (
+        json_valid(error_json) AND json_type(error_json) = 'object'
+      )
+    ),
+    started_at TEXT NOT NULL,
+    completed_at TEXT
+  );
+  CREATE INDEX project_corpus_runs_status_started_idx
+    ON project_corpus_runs(status, started_at DESC, id DESC);
+
+  CREATE TABLE project_corpus_results (
+    id TEXT PRIMARY KEY NOT NULL,
+    corpus_run_id TEXT NOT NULL REFERENCES project_corpus_runs(id) ON DELETE CASCADE,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE RESTRICT,
+    project_index INTEGER NOT NULL CHECK (
+      typeof(project_index) = 'integer' AND project_index BETWEEN 1 AND 100
+    ),
+    corpus_id TEXT NOT NULL CHECK (
+      length(corpus_id) = 10 AND corpus_id GLOB 'CORPUS-[0-9][0-9][0-9]'
+    ),
+    archetype TEXT NOT NULL CHECK (
+      archetype IN (
+        'minimal', 'dashboard', 'statistics', 'crud', 'navigation',
+        'complex-graph', 'accessibility', 'stress-recovery'
+      )
+    ),
+    status TEXT NOT NULL CHECK (status IN ('GENERATED', 'PASS', 'FAIL')),
+    scenario_results_json TEXT NOT NULL CHECK (
+      json_valid(scenario_results_json) AND json_type(scenario_results_json) = 'object'
+    ),
+    isolation_sentinel TEXT NOT NULL CHECK (length(isolation_sentinel) BETWEEN 1 AND 200),
+    runtime_row_sentinel TEXT NOT NULL CHECK (length(runtime_row_sentinel) BETWEEN 1 AND 200),
+    structure_fingerprint TEXT NOT NULL CHECK (
+      length(structure_fingerprint) = 64 AND structure_fingerprint = lower(structure_fingerprint) AND
+      structure_fingerprint NOT GLOB '*[^0-9a-f]*'
+    ),
+    scale_json TEXT NOT NULL CHECK (
+      json_valid(scale_json) AND json_type(scale_json) = 'object'
+    ),
+    coverage_json TEXT NOT NULL CHECK (
+      json_valid(coverage_json) AND json_type(coverage_json) = 'object'
+    ),
+    duration_ms REAL NOT NULL CHECK (duration_ms >= 0),
+    evidence_path TEXT NOT NULL CHECK (length(evidence_path) BETWEEN 1 AND 500),
+    UNIQUE (corpus_run_id, project_index),
+    UNIQUE (corpus_run_id, corpus_id),
+    UNIQUE (corpus_run_id, project_id),
+    UNIQUE (corpus_run_id, isolation_sentinel),
+    UNIQUE (corpus_run_id, runtime_row_sentinel),
+    UNIQUE (corpus_run_id, structure_fingerprint)
+  );
+  CREATE INDEX project_corpus_results_run_status_idx
+    ON project_corpus_results(corpus_run_id, status, project_index);
+`;
+
+export const DETERMINISTIC_PROJECT_CORPUS_SCHEMA_CHECKSUM = createHash("sha256")
+  .update(deterministicProjectCorpusSchemaSql)
+  .digest("hex");
+
 const metadataMigrations = [
   {
     checksum: INITIAL_METADATA_SCHEMA_CHECKSUM,
@@ -1790,6 +1883,12 @@ const metadataMigrations = [
     name: "full-inventory-page-types",
     sql: fullInventoryPageTypesSchemaSql,
     version: 16,
+  },
+  {
+    checksum: DETERMINISTIC_PROJECT_CORPUS_SCHEMA_CHECKSUM,
+    name: "deterministic-project-corpus-generation",
+    sql: deterministicProjectCorpusSchemaSql,
+    version: 17,
   },
 ] as const;
 

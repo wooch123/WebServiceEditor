@@ -32,11 +32,21 @@ for an applied automatic layout.
   exactly once. Node identity, object ownership, pin state, position revision,
   graph revision, and Project revision must match the current graph. The final
   position write is optimistic, idempotent, and one atomic layout command.
-- Automatic layout uses ELK's layered algorithm in the left-to-right direction.
-  Input ports are fixed WEST, output ports are fixed EAST, and port order is
-  fixed. Pinned Nodes retain their positions. A bounded 128-entry, 15-second
-  server preview owns the complete position and route snapshot; Apply accepts
-  only its preview ID plus revisions and idempotency key.
+- Automatic layout uses ELK's layered algorithm to derive relationship-aware
+  component order. Input ports are fixed WEST, output ports are fixed EAST,
+  and port order is fixed. The final presentation uses stable `Page | Element
+| DB` columns. Nodes in each column share a top-left origin, follow the
+  relationship-derived vertical order, and place higher-degree primary Nodes
+  first. Large type inventories wrap only within their own zone, choosing the
+  row count whose complete graph bounds are closest to 16:9 so every Page stays
+  in one Fit View without mixing Page, Element, and DB zones. All columns and
+  rows snap to the deterministic 24px grid; variable-width Nodes never shift
+  their shared left edge. Manual Node movement is snapped by both React Flow
+  and the server, so persisted coordinates remain on the same grid.
+  Pinned Nodes retain their positions and anchor their component. A bounded
+  128-entry, 15-second server preview owns the complete position and route
+  snapshot; Apply accepts only its preview ID plus revisions and idempotency
+  key.
 - Apply writes every previewed position and advances graph and Project revisions
   once. It is one durable `AUTO_LAYOUT` command with Undo/Redo. A new move or
   automatic layout discards an abandoned Redo branch.
@@ -45,6 +55,9 @@ for an applied automatic layout.
   (EPL-2.0 OR GPL-3.0-or-later) for automatic layout. Both dependencies are
   pinned. ELK stays server-side and is excluded from the browser bundle;
   React Flow is included only in the lazy Editor feature surface.
+- The bottom-left MiniMap is pannable and zoomable. Its mask uses a high-
+  contrast ring to expose the current zoomed viewport as a focus rectangle;
+  clicking either the map or a Node recenters the live graph.
 
 ## Consequences
 

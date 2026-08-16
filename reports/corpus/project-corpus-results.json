@@ -1,0 +1,4974 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-16T12:51:45.959Z",
+  "result": "PASS",
+  "evidenceComplete": true,
+  "source": "artifacts/phase21/project-corpus-results.json",
+  "sourceSha256": "7203635bd56c77e7b123940cebc0935b61eb6c66f0a3145957292d820ee9a2ef",
+  "summary": {
+    "total": 100,
+    "passed": 100,
+    "failed": 0,
+    "blocked": 0,
+    "skipped": 0,
+    "crossProjectLeaks": 0,
+    "orphanRecordsOrFiles": 0,
+    "criticalConsoleErrors": 0
+  },
+  "runId": "760e316f-13bb-47b3-99d0-4f6c6aaed6a7",
+  "verificationChecksum": "6ffe9c6fb1e2e0d88d55b5374fa222a23063a17de6ea3cda36593e9baee195dd",
+  "projectResults": [
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-001",
+      "projectId": "c407c12f-bd3a-4758-89a8-09387bef371c",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.442,
+        "saveMs": 1.359,
+        "previewMs": 1.096,
+        "publishMs": 1.042,
+        "runtimeMs": 0.622,
+        "backupMs": 21.953,
+        "trashMs": 12.64,
+        "restoreMs": 4.079,
+        "totalMs": 74.168
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 10,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 2,
+          "elements": 5,
+          "tables": 2,
+          "runtimeRows": 10
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-002",
+      "projectId": "7c54f6c4-b967-408b-8f72-d6fc369c1a42",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.434,
+        "saveMs": 0.674,
+        "previewMs": 0.743,
+        "publishMs": 0.709,
+        "runtimeMs": 0.392,
+        "backupMs": 19.943,
+        "trashMs": 11.155,
+        "restoreMs": 3.755,
+        "totalMs": 62.136
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 30,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 3,
+          "elements": 6,
+          "tables": 1,
+          "runtimeRows": 30
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-003",
+      "projectId": "d92b538f-5489-4955-832b-44779d4a0cc7",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.506,
+        "saveMs": 0.69,
+        "previewMs": 0.66,
+        "publishMs": 0.645,
+        "runtimeMs": 0.475,
+        "backupMs": 21.723,
+        "trashMs": 11.731,
+        "restoreMs": 3.703,
+        "totalMs": 65.669
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 20,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 1,
+          "elements": 7,
+          "tables": 2,
+          "runtimeRows": 20
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-004",
+      "projectId": "e152ddf6-c78c-4ef1-ad30-891cf3d7f1ca",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.434,
+        "saveMs": 0.634,
+        "previewMs": 0.725,
+        "publishMs": 0.714,
+        "runtimeMs": 0.489,
+        "backupMs": 21.017,
+        "trashMs": 11.993,
+        "restoreMs": 4.198,
+        "totalMs": 64.206
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 50,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 2,
+          "elements": 8,
+          "tables": 1,
+          "runtimeRows": 50
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-005",
+      "projectId": "ccaa7d26-3fea-424e-a931-8ae1a8d875b4",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.536,
+        "saveMs": 0.725,
+        "previewMs": 0.873,
+        "publishMs": 0.789,
+        "runtimeMs": 0.552,
+        "backupMs": 22.136,
+        "trashMs": 11.393,
+        "restoreMs": 4.396,
+        "totalMs": 66.072
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 30,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 3,
+          "elements": 9,
+          "tables": 2,
+          "runtimeRows": 30
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-006",
+      "projectId": "bc22f548-ad6d-4998-9412-5964f16f963b",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.444,
+        "saveMs": 0.695,
+        "previewMs": 0.881,
+        "publishMs": 0.736,
+        "runtimeMs": 0.563,
+        "backupMs": 20.875,
+        "trashMs": 11.757,
+        "restoreMs": 3.926,
+        "totalMs": 64.253
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 70,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 1,
+          "elements": 10,
+          "tables": 1,
+          "runtimeRows": 70
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-007",
+      "projectId": "e2697a44-918a-4610-a484-fd52e6472af2",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.519,
+        "saveMs": 0.722,
+        "previewMs": 0.928,
+        "publishMs": 0.781,
+        "runtimeMs": 0.643,
+        "backupMs": 21.15,
+        "trashMs": 12.163,
+        "restoreMs": 3.878,
+        "totalMs": 65.885
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 40,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 2,
+          "elements": 11,
+          "tables": 2,
+          "runtimeRows": 40
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-008",
+      "projectId": "49304159-904d-41aa-b88c-741141a09021",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.46,
+        "saveMs": 0.681,
+        "previewMs": 1.037,
+        "publishMs": 0.833,
+        "runtimeMs": 0.666,
+        "backupMs": 22.91,
+        "trashMs": 11.439,
+        "restoreMs": 6.691,
+        "totalMs": 70.338
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 90,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 3,
+          "elements": 12,
+          "tables": 1,
+          "runtimeRows": 90
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-009",
+      "projectId": "2a9abf73-b703-43f4-80b1-d1cf392a9b2e",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.455,
+        "saveMs": 0.682,
+        "previewMs": 0.955,
+        "publishMs": 0.766,
+        "runtimeMs": 0.631,
+        "backupMs": 21.436,
+        "trashMs": 11.899,
+        "restoreMs": 4.231,
+        "totalMs": 67.33
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 50,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 1,
+          "elements": 13,
+          "tables": 2,
+          "runtimeRows": 50
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-010",
+      "projectId": "d5c00950-43d4-4692-a3b9-cb990258b685",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.45,
+        "saveMs": 0.763,
+        "previewMs": 0.941,
+        "publishMs": 0.8,
+        "runtimeMs": 0.625,
+        "backupMs": 21.738,
+        "trashMs": 11.941,
+        "restoreMs": 4.026,
+        "totalMs": 65.61
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 110,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 2,
+          "elements": 14,
+          "tables": 1,
+          "runtimeRows": 110
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-011",
+      "projectId": "73171ef7-3e94-47ca-9611-209e0ff623c6",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.656,
+        "saveMs": 0.81,
+        "previewMs": 1.434,
+        "publishMs": 1.093,
+        "runtimeMs": 1.136,
+        "backupMs": 23.156,
+        "trashMs": 12.591,
+        "restoreMs": 4.639,
+        "totalMs": 72.363
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 75,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 4,
+          "elements": 22,
+          "tables": 4,
+          "runtimeRows": 75
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-012",
+      "projectId": "480b38cd-bf26-4fdc-b969-a9123f0116c0",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.58,
+        "saveMs": 0.752,
+        "previewMs": 1.641,
+        "publishMs": 1.679,
+        "runtimeMs": 1.412,
+        "backupMs": 23.723,
+        "trashMs": 12.157,
+        "restoreMs": 5.032,
+        "totalMs": 74.136
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 80,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 5,
+          "elements": 24,
+          "tables": 5,
+          "runtimeRows": 80
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-013",
+      "projectId": "37444b89-071b-49a6-89bd-ce7a7b06ac27",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.668,
+        "saveMs": 0.857,
+        "previewMs": 1.662,
+        "publishMs": 2.705,
+        "runtimeMs": 1.166,
+        "backupMs": 23.527,
+        "trashMs": 12.286,
+        "restoreMs": 4.786,
+        "totalMs": 74.529
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 84,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 6,
+          "elements": 26,
+          "tables": 6,
+          "runtimeRows": 84
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-014",
+      "projectId": "c1190008-b2cf-44e7-8aab-ac7676ddfd0c",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.694,
+        "saveMs": 0.834,
+        "previewMs": 1.501,
+        "publishMs": 1.227,
+        "runtimeMs": 1.275,
+        "backupMs": 25.121,
+        "trashMs": 12.473,
+        "restoreMs": 5.384,
+        "totalMs": 76.315
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 86,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 7,
+          "elements": 28,
+          "tables": 7,
+          "runtimeRows": 86
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-015",
+      "projectId": "28c282e2-037f-47e4-904a-a3904c106b0e",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.57,
+        "saveMs": 0.767,
+        "previewMs": 1.435,
+        "publishMs": 1.129,
+        "runtimeMs": 1.225,
+        "backupMs": 24.523,
+        "trashMs": 12.93,
+        "restoreMs": 5.072,
+        "totalMs": 77.596
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 234,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 3,
+          "elements": 30,
+          "tables": 3,
+          "runtimeRows": 234
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-016",
+      "projectId": "070c010a-7d23-4677-9361-13d0e991bdb8",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.737,
+        "saveMs": 0.876,
+        "previewMs": 1.596,
+        "publishMs": 1.203,
+        "runtimeMs": 1.254,
+        "backupMs": 25.806,
+        "trashMs": 15.79,
+        "restoreMs": 5.06,
+        "totalMs": 81.146
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 200,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 4,
+          "elements": 32,
+          "tables": 4,
+          "runtimeRows": 200
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-017",
+      "projectId": "b02dca21-4b67-47d4-8212-35dba3ea6c02",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.627,
+        "saveMs": 0.927,
+        "previewMs": 1.755,
+        "publishMs": 1.304,
+        "runtimeMs": 1.29,
+        "backupMs": 26.712,
+        "trashMs": 12.309,
+        "restoreMs": 5.313,
+        "totalMs": 78.637
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 180,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 5,
+          "elements": 34,
+          "tables": 5,
+          "runtimeRows": 180
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-018",
+      "projectId": "10cb3993-baf6-4645-80aa-90ab460370a0",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.687,
+        "saveMs": 1.093,
+        "previewMs": 1.68,
+        "publishMs": 1.322,
+        "runtimeMs": 1.739,
+        "backupMs": 27.371,
+        "trashMs": 13.044,
+        "restoreMs": 5.449,
+        "totalMs": 83.16
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 167,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 6,
+          "elements": 36,
+          "tables": 6,
+          "runtimeRows": 167
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-019",
+      "projectId": "b37a5bc2-b1d4-443d-9383-2e4dcb83c45f",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.797,
+        "saveMs": 0.954,
+        "previewMs": 1.923,
+        "publishMs": 1.399,
+        "runtimeMs": 1.994,
+        "backupMs": 27.904,
+        "trashMs": 14.533,
+        "restoreMs": 5.262,
+        "totalMs": 85.269
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 158,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 7,
+          "elements": 38,
+          "tables": 7,
+          "runtimeRows": 158
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-020",
+      "projectId": "1a853873-db43-4839-aa4d-d74aee90a5b9",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.613,
+        "saveMs": 0.824,
+        "previewMs": 1.63,
+        "publishMs": 1.15,
+        "runtimeMs": 1.415,
+        "backupMs": 25.343,
+        "trashMs": 12.614,
+        "restoreMs": 5.717,
+        "totalMs": 78.215
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 400,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 3,
+          "elements": 40,
+          "tables": 3,
+          "runtimeRows": 400
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-021",
+      "projectId": "4e26c6ca-5c5b-4b3f-844e-be758152044d",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.661,
+        "saveMs": 1.027,
+        "previewMs": 1.776,
+        "publishMs": 1.376,
+        "runtimeMs": 1.489,
+        "backupMs": 27.537,
+        "trashMs": 13.558,
+        "restoreMs": 5.589,
+        "totalMs": 84.861
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 325,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 4,
+          "elements": 42,
+          "tables": 4,
+          "runtimeRows": 325
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-022",
+      "projectId": "1f2b786b-66d6-4578-a026-0bb6a645f8ec",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.715,
+        "saveMs": 0.892,
+        "previewMs": 1.881,
+        "publishMs": 1.336,
+        "runtimeMs": 1.518,
+        "backupMs": 29.36,
+        "trashMs": 13.554,
+        "restoreMs": 5.475,
+        "totalMs": 85.744
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 280,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 5,
+          "elements": 44,
+          "tables": 5,
+          "runtimeRows": 280
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-023",
+      "projectId": "414690e8-8303-423c-be1b-401f05993405",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.732,
+        "saveMs": 0.943,
+        "previewMs": 1.989,
+        "publishMs": 1.509,
+        "runtimeMs": 1.645,
+        "backupMs": 28.597,
+        "trashMs": 13.19,
+        "restoreMs": 5.582,
+        "totalMs": 84.928
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 250,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 6,
+          "elements": 46,
+          "tables": 6,
+          "runtimeRows": 250
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-024",
+      "projectId": "589cef4f-211e-449b-a98d-641f7025859f",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.811,
+        "saveMs": 0.957,
+        "previewMs": 2.098,
+        "publishMs": 1.456,
+        "runtimeMs": 1.722,
+        "backupMs": 29.603,
+        "trashMs": 13.764,
+        "restoreMs": 5.91,
+        "totalMs": 91.122
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 229,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 7,
+          "elements": 48,
+          "tables": 7,
+          "runtimeRows": 229
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-025",
+      "projectId": "9d5f3491-97a1-41bf-b3eb-6b499b008109",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.709,
+        "saveMs": 0.982,
+        "previewMs": 1.854,
+        "publishMs": 2.246,
+        "runtimeMs": 1.545,
+        "backupMs": 27.305,
+        "trashMs": 13.625,
+        "restoreMs": 5.694,
+        "totalMs": 84.419
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 567,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 3,
+          "elements": 50,
+          "tables": 3,
+          "runtimeRows": 567
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-026",
+      "projectId": "98fea862-1900-41c7-854c-6479ccfb3cf2",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.748,
+        "saveMs": 0.937,
+        "previewMs": 1.953,
+        "publishMs": 1.426,
+        "runtimeMs": 1.701,
+        "backupMs": 29.723,
+        "trashMs": 12.771,
+        "restoreMs": 5.971,
+        "totalMs": 86.048
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 450,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 4,
+          "elements": 52,
+          "tables": 4,
+          "runtimeRows": 450
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-027",
+      "projectId": "4620f588-693f-49b1-9623-b8bb315c0acd",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.801,
+        "saveMs": 1.004,
+        "previewMs": 2.037,
+        "publishMs": 1.413,
+        "runtimeMs": 1.813,
+        "backupMs": 31.394,
+        "trashMs": 13.602,
+        "restoreMs": 6.058,
+        "totalMs": 92.823
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 380,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 5,
+          "elements": 54,
+          "tables": 5,
+          "runtimeRows": 380
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-028",
+      "projectId": "b720c766-32f1-4a23-9af7-a062ce984956",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.828,
+        "saveMs": 1.047,
+        "previewMs": 2.105,
+        "publishMs": 1.494,
+        "runtimeMs": 1.736,
+        "backupMs": 32.573,
+        "trashMs": 13.76,
+        "restoreMs": 6.16,
+        "totalMs": 92.98
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 334,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 6,
+          "elements": 56,
+          "tables": 6,
+          "runtimeRows": 334
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-029",
+      "projectId": "988cf51b-8956-4ca4-a11e-a417baf2a2ce",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.834,
+        "saveMs": 1.137,
+        "previewMs": 2.273,
+        "publishMs": 1.539,
+        "runtimeMs": 1.859,
+        "backupMs": 30.43,
+        "trashMs": 13.722,
+        "restoreMs": 6.523,
+        "totalMs": 91.256
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 300,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 7,
+          "elements": 58,
+          "tables": 7,
+          "runtimeRows": 300
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-030",
+      "projectId": "5af1463b-a885-45c4-a73b-ff521a03f06d",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.79,
+        "saveMs": 0.974,
+        "previewMs": 3.162,
+        "publishMs": 1.461,
+        "runtimeMs": 1.74,
+        "backupMs": 28.776,
+        "trashMs": 13.895,
+        "restoreMs": 7.098,
+        "totalMs": 88.278
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 734,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 3,
+          "elements": 60,
+          "tables": 3,
+          "runtimeRows": 734
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-031",
+      "projectId": "1e87ec8d-c2f4-43e1-be7d-73ea02885188",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 1.601,
+        "saveMs": 1.165,
+        "previewMs": 1.401,
+        "publishMs": 1.105,
+        "runtimeMs": 1.072,
+        "backupMs": 26.843,
+        "trashMs": 15.222,
+        "restoreMs": 5.304,
+        "totalMs": 82.493
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 300,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 5,
+          "elements": 27,
+          "tables": 5,
+          "runtimeRows": 300
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-032",
+      "projectId": "4aecf0a7-3033-4830-aba8-93657f257e24",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.777,
+        "saveMs": 0.941,
+        "previewMs": 1.488,
+        "publishMs": 1.183,
+        "runtimeMs": 1.205,
+        "backupMs": 28.085,
+        "trashMs": 12.174,
+        "restoreMs": 5.197,
+        "totalMs": 82.825
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 334,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 6,
+          "elements": 30,
+          "tables": 6,
+          "runtimeRows": 334
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-033",
+      "projectId": "cc369ccd-a0a6-4adf-8001-72ee0938f9bb",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.872,
+        "saveMs": 1.058,
+        "previewMs": 2.83,
+        "publishMs": 1.33,
+        "runtimeMs": 1.343,
+        "backupMs": 28.923,
+        "trashMs": 12.586,
+        "restoreMs": 5.442,
+        "totalMs": 85.152
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 358,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 7,
+          "elements": 33,
+          "tables": 7,
+          "runtimeRows": 358
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-034",
+      "projectId": "9a104246-124f-47a2-8377-8f70bf4e99c1",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.897,
+        "saveMs": 1.087,
+        "previewMs": 1.727,
+        "publishMs": 1.346,
+        "runtimeMs": 1.549,
+        "backupMs": 32.956,
+        "trashMs": 13.672,
+        "restoreMs": 6.444,
+        "totalMs": 93.961
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 375,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 8,
+          "elements": 36,
+          "tables": 8,
+          "runtimeRows": 375
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-035",
+      "projectId": "d088a6d9-c1d5-4359-a333-8dbd83c035e9",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 1.008,
+        "saveMs": 1.287,
+        "previewMs": 1.713,
+        "publishMs": 1.251,
+        "runtimeMs": 1.514,
+        "backupMs": 34.216,
+        "trashMs": 13.317,
+        "restoreMs": 6.382,
+        "totalMs": 94.952
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 389,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 4,
+          "elements": 39,
+          "tables": 9,
+          "runtimeRows": 389
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-036",
+      "projectId": "be3a7fc3-4e68-4b30-8c89-bf40cde91feb",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 1.109,
+        "saveMs": 1.549,
+        "previewMs": 2.975,
+        "publishMs": 1.368,
+        "runtimeMs": 1.461,
+        "backupMs": 32.525,
+        "trashMs": 13.151,
+        "restoreMs": 6.5,
+        "totalMs": 94.854
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 1000,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 5,
+          "elements": 42,
+          "tables": 4,
+          "runtimeRows": 1000
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-037",
+      "projectId": "af2b4c56-650e-4ef1-a2bc-6d5e09835cca",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 1.099,
+        "saveMs": 1.298,
+        "previewMs": 1.939,
+        "publishMs": 1.839,
+        "runtimeMs": 1.728,
+        "backupMs": 35.593,
+        "trashMs": 13.759,
+        "restoreMs": 7.002,
+        "totalMs": 100.722
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 900,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 6,
+          "elements": 45,
+          "tables": 5,
+          "runtimeRows": 900
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-038",
+      "projectId": "8201c765-3e09-46fd-8927-623596cb1cb8",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 1.297,
+        "saveMs": 1.463,
+        "previewMs": 2.331,
+        "publishMs": 1.572,
+        "runtimeMs": 1.679,
+        "backupMs": 39.204,
+        "trashMs": 14.118,
+        "restoreMs": 7.282,
+        "totalMs": 107.174
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 834,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 7,
+          "elements": 48,
+          "tables": 6,
+          "runtimeRows": 834
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-039",
+      "projectId": "3ecf8485-6f56-42d6-b499-f716809297b3",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 1.391,
+        "saveMs": 1.544,
+        "previewMs": 2.169,
+        "publishMs": 1.539,
+        "runtimeMs": 1.788,
+        "backupMs": 39.753,
+        "trashMs": 14.019,
+        "restoreMs": 7.575,
+        "totalMs": 111.892
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 786,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 8,
+          "elements": 51,
+          "tables": 7,
+          "runtimeRows": 786
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-040",
+      "projectId": "69ce40c3-0521-41b3-9b7e-8fea83f735a3",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 1.358,
+        "saveMs": 1.519,
+        "previewMs": 2.125,
+        "publishMs": 1.48,
+        "runtimeMs": 1.865,
+        "backupMs": 41.09,
+        "trashMs": 15.217,
+        "restoreMs": 8.136,
+        "totalMs": 114.722
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 750,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 4,
+          "elements": 54,
+          "tables": 8,
+          "runtimeRows": 750
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-041",
+      "projectId": "32412a64-6cba-40ec-92d4-41c9c4f32dca",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 1.489,
+        "saveMs": 1.688,
+        "previewMs": 3.539,
+        "publishMs": 1.801,
+        "runtimeMs": 2.132,
+        "backupMs": 42.242,
+        "trashMs": 13.78,
+        "restoreMs": 8.332,
+        "totalMs": 116.723
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 723,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 5,
+          "elements": 57,
+          "tables": 9,
+          "runtimeRows": 723
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-042",
+      "projectId": "88bf1107-b25d-47c3-ab85-02e94f2d809f",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 1.474,
+        "saveMs": 1.657,
+        "previewMs": 2.295,
+        "publishMs": 1.591,
+        "runtimeMs": 1.921,
+        "backupMs": 43.096,
+        "trashMs": 14.48,
+        "restoreMs": 8.292,
+        "totalMs": 116.826
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 1750,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 6,
+          "elements": 60,
+          "tables": 4,
+          "runtimeRows": 1750
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-043",
+      "projectId": "06d6cfed-5ad4-4615-9e71-a8797f030c76",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 1.593,
+        "saveMs": 3.214,
+        "previewMs": 2.416,
+        "publishMs": 1.804,
+        "runtimeMs": 2.234,
+        "backupMs": 45.003,
+        "trashMs": 14.812,
+        "restoreMs": 9.6,
+        "totalMs": 128.527
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 1500,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 7,
+          "elements": 63,
+          "tables": 5,
+          "runtimeRows": 1500
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-044",
+      "projectId": "658afdf0-05bf-4540-894e-97ed55c73add",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 1.643,
+        "saveMs": 1.828,
+        "previewMs": 2.836,
+        "publishMs": 1.929,
+        "runtimeMs": 2.293,
+        "backupMs": 46.355,
+        "trashMs": 14.828,
+        "restoreMs": 9.021,
+        "totalMs": 126.15
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 1334,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 8,
+          "elements": 66,
+          "tables": 6,
+          "runtimeRows": 1334
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-045",
+      "projectId": "a6d2d4d5-85cb-4727-8238-1d8a42449871",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 2.464,
+        "saveMs": 2.334,
+        "previewMs": 3.556,
+        "publishMs": 2.176,
+        "runtimeMs": 2.621,
+        "backupMs": 51.864,
+        "trashMs": 15.605,
+        "restoreMs": 9.923,
+        "totalMs": 142.832
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 1215,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 4,
+          "elements": 69,
+          "tables": 7,
+          "runtimeRows": 1215
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-046",
+      "projectId": "2028f516-6689-42b8-b3e1-2a422eb0f321",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 1.844,
+        "saveMs": 2.024,
+        "previewMs": 3.13,
+        "publishMs": 2.138,
+        "runtimeMs": 2.537,
+        "backupMs": 53.571,
+        "trashMs": 19.467,
+        "restoreMs": 10.287,
+        "totalMs": 143.196
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 1125,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 5,
+          "elements": 72,
+          "tables": 8,
+          "runtimeRows": 1125
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-047",
+      "projectId": "82e9e0fa-66f1-480d-ac38-4e723b80c21a",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 1.889,
+        "saveMs": 2.116,
+        "previewMs": 4.071,
+        "publishMs": 2.624,
+        "runtimeMs": 3.307,
+        "backupMs": 52.34,
+        "trashMs": 15.082,
+        "restoreMs": 9.903,
+        "totalMs": 141.919
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 1056,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 6,
+          "elements": 75,
+          "tables": 9,
+          "runtimeRows": 1056
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-048",
+      "projectId": "3555f66b-76c1-4418-817b-56148e304748",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 1.874,
+        "saveMs": 2.27,
+        "previewMs": 3.444,
+        "publishMs": 2.237,
+        "runtimeMs": 2.793,
+        "backupMs": 51.858,
+        "trashMs": 15.791,
+        "restoreMs": 10.906,
+        "totalMs": 148.902
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 2500,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 7,
+          "elements": 78,
+          "tables": 4,
+          "runtimeRows": 2500
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-049",
+      "projectId": "0f5704ec-fe1f-4c0a-82c2-9a1835928c24",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 1.988,
+        "saveMs": 2.201,
+        "previewMs": 3.131,
+        "publishMs": 2.048,
+        "runtimeMs": 2.77,
+        "backupMs": 52.763,
+        "trashMs": 15.956,
+        "restoreMs": 11.353,
+        "totalMs": 148.769
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 2100,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 8,
+          "elements": 81,
+          "tables": 5,
+          "runtimeRows": 2100
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-050",
+      "projectId": "fa8fd577-950b-4ff9-9c04-add683349eed",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 2.141,
+        "saveMs": 2.627,
+        "previewMs": 3.653,
+        "publishMs": 2.305,
+        "runtimeMs": 3.28,
+        "backupMs": 56.551,
+        "trashMs": 15.789,
+        "restoreMs": 12.745,
+        "totalMs": 154.765
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 1834,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 4,
+          "elements": 84,
+          "tables": 6,
+          "runtimeRows": 1834
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-051",
+      "projectId": "314ecca7-df91-4389-aae9-323070f43d64",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "create-row": "PASS",
+        "update-row": "PASS",
+        "delete-row": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.807,
+        "saveMs": 0.838,
+        "previewMs": 1.113,
+        "publishMs": 0.94,
+        "runtimeMs": 0.819,
+        "backupMs": 22.417,
+        "trashMs": 11.818,
+        "restoreMs": 4.729,
+        "totalMs": 69.694
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 59,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 4,
+          "elements": 21,
+          "tables": 3,
+          "runtimeRows": 59
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-052",
+      "projectId": "195a8bce-cd38-4121-9234-bfcae3498979",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "create-row": "PASS",
+        "update-row": "PASS",
+        "delete-row": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.504,
+        "saveMs": 0.712,
+        "previewMs": 1.294,
+        "publishMs": 1.027,
+        "runtimeMs": 0.976,
+        "backupMs": 23.231,
+        "trashMs": 11.981,
+        "restoreMs": 4.292,
+        "totalMs": 71.281
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 63,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 5,
+          "elements": 24,
+          "tables": 4,
+          "runtimeRows": 63
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-053",
+      "projectId": "e8063904-6098-4acb-b254-64cfff235b13",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "create-row": "PASS",
+        "update-row": "PASS",
+        "delete-row": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.523,
+        "saveMs": 0.706,
+        "previewMs": 1.373,
+        "publishMs": 1.084,
+        "runtimeMs": 1.086,
+        "backupMs": 22.628,
+        "trashMs": 11.585,
+        "restoreMs": 7.276,
+        "totalMs": 72.761
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 65,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 6,
+          "elements": 27,
+          "tables": 5,
+          "runtimeRows": 65
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-054",
+      "projectId": "32ec0144-16cd-4223-ac50-78a91d51e40c",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "create-row": "PASS",
+        "update-row": "PASS",
+        "delete-row": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.542,
+        "saveMs": 0.79,
+        "previewMs": 1.597,
+        "publishMs": 1.25,
+        "runtimeMs": 1.237,
+        "backupMs": 24.583,
+        "trashMs": 12.215,
+        "restoreMs": 4.781,
+        "totalMs": 75.441
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 67,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 7,
+          "elements": 30,
+          "tables": 6,
+          "runtimeRows": 67
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-055",
+      "projectId": "b5793baa-2471-4ba1-9b46-7a05748f1f9c",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "create-row": "PASS",
+        "update-row": "PASS",
+        "delete-row": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.548,
+        "saveMs": 0.733,
+        "previewMs": 1.652,
+        "publishMs": 1.27,
+        "runtimeMs": 1.386,
+        "backupMs": 24.363,
+        "trashMs": 12.989,
+        "restoreMs": 6.971,
+        "totalMs": 79.123
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 68,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 8,
+          "elements": 33,
+          "tables": 7,
+          "runtimeRows": 68
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-056",
+      "projectId": "c3805484-84d3-4df2-8315-2fee000fc776",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "create-row": "PASS",
+        "update-row": "PASS",
+        "delete-row": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.594,
+        "saveMs": 0.79,
+        "previewMs": 1.615,
+        "publishMs": 1.172,
+        "runtimeMs": 1.383,
+        "backupMs": 24.648,
+        "trashMs": 12.767,
+        "restoreMs": 4.802,
+        "totalMs": 75.396
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 69,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 3,
+          "elements": 36,
+          "tables": 8,
+          "runtimeRows": 69
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-057",
+      "projectId": "08d03aa0-c129-4c4a-bfd0-0a5f9c8b9044",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "create-row": "PASS",
+        "update-row": "PASS",
+        "delete-row": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.54,
+        "saveMs": 0.717,
+        "previewMs": 1.649,
+        "publishMs": 1.381,
+        "runtimeMs": 1.328,
+        "backupMs": 25.022,
+        "trashMs": 12.405,
+        "restoreMs": 5.165,
+        "totalMs": 76.101
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 313,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 4,
+          "elements": 39,
+          "tables": 2,
+          "runtimeRows": 313
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-058",
+      "projectId": "4d809a38-afd6-4a25-bb97-700d5a661a01",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "create-row": "PASS",
+        "update-row": "PASS",
+        "delete-row": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.603,
+        "saveMs": 0.772,
+        "previewMs": 1.758,
+        "publishMs": 1.256,
+        "runtimeMs": 1.518,
+        "backupMs": 25.435,
+        "trashMs": 15.197,
+        "restoreMs": 5.507,
+        "totalMs": 81.199
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 234,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 5,
+          "elements": 42,
+          "tables": 3,
+          "runtimeRows": 234
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-059",
+      "projectId": "e063e2df-f469-4917-b993-24a650480982",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "create-row": "PASS",
+        "update-row": "PASS",
+        "delete-row": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.64,
+        "saveMs": 0.827,
+        "previewMs": 2.088,
+        "publishMs": 1.439,
+        "runtimeMs": 1.644,
+        "backupMs": 26.672,
+        "trashMs": 13.976,
+        "restoreMs": 6.178,
+        "totalMs": 82.886
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 194,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 6,
+          "elements": 45,
+          "tables": 4,
+          "runtimeRows": 194
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-060",
+      "projectId": "9b7b6a5f-810f-423f-a2ad-1a51a9fa8c4a",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "create-row": "PASS",
+        "update-row": "PASS",
+        "delete-row": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.68,
+        "saveMs": 0.89,
+        "previewMs": 2.208,
+        "publishMs": 1.507,
+        "runtimeMs": 1.802,
+        "backupMs": 27.687,
+        "trashMs": 14.098,
+        "restoreMs": 6.134,
+        "totalMs": 86.375
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 170,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 7,
+          "elements": 48,
+          "tables": 5,
+          "runtimeRows": 170
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-061",
+      "projectId": "eb1b6bf1-98a2-402a-ad59-d10dd39e86f2",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "create-row": "PASS",
+        "update-row": "PASS",
+        "delete-row": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.716,
+        "saveMs": 0.874,
+        "previewMs": 2.363,
+        "publishMs": 1.649,
+        "runtimeMs": 3.152,
+        "backupMs": 31.451,
+        "trashMs": 13.738,
+        "restoreMs": 5.911,
+        "totalMs": 93.538
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 155,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 8,
+          "elements": 51,
+          "tables": 6,
+          "runtimeRows": 155
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-062",
+      "projectId": "cb858c8a-9660-4267-b503-0006ad6d0dc5",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "create-row": "PASS",
+        "update-row": "PASS",
+        "delete-row": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.861,
+        "saveMs": 1.011,
+        "previewMs": 2.279,
+        "publishMs": 1.555,
+        "runtimeMs": 1.951,
+        "backupMs": 27.985,
+        "trashMs": 13.795,
+        "restoreMs": 6.375,
+        "totalMs": 86.402
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 143,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 3,
+          "elements": 54,
+          "tables": 7,
+          "runtimeRows": 143
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-063",
+      "projectId": "00b2b747-a5ca-482a-aa8d-bff7d1995792",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "create-row": "PASS",
+        "update-row": "PASS",
+        "delete-row": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.738,
+        "saveMs": 0.935,
+        "previewMs": 2.454,
+        "publishMs": 1.603,
+        "runtimeMs": 2.105,
+        "backupMs": 31.056,
+        "trashMs": 13.416,
+        "restoreMs": 5.979,
+        "totalMs": 91.277
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 135,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 4,
+          "elements": 57,
+          "tables": 8,
+          "runtimeRows": 135
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-064",
+      "projectId": "265cae95-88fb-4374-8368-ebf62ade66c7",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "create-row": "PASS",
+        "update-row": "PASS",
+        "delete-row": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.637,
+        "saveMs": 0.827,
+        "previewMs": 2.478,
+        "publishMs": 1.681,
+        "runtimeMs": 1.913,
+        "backupMs": 27.335,
+        "trashMs": 14.164,
+        "restoreMs": 5.88,
+        "totalMs": 86.378
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 575,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 5,
+          "elements": 60,
+          "tables": 2,
+          "runtimeRows": 575
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-065",
+      "projectId": "09cd48f2-f4ba-4f73-8de7-45451add092e",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "create-row": "PASS",
+        "update-row": "PASS",
+        "delete-row": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.65,
+        "saveMs": 0.944,
+        "previewMs": 2.541,
+        "publishMs": 1.702,
+        "runtimeMs": 2.067,
+        "backupMs": 29.695,
+        "trashMs": 14.553,
+        "restoreMs": 6.128,
+        "totalMs": 89.225
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 409,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 6,
+          "elements": 63,
+          "tables": 3,
+          "runtimeRows": 409
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-066",
+      "projectId": "5a604e6c-e777-454a-ba06-528562925c1f",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.732,
+        "saveMs": 0.822,
+        "previewMs": 1.6,
+        "publishMs": 1.219,
+        "runtimeMs": 1.151,
+        "backupMs": 26.869,
+        "trashMs": 12.647,
+        "restoreMs": 5.017,
+        "totalMs": 77.575
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 150,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 9,
+          "elements": 34,
+          "tables": 4,
+          "runtimeRows": 150
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-067",
+      "projectId": "9ff844cc-02ad-4e82-87a2-11adf80c04fe",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.63,
+        "saveMs": 0.9,
+        "previewMs": 1.847,
+        "publishMs": 1.392,
+        "runtimeMs": 1.352,
+        "backupMs": 25.956,
+        "trashMs": 13.136,
+        "restoreMs": 5.091,
+        "totalMs": 79.803
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 140,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 10,
+          "elements": 38,
+          "tables": 5,
+          "runtimeRows": 140
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-068",
+      "projectId": "8fa291c8-b510-4ca5-8e5a-7d6a84ebc126",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.661,
+        "saveMs": 0.93,
+        "previewMs": 2.012,
+        "publishMs": 1.527,
+        "runtimeMs": 1.444,
+        "backupMs": 28.143,
+        "trashMs": 13.593,
+        "restoreMs": 8.033,
+        "totalMs": 86.772
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 134,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 11,
+          "elements": 42,
+          "tables": 6,
+          "runtimeRows": 134
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-069",
+      "projectId": "7a18de26-dc28-48e4-95aa-518cc361f844",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.621,
+        "saveMs": 0.865,
+        "previewMs": 2.136,
+        "publishMs": 1.541,
+        "runtimeMs": 1.59,
+        "backupMs": 26.542,
+        "trashMs": 12.928,
+        "restoreMs": 5.375,
+        "totalMs": 82.063
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 129,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 12,
+          "elements": 46,
+          "tables": 7,
+          "runtimeRows": 129
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-070",
+      "projectId": "b9c0537a-4d35-4d64-8047-8d2207662184",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.621,
+        "saveMs": 0.81,
+        "previewMs": 2.239,
+        "publishMs": 1.625,
+        "runtimeMs": 1.612,
+        "backupMs": 27.549,
+        "trashMs": 13.532,
+        "restoreMs": 5.713,
+        "totalMs": 86.231
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 334,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 13,
+          "elements": 50,
+          "tables": 3,
+          "runtimeRows": 334
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-071",
+      "projectId": "01bf1e9d-dd4e-4c5f-8e89-9e5acf64eefd",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.708,
+        "saveMs": 0.911,
+        "previewMs": 3.573,
+        "publishMs": 1.735,
+        "runtimeMs": 1.828,
+        "backupMs": 27.412,
+        "trashMs": 13.136,
+        "restoreMs": 5.76,
+        "totalMs": 86.671
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 275,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 14,
+          "elements": 54,
+          "tables": 4,
+          "runtimeRows": 275
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-072",
+      "projectId": "dc6c1d13-dee8-46f6-a6b5-8c32e1fe58fd",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.697,
+        "saveMs": 0.94,
+        "previewMs": 2.55,
+        "publishMs": 1.931,
+        "runtimeMs": 1.911,
+        "backupMs": 28.63,
+        "trashMs": 13.783,
+        "restoreMs": 5.733,
+        "totalMs": 88.765
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 240,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 15,
+          "elements": 58,
+          "tables": 5,
+          "runtimeRows": 240
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-073",
+      "projectId": "7c0d7538-8b08-4aac-96b7-6f9e1509e00f",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.709,
+        "saveMs": 0.899,
+        "previewMs": 2.796,
+        "publishMs": 2.055,
+        "runtimeMs": 2.112,
+        "backupMs": 28.914,
+        "trashMs": 13.535,
+        "restoreMs": 5.893,
+        "totalMs": 91.071
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 217,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 16,
+          "elements": 62,
+          "tables": 6,
+          "runtimeRows": 217
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-074",
+      "projectId": "30db7204-847e-4cd5-981a-f73e3ecfa276",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.695,
+        "saveMs": 0.941,
+        "previewMs": 2.785,
+        "publishMs": 2.001,
+        "runtimeMs": 2.193,
+        "backupMs": 30.052,
+        "trashMs": 13.48,
+        "restoreMs": 6.013,
+        "totalMs": 90.83
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 200,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 17,
+          "elements": 66,
+          "tables": 7,
+          "runtimeRows": 200
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-075",
+      "projectId": "a99b1ee3-254b-4aa3-b79e-df4075fa3a15",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.67,
+        "saveMs": 0.843,
+        "previewMs": 2.855,
+        "publishMs": 2.301,
+        "runtimeMs": 2.191,
+        "backupMs": 30.312,
+        "trashMs": 13.854,
+        "restoreMs": 6.439,
+        "totalMs": 92.456
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 500,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 18,
+          "elements": 70,
+          "tables": 3,
+          "runtimeRows": 500
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-076",
+      "projectId": "0d0e2f8f-4fbe-4cda-bb49-12a3e92a2b07",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.722,
+        "saveMs": 0.893,
+        "previewMs": 3.063,
+        "publishMs": 5.09,
+        "runtimeMs": 2.648,
+        "backupMs": 30.193,
+        "trashMs": 13.917,
+        "restoreMs": 6.758,
+        "totalMs": 98.067
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 400,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 19,
+          "elements": 74,
+          "tables": 4,
+          "runtimeRows": 400
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-077",
+      "projectId": "ad225979-9bab-409b-8082-48c7a4945551",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.955,
+        "saveMs": 1.021,
+        "previewMs": 3.289,
+        "publishMs": 2.286,
+        "runtimeMs": 2.595,
+        "backupMs": 31.192,
+        "trashMs": 14.985,
+        "restoreMs": 7.065,
+        "totalMs": 105.833
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 340,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 20,
+          "elements": 78,
+          "tables": 5,
+          "runtimeRows": 340
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-078",
+      "projectId": "7975b73b-3d93-4ed4-ac69-9a2accc2f779",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.78,
+        "saveMs": 1.137,
+        "previewMs": 3.475,
+        "publishMs": 2.963,
+        "runtimeMs": 2.697,
+        "backupMs": 33.674,
+        "trashMs": 15.064,
+        "restoreMs": 6.97,
+        "totalMs": 104.024
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 300,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 21,
+          "elements": 82,
+          "tables": 6,
+          "runtimeRows": 300
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-079",
+      "projectId": "4a4011e2-1d25-4fab-be37-1dccb4c814ab",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.78,
+        "saveMs": 0.986,
+        "previewMs": 3.908,
+        "publishMs": 2.58,
+        "runtimeMs": 4.041,
+        "backupMs": 33.572,
+        "trashMs": 14.737,
+        "restoreMs": 7.056,
+        "totalMs": 104.688
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 272,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 22,
+          "elements": 86,
+          "tables": 7,
+          "runtimeRows": 272
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-080",
+      "projectId": "4739680f-7603-4f2c-85f1-9502c925889c",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.739,
+        "saveMs": 1.183,
+        "previewMs": 3.684,
+        "publishMs": 2.577,
+        "runtimeMs": 2.944,
+        "backupMs": 32.323,
+        "trashMs": 14.841,
+        "restoreMs": 9.252,
+        "totalMs": 105.184
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 667,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 23,
+          "elements": 90,
+          "tables": 3,
+          "runtimeRows": 667
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-081",
+      "projectId": "f9035528-a08c-451a-9783-3d94147ff3c3",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "auto-layout": "PASS",
+        "orthogonal-edge-reroute": "PASS",
+        "port-direction-matrix": "PASS"
+      },
+      "metrics": {
+        "openMs": 1.538,
+        "saveMs": 1.643,
+        "previewMs": 4.004,
+        "publishMs": 2.477,
+        "runtimeMs": 3.297,
+        "backupMs": 46.9,
+        "trashMs": 17.723,
+        "restoreMs": 10.088,
+        "totalMs": 156.682
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 546,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 11,
+          "elements": 98,
+          "tables": 11,
+          "runtimeRows": 546
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-082",
+      "projectId": "5411bee3-dc28-4bdc-a403-690d27ed6dda",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "auto-layout": "PASS",
+        "orthogonal-edge-reroute": "PASS",
+        "port-direction-matrix": "PASS"
+      },
+      "metrics": {
+        "openMs": 1.583,
+        "saveMs": 1.816,
+        "previewMs": 4.257,
+        "publishMs": 2.755,
+        "runtimeMs": 4.017,
+        "backupMs": 52.019,
+        "trashMs": 16.883,
+        "restoreMs": 11.132,
+        "totalMs": 168.044
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 584,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 12,
+          "elements": 106,
+          "tables": 12,
+          "runtimeRows": 584
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-083",
+      "projectId": "d99feda8-bce9-4726-9a0d-97f0c6dc2270",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "auto-layout": "PASS",
+        "orthogonal-edge-reroute": "PASS",
+        "port-direction-matrix": "PASS"
+      },
+      "metrics": {
+        "openMs": 1.717,
+        "saveMs": 1.883,
+        "previewMs": 4.663,
+        "publishMs": 3.275,
+        "runtimeMs": 5.306,
+        "backupMs": 53.148,
+        "trashMs": 17.625,
+        "restoreMs": 10.829,
+        "totalMs": 173.702
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 616,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 13,
+          "elements": 114,
+          "tables": 13,
+          "runtimeRows": 616
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-084",
+      "projectId": "6fdc5cd1-1169-4432-8ead-c583d06dd936",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "auto-layout": "PASS",
+        "orthogonal-edge-reroute": "PASS",
+        "port-direction-matrix": "PASS"
+      },
+      "metrics": {
+        "openMs": 1.832,
+        "saveMs": 1.985,
+        "previewMs": 4.692,
+        "publishMs": 3.063,
+        "runtimeMs": 4.27,
+        "backupMs": 61.528,
+        "trashMs": 18.707,
+        "restoreMs": 11.856,
+        "totalMs": 193.156
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 643,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 14,
+          "elements": 122,
+          "tables": 14,
+          "runtimeRows": 643
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-085",
+      "projectId": "bb236581-14c8-43a6-90b2-000c1fa84387",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "auto-layout": "PASS",
+        "orthogonal-edge-reroute": "PASS",
+        "port-direction-matrix": "PASS"
+      },
+      "metrics": {
+        "openMs": 1.917,
+        "saveMs": 2.297,
+        "previewMs": 4.982,
+        "publishMs": 3.097,
+        "runtimeMs": 4.407,
+        "backupMs": 57.957,
+        "trashMs": 19.927,
+        "restoreMs": 12.19,
+        "totalMs": 196.237
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 667,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 15,
+          "elements": 130,
+          "tables": 15,
+          "runtimeRows": 667
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-086",
+      "projectId": "92b6c7ea-32f9-47af-a1a8-dc18ae7c366e",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "auto-layout": "PASS",
+        "orthogonal-edge-reroute": "PASS",
+        "port-direction-matrix": "PASS"
+      },
+      "metrics": {
+        "openMs": 2.144,
+        "saveMs": 2.472,
+        "previewMs": 5.583,
+        "publishMs": 4.68,
+        "runtimeMs": 4.71,
+        "backupMs": 61.077,
+        "trashMs": 18.63,
+        "restoreMs": 13.283,
+        "totalMs": 202.122
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 688,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 16,
+          "elements": 138,
+          "tables": 16,
+          "runtimeRows": 688
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-087",
+      "projectId": "00bda92a-7f1b-42df-8bc2-84bc4b04c086",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "auto-layout": "PASS",
+        "orthogonal-edge-reroute": "PASS",
+        "port-direction-matrix": "PASS"
+      },
+      "metrics": {
+        "openMs": 7.761,
+        "saveMs": 2.983,
+        "previewMs": 6.887,
+        "publishMs": 8.537,
+        "runtimeMs": 6.492,
+        "backupMs": 65.467,
+        "trashMs": 21.968,
+        "restoreMs": 14.451,
+        "totalMs": 237.015
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 706,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 17,
+          "elements": 146,
+          "tables": 17,
+          "runtimeRows": 706
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-088",
+      "projectId": "b233eacc-cab8-4ab1-8330-3591f3e5db03",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "auto-layout": "PASS",
+        "orthogonal-edge-reroute": "PASS",
+        "port-direction-matrix": "PASS"
+      },
+      "metrics": {
+        "openMs": 2.65,
+        "saveMs": 2.677,
+        "previewMs": 6.061,
+        "publishMs": 3.695,
+        "runtimeMs": 5.215,
+        "backupMs": 74.633,
+        "trashMs": 22.471,
+        "restoreMs": 15.198,
+        "totalMs": 232.98
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 723,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 18,
+          "elements": 154,
+          "tables": 18,
+          "runtimeRows": 723
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-089",
+      "projectId": "6676b4ab-87ab-461e-90b4-739df683b0a5",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "auto-layout": "PASS",
+        "orthogonal-edge-reroute": "PASS",
+        "port-direction-matrix": "PASS"
+      },
+      "metrics": {
+        "openMs": 2.937,
+        "saveMs": 3.027,
+        "previewMs": 6.336,
+        "publishMs": 3.841,
+        "runtimeMs": 5.64,
+        "backupMs": 75.338,
+        "trashMs": 21.308,
+        "restoreMs": 16.111,
+        "totalMs": 239.972
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 737,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 19,
+          "elements": 162,
+          "tables": 19,
+          "runtimeRows": 737
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-090",
+      "projectId": "ad10d744-fdc8-425a-b261-87e5cc1872e1",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "auto-layout": "PASS",
+        "orthogonal-edge-reroute": "PASS",
+        "port-direction-matrix": "PASS"
+      },
+      "metrics": {
+        "openMs": 2.796,
+        "saveMs": 3.065,
+        "previewMs": 7.37,
+        "publishMs": 3.954,
+        "runtimeMs": 5.551,
+        "backupMs": 77.85,
+        "trashMs": 27.488,
+        "restoreMs": 16.796,
+        "totalMs": 254.623
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 750,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 20,
+          "elements": 170,
+          "tables": 20,
+          "runtimeRows": 750
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-091",
+      "projectId": "f780f599-e493-49bc-a777-e3b717ee0c47",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "keyboard-only": "PASS",
+        "screen-reader-labels": "PASS",
+        "reduced-motion": "PASS",
+        "high-contrast": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.63,
+        "saveMs": 0.934,
+        "previewMs": 2.558,
+        "publishMs": 1.592,
+        "runtimeMs": 1.736,
+        "backupMs": 27.688,
+        "trashMs": 13.382,
+        "restoreMs": 4.81,
+        "totalMs": 84.246
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 150,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 6,
+          "elements": 40,
+          "tables": 5,
+          "runtimeRows": 150
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-092",
+      "projectId": "5635da65-6634-4c83-b9b7-e0ea91d9b463",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "keyboard-only": "PASS",
+        "screen-reader-labels": "PASS",
+        "reduced-motion": "PASS",
+        "high-contrast": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.654,
+        "saveMs": 0.821,
+        "previewMs": 2.702,
+        "publishMs": 1.795,
+        "runtimeMs": 1.962,
+        "backupMs": 28.771,
+        "trashMs": 17.907,
+        "restoreMs": 5.68,
+        "totalMs": 93.283
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 167,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 7,
+          "elements": 45,
+          "tables": 6,
+          "runtimeRows": 167
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-093",
+      "projectId": "e03fe4a6-a75f-4042-99f7-57ced0d717b6",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "keyboard-only": "PASS",
+        "screen-reader-labels": "PASS",
+        "reduced-motion": "PASS",
+        "high-contrast": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.705,
+        "saveMs": 0.863,
+        "previewMs": 2.622,
+        "publishMs": 1.894,
+        "runtimeMs": 2.113,
+        "backupMs": 30.128,
+        "trashMs": 14.006,
+        "restoreMs": 5.742,
+        "totalMs": 92.387
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 179,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 8,
+          "elements": 50,
+          "tables": 7,
+          "runtimeRows": 179
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-094",
+      "projectId": "4e9ac757-5932-4818-9863-635c01f8018a",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "keyboard-only": "PASS",
+        "screen-reader-labels": "PASS",
+        "reduced-motion": "PASS",
+        "high-contrast": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.747,
+        "saveMs": 0.951,
+        "previewMs": 2.42,
+        "publishMs": 1.665,
+        "runtimeMs": 1.945,
+        "backupMs": 32.331,
+        "trashMs": 14.132,
+        "restoreMs": 7.594,
+        "totalMs": 95.75
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 188,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 9,
+          "elements": 55,
+          "tables": 8,
+          "runtimeRows": 188
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-095",
+      "projectId": "0850b394-5fa5-4a00-b58a-4903064a04e6",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "keyboard-only": "PASS",
+        "screen-reader-labels": "PASS",
+        "reduced-motion": "PASS",
+        "high-contrast": "PASS"
+      },
+      "metrics": {
+        "openMs": 0.784,
+        "saveMs": 0.969,
+        "previewMs": 2.701,
+        "publishMs": 1.904,
+        "runtimeMs": 2.152,
+        "backupMs": 33.858,
+        "trashMs": 15.72,
+        "restoreMs": 6.408,
+        "totalMs": 98.653
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 195,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 10,
+          "elements": 60,
+          "tables": 9,
+          "runtimeRows": 195
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-096",
+      "projectId": "75a8603b-2acc-4a2b-bccd-7b6e38d5ba1a",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "create-row": "PASS",
+        "update-row": "PASS",
+        "delete-row": "PASS",
+        "auto-layout": "PASS",
+        "orthogonal-edge-reroute": "PASS",
+        "port-direction-matrix": "PASS",
+        "trash-operation-interruption": "PASS",
+        "restore-operation-interruption": "PASS",
+        "backup-restore": "PASS",
+        "disk-pressure": "PASS",
+        "concurrent-revision": "PASS"
+      },
+      "metrics": {
+        "openMs": 2.856,
+        "saveMs": 3.05,
+        "previewMs": 5.946,
+        "publishMs": 4.011,
+        "runtimeMs": 5.01,
+        "backupMs": 77.301,
+        "trashMs": 22.519,
+        "restoreMs": 15.268,
+        "totalMs": 246.472
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 834,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 24,
+          "elements": 150,
+          "tables": 18,
+          "runtimeRows": 834
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-097",
+      "projectId": "b5136e9e-ba2c-489f-a2de-c56bc5ea052c",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "create-row": "PASS",
+        "update-row": "PASS",
+        "delete-row": "PASS",
+        "auto-layout": "PASS",
+        "orthogonal-edge-reroute": "PASS",
+        "port-direction-matrix": "PASS",
+        "trash-operation-interruption": "PASS",
+        "restore-operation-interruption": "PASS",
+        "backup-restore": "PASS",
+        "disk-pressure": "PASS",
+        "concurrent-revision": "PASS"
+      },
+      "metrics": {
+        "openMs": 3.4,
+        "saveMs": 3.607,
+        "previewMs": 6.974,
+        "publishMs": 4.351,
+        "runtimeMs": 6.045,
+        "backupMs": 101.871,
+        "trashMs": 24.441,
+        "restoreMs": 18.929,
+        "totalMs": 301.821
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 953,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 28,
+          "elements": 180,
+          "tables": 21,
+          "runtimeRows": 953
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-098",
+      "projectId": "d7b5bbe9-da01-496d-8642-ccdcb9e00439",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "create-row": "PASS",
+        "update-row": "PASS",
+        "delete-row": "PASS",
+        "auto-layout": "PASS",
+        "orthogonal-edge-reroute": "PASS",
+        "port-direction-matrix": "PASS",
+        "trash-operation-interruption": "PASS",
+        "restore-operation-interruption": "PASS",
+        "backup-restore": "PASS",
+        "disk-pressure": "PASS",
+        "concurrent-revision": "PASS"
+      },
+      "metrics": {
+        "openMs": 4.128,
+        "saveMs": 4.601,
+        "previewMs": 8.308,
+        "publishMs": 5.307,
+        "runtimeMs": 6.812,
+        "backupMs": 107.582,
+        "trashMs": 26.291,
+        "restoreMs": 24.658,
+        "totalMs": 357.961
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 1042,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 32,
+          "elements": 210,
+          "tables": 24,
+          "runtimeRows": 1042
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-099",
+      "projectId": "00697860-d53a-4274-a2c2-82cbf71e2314",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "create-row": "PASS",
+        "update-row": "PASS",
+        "delete-row": "PASS",
+        "auto-layout": "PASS",
+        "orthogonal-edge-reroute": "PASS",
+        "port-direction-matrix": "PASS",
+        "trash-operation-interruption": "PASS",
+        "restore-operation-interruption": "PASS",
+        "backup-restore": "PASS",
+        "disk-pressure": "PASS",
+        "concurrent-revision": "PASS"
+      },
+      "metrics": {
+        "openMs": 5.286,
+        "saveMs": 5.366,
+        "previewMs": 9.488,
+        "publishMs": 5.733,
+        "runtimeMs": 7.894,
+        "backupMs": 119.762,
+        "trashMs": 27.297,
+        "restoreMs": 25.483,
+        "totalMs": 398.841
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 1112,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 36,
+          "elements": 240,
+          "tables": 27,
+          "runtimeRows": 1112
+        }
+      },
+      "error": null
+    },
+    {
+      "schemaVersion": 1,
+      "corpusId": "CORPUS-100",
+      "projectId": "d46bbcaf-837a-421d-af2d-1da9fb0c4e37",
+      "status": "PASS",
+      "scenarios": {
+        "create": "PASS",
+        "edit": "PASS",
+        "save": "PASS",
+        "reload": "PASS",
+        "server-restart": "PASS",
+        "preview": "PASS",
+        "publish": "PASS",
+        "runtime-open": "PASS",
+        "read": "PASS",
+        "navigation": "PASS",
+        "theme-select": "PASS",
+        "theme-browser-persist": "PASS",
+        "soft-delete": "PASS",
+        "recycle-bin-visible": "PASS",
+        "restore": "PASS",
+        "sentinel-integrity": "PASS",
+        "create-row": "PASS",
+        "update-row": "PASS",
+        "delete-row": "PASS",
+        "auto-layout": "PASS",
+        "orthogonal-edge-reroute": "PASS",
+        "port-direction-matrix": "PASS",
+        "trash-operation-interruption": "PASS",
+        "restore-operation-interruption": "PASS",
+        "backup-restore": "PASS",
+        "disk-pressure": "PASS",
+        "concurrent-revision": "PASS",
+        "permanent-purge-on-cloned-fixture": "PASS",
+        "orphan-scan": "PASS"
+      },
+      "metrics": {
+        "openMs": 6.003,
+        "saveMs": 5.958,
+        "previewMs": 12.374,
+        "publishMs": 6.367,
+        "runtimeMs": 8.962,
+        "backupMs": 151.581,
+        "trashMs": 30.068,
+        "restoreMs": 29.15,
+        "totalMs": 491.479
+      },
+      "assertions": {
+        "runtime": {
+          "rowCount": 1167,
+          "sentinelCount": 1
+        },
+        "counts": {
+          "pages": 40,
+          "elements": 270,
+          "tables": 30,
+          "runtimeRows": 1167
+        }
+      },
+      "error": null
+    }
+  ]
+}

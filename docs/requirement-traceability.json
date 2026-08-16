@@ -6,20 +6,28 @@
       "id": "REQ-001",
       "title": "Statistics visual web-service builder",
       "phase": 0,
-      "status": "IN PROGRESS",
+      "status": "OPERATIONALLY VERIFIED",
       "implementation": [
+        "apps/server/src/app.ts",
+        "apps/server/src/project-corpus/project-corpus-service.ts",
         "apps/server/src/auth/auth-service.ts",
         "apps/server/src/performance/performance-monitor.ts",
-        "apps/web/src/features/auth/AuthBoundary.tsx"
+        "apps/web/src/App.tsx",
+        "apps/web/src/features/auth/AuthBoundary.tsx",
+        "apps/web/src/features/data-relationship/RelationshipCanvas.tsx"
       ],
       "tests": [
         "apps/server/test/integration/auth-security-performance.test.ts",
+        "apps/server/test/integration/feature-showcase-workflows.test.ts",
         "apps/web/src/features/auth/AuthBoundary.test.tsx",
-        "scripts/verify-phase18.mjs"
+        "scripts/verify-phase18.mjs",
+        "scripts/verify-phase21.mjs"
       ],
       "evidence": [
         "artifacts/phase18/accessibility-security-performance-validation.json",
-        "artifacts/phase18/browser-security-performance-validation.json"
+        "artifacts/phase18/browser-security-performance-validation.json",
+        "artifacts/phase21/project-corpus-operational-validation.json",
+        "artifacts/phase21/browser-feature-showcase-relationship-validation.json"
       ]
     },
     {
@@ -116,6 +124,7 @@
       "implementation": [
         "apps/web/src/App.tsx",
         "apps/web/src/features/pages/PageManager.tsx",
+        "apps/web/src/styles.css",
         "apps/server/src/pages/page-service.ts"
       ],
       "tests": [
@@ -347,6 +356,7 @@
         "apps/server/src/routes/sample-data.ts",
         "apps/server/src/routes/project-variables.ts",
         "apps/server/src/runtime/project-variable-service.ts",
+        "apps/server/src/project-corpus/project-corpus-service.ts",
         "apps/web/src/features/data-relationship/RelationshipCanvas.tsx",
         "apps/web/src/features/elements/ElementWorkspace.tsx",
         "apps/web/src/features/elements/ElementRenderer.tsx",
@@ -358,6 +368,7 @@
         "apps/server/test/integration/safe-read-binding-engine.test.ts",
         "apps/server/test/integration/crud-binding-runtime.test.ts",
         "apps/server/test/integration/project-variable-navigation.test.ts",
+        "apps/server/test/integration/feature-showcase-workflows.test.ts",
         "apps/web/src/features/data-relationship/RelationshipCanvas.test.tsx",
         "apps/web/src/features/elements/ElementCanvas.test.tsx",
         "apps/web/src/features/runtime/PublishedRuntime.test.tsx",
@@ -374,7 +385,8 @@
         "artifacts/phase13/crud-binding-runtime-validation.json",
         "artifacts/phase13/browser-crud-binding-validation.json",
         "artifacts/phase14/project-variable-navigation-validation.json",
-        "artifacts/phase14/browser-project-variable-navigation-validation.json"
+        "artifacts/phase14/browser-project-variable-navigation-validation.json",
+        "artifacts/phase21/project-corpus-operational-validation.json"
       ]
     },
     {
@@ -383,20 +395,34 @@
       "phase": 18,
       "status": "OPERATIONALLY VERIFIED",
       "implementation": [
+        "docs/adr/0022-windows-production-deployment.md",
         "docs/adr/0019-accessibility-security-performance-domain.md",
         "apps/server/src/config.ts",
         "apps/server/src/app.ts",
         "apps/server/src/auth/auth-service.ts",
-        "apps/web/src/features/auth/AuthBoundary.tsx"
+        "apps/server/src/deployment/offline-backup.ts",
+        "apps/server/src/deployment/metadata-version.ts",
+        "apps/web/src/features/auth/AuthBoundary.tsx",
+        "deployment/windows/Build-WebEditorRelease.ps1",
+        "deployment/windows/Install-WebEditor.ps1",
+        "deployment/windows/Rollback-WebEditorRelease.ps1",
+        "deployment/windows/Test-WebEditorDeployment.ps1"
       ],
       "tests": [
         "apps/server/test/integration/auth-security-performance.test.ts",
+        "apps/server/test/unit/offline-backup.test.ts",
+        "apps/server/test/unit/metadata-version.test.ts",
         "apps/web/src/features/auth/AuthBoundary.test.tsx",
-        "scripts/verify-phase18.mjs"
+        "scripts/verify-phase18.mjs",
+        "scripts/verify-phase22.mjs",
+        "tests/validation/phase22-validation.test.mjs"
       ],
       "evidence": [
         "artifacts/phase18/accessibility-security-performance-validation.json",
-        "artifacts/phase18/browser-security-performance-validation.json"
+        "artifacts/phase18/browser-security-performance-validation.json",
+        "artifacts/phase22/powershell-syntax-validation.json",
+        "reports/deployment/windows-https-report.json",
+        "reports/recovery/backup-restore-report.json"
       ]
     },
     {
@@ -622,10 +648,17 @@
       "id": "REQ-030",
       "title": "Research-driven theme provenance",
       "phase": 2,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "docs/theme-reference-review.json",
+        "docs/theme-reference-notices.md",
+        "scripts/verify-theme-provenance.mjs"
+      ],
+      "tests": [
+        "tests/validation/theme-provenance-validation.test.mjs",
+        "scripts/verify-theme-provenance.mjs"
+      ],
+      "evidence": ["artifacts/phase2/theme-provenance-license-validation.json"]
     },
     {
       "id": "REQ-031",
@@ -667,10 +700,33 @@
       "id": "REQ-032",
       "title": "100-project operational verification",
       "phase": 21,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "OPERATIONALLY VERIFIED",
+      "implementation": [
+        "docs/adr/0020-deterministic-project-corpus-generation.md",
+        "docs/adr/0021-100-project-operational-verification.md",
+        "packages/domain/src/project-corpus.ts",
+        "apps/server/src/project-corpus/project-corpus-service.ts",
+        "apps/server/src/project-corpus/generate-cli.ts",
+        "apps/server/src/project-corpus/verify-cli.ts",
+        "apps/server/src/routes/project-corpus.ts",
+        "apps/server/src/metadata/database.ts"
+      ],
+      "tests": [
+        "apps/server/test/integration/project-corpus-generation.test.ts",
+        "tests/validation/phase20-validation.test.mjs",
+        "scripts/verify-phase20.mjs",
+        "tests/validation/phase21-validation.test.mjs",
+        "scripts/verify-phase21.mjs"
+      ],
+      "evidence": [
+        "artifacts/phase20/project-corpus-generation-validation.json",
+        "artifacts/phase20/project-corpus-manifest.json",
+        "artifacts/phase20/corpus-generation-run.json",
+        "artifacts/phase21/project-corpus-operational-validation.json",
+        "artifacts/phase21/project-corpus-results.json",
+        "artifacts/phase21/project-corpus-performance.json",
+        "artifacts/phase21/corpus-verification-run.json"
+      ]
     },
     {
       "id": "REQ-033",
@@ -768,10 +824,24 @@
       "id": "REQ-037",
       "title": "No mock, placeholder, TODO, or disabled completion",
       "phase": 23,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "scripts/verify-completion-hygiene.mjs",
+        "scripts/build-non-windows-final-audit.mjs",
+        "scripts/verify-phase23.mjs",
+        "scripts/verify-release.mjs"
+      ],
+      "tests": [
+        "tests/validation/completion-hygiene-validation.test.mjs",
+        "tests/validation/phase23-validation.test.mjs",
+        "scripts/verify-completion-hygiene.mjs",
+        "scripts/verify-phase23-local.mjs"
+      ],
+      "evidence": [
+        "artifacts/release/completion-hygiene-validation.json",
+        "reports/release/non-windows-final-audit.json",
+        "artifacts/phase23/non-windows-final-audit-validation.json"
+      ]
     }
   ]
 }

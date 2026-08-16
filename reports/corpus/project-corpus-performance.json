@@ -1,0 +1,108 @@
+{
+  "schemaVersion": 1,
+  "generatedAt": "2026-08-16T12:51:45.959Z",
+  "result": "PASS",
+  "evidenceComplete": true,
+  "source": "artifacts/phase21/project-corpus-performance.json",
+  "sourceSha256": "570e483280813f919426eb068ea78c49736d0d8d73b2147eaceed44e0be7859d",
+  "summary": {
+    "metricCount": 11,
+    "passed": 11,
+    "failed": 0
+  },
+  "runId": "760e316f-13bb-47b3-99d0-4f6c6aaed6a7",
+  "verificationChecksum": "6ffe9c6fb1e2e0d88d55b5374fa222a23063a17de6ea3cda36593e9baee195dd",
+  "performance": {
+    "projectList": {
+      "count": 1,
+      "p50Ms": 107.088,
+      "p95Ms": 107.088,
+      "maxMs": 107.088,
+      "budgetMs": 2000,
+      "passed": true
+    },
+    "searchSort": {
+      "count": 1,
+      "p50Ms": 0.063,
+      "p95Ms": 0.063,
+      "maxMs": 0.063,
+      "budgetMs": 300,
+      "passed": true
+    },
+    "projectOpen": {
+      "count": 100,
+      "p50Ms": 0.738,
+      "p95Ms": 2.937,
+      "maxMs": 7.761,
+      "budgetMs": 3000,
+      "passed": true
+    },
+    "autoSave": {
+      "count": 100,
+      "p50Ms": 0.951,
+      "p95Ms": 3.065,
+      "maxMs": 5.958,
+      "budgetMs": 1000,
+      "passed": true
+    },
+    "preview": {
+      "count": 100,
+      "p50Ms": 2.239,
+      "p95Ms": 6.887,
+      "maxMs": 12.374,
+      "budgetMs": 2000,
+      "passed": true
+    },
+    "publish": {
+      "count": 100,
+      "p50Ms": 1.555,
+      "p95Ms": 4.68,
+      "maxMs": 8.537,
+      "budgetMs": 2000,
+      "passed": true
+    },
+    "runtime": {
+      "count": 100,
+      "p50Ms": 1.74,
+      "p95Ms": 5.64,
+      "maxMs": 8.962,
+      "budgetMs": 2000,
+      "passed": true
+    },
+    "backup": {
+      "count": 100,
+      "p50Ms": 29.36,
+      "p95Ms": 77.301,
+      "maxMs": 151.581,
+      "budgetMs": null,
+      "passed": true
+    },
+    "trash": {
+      "count": 100,
+      "p50Ms": 13.76,
+      "p95Ms": 22.519,
+      "maxMs": 30.068,
+      "budgetMs": null,
+      "passed": true
+    },
+    "restore": {
+      "count": 100,
+      "p50Ms": 6.128,
+      "p95Ms": 16.111,
+      "maxMs": 29.15,
+      "budgetMs": null,
+      "passed": true
+    },
+    "restartReady": {
+      "count": 1,
+      "p50Ms": 102.856,
+      "p95Ms": 102.856,
+      "maxMs": 102.856,
+      "budgetMs": 3000,
+      "passed": true
+    },
+    "metadataBytes": 98783232,
+    "storageBytes": 185161702,
+    "serverRssBytes": 1226555392
+  }
+}

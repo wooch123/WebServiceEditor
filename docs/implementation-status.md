@@ -6,7 +6,161 @@ Overall state: `IN PROGRESS`
 
 ## Current phase
 
-### PHASE 19 — Exhaustive Feature, Element, and Layout Verification
+### PHASE 23 — Final Non-Windows Audit
+
+State: `IN PROGRESS`
+
+Scope:
+
+- Re-run the complete source, requirement, canonical inventory, Theme,
+  100-Project corpus, performance, security, recovery-design, and completion
+  hygiene gates that can be executed outside Windows.
+- Bind every generated report to its current SHA-256 and preserve a distinct
+  scope-limited final audit report.
+- Keep the release recommendation at `HOLD` and `releaseAllowed: false` while
+  Windows install, reboot, service recovery, backup/restore, and rollback
+  evidence is not run.
+
+Current verified slice:
+
+- Phase 0 source requirements, the exact 60 canonical Themes and 120 selectable
+  Themes, Theme provenance, completion hygiene, the exact Phase 19 inventories,
+  and Phase 21's 100/100 operational corpus remain passing.
+- The seven non-Windows release reports are checksum-bound and evaluated by a
+  separate final-audit formula. A passing result applies only to this declared
+  non-Windows scope.
+- The canonical final release builder remains unchanged and fail-closed. It
+  cannot emit `RELEASE` or `OPERATIONALLY VERIFIED` without genuine Windows,
+  recovery, and rollback reports.
+- Windows deployment is not executed by user direction and is recorded as
+  `NOT_RUN_BY_USER_DIRECTION`; it is not counted as passed or substituted with
+  local evidence.
+- The complete workspace regression passes: 85 server integration tests, 194
+  web component tests, 166 validation tests, all unit suites, formatting,
+  linting, type checking, and production builds.
+- Local web, public HTTPS, and public Ready endpoints each return HTTP 200.
+- The scoped Phase 23 gate passes 32/32 checks. The canonical release gate
+  intentionally remains red with only the Windows deployment, recovery,
+  rollback, and downstream final-report evidence absent.
+
+Phase 23 non-Windows report:
+`reports/release/non-windows-final-audit.json`.
+
+Phase 23 scoped validation evidence:
+`artifacts/phase23/non-windows-final-audit-validation.json`.
+
+### PHASE 22 — Local Windows Production Deployment (Phase 22 retained implementation baseline)
+
+State: `IMPLEMENTED`
+
+Scope:
+
+- Package the production web and server builds with reviewed Node, WinSW, and
+  `cloudflared` binaries and a complete SHA-256 release manifest.
+- Install reboot-safe Windows services with the Fastify origin bound only to
+  `127.0.0.1`, mandatory authentication, ordered Tunnel startup, and automatic
+  failure recovery.
+- Schedule daily full online backups and weekly isolated restore drills, then
+  require a post-install Windows reboot before operational evidence can pass.
+
+Data risk: medium, guarded. The Windows installer writes service configuration
+below `%ProgramData%\WebEditor` and installs two services and two scheduled
+tasks. It does not delete Project storage or backup history. Restore drills copy
+into isolated temporary storage and never replace live data.
+
+Current implemented slice:
+
+- The production release builder performs the complete workspace build,
+  creates a production-only server deployment, bundles web assets and explicit
+  reviewed binaries, and records every payload SHA-256, the source commit,
+  clean-tree state, release identity, and supported metadata schema.
+- WinSW service configuration provides automatic delayed startup, ordered TCP
+  dependency, rolling logs, and three restart-on-failure steps.
+- The installer stores mandatory authentication and origin settings in an
+  ACL-restricted ProgramData directory, encrypts the administrator password
+  with LocalMachine DPAPI, waits for local Ready, installs the official
+  Cloudflare Tunnel service, and binds its dependency to `WebEditor`.
+- Daily backup and weekly restore-drill tasks run as SYSTEM. Backup stops Tunnel
+  then origin, snapshots metadata and every runtime SQLite file, and restores
+  origin through Ready before Tunnel even after failure. SQLite online backup,
+  checksum, integrity, and committed-WAL regression gates also pass.
+- The deployment checker requires loopback-only listening, local Health/Ready,
+  public HTTPS, automatic ordered services, passing recovery evidence, and a
+  later Windows boot. Without that reboot it reports `PENDING_REBOOT` rather
+  than manufacturing a passing result.
+- A fail-closed rollback drill now verifies and stages a distinct prior release,
+  creates a verified offline backup, checks live metadata read-only against the
+  candidate schema, preserves the replaced and failed release trees, and
+  restores origin Ready before Tunnel. It can create the final rollback report
+  only after an actual Windows swap and HTTPS health check.
+- A read-only drill against the current local production data backed up 19
+  files (20,313,027 bytes) across 10 SQLite databases, verified checksum
+  `bfd885a4784fe1acdae029dfe1bffff8583a072962daacc2b5025da7af2ab8c0`,
+  and restored the payload in isolation with an exact checksum match.
+- Windows operational execution was not run by user direction. Building,
+  installing, rebooting, and exercising recovery on the target Windows PC
+  therefore remain outside the completed implementation scope.
+- Phase 23 preflight is already fail-closed: its report builder consumes exact
+  checksums for exhaustive, corpus, Windows, recovery, and rollback evidence,
+  and cannot emit a release recommendation while any operational report is
+  missing. The Phase 23 non-Windows audit proceeds with an explicit `HOLD`,
+  while the canonical full-release path remains blocked on those reports.
+
+Phase 22 local recovery evidence:
+`artifacts/phase22/local-backup-restore-drill.json`.
+
+Phase 22 PowerShell parser evidence:
+`artifacts/phase22/powershell-syntax-validation.json` — PowerShell 7.6.4,
+8/8 scripts, zero parse errors.
+
+### Phase 21 retained prerequisite baseline
+
+State: `OPERATIONALLY VERIFIED`
+
+Scope:
+
+- Exercise every canonical Project through open, edit, save, reload, restart,
+  Draft Preview, publish, Runtime, Test data, Theme, backup, recycle, and restore
+  boundaries.
+- Verify graph, CRUD, stress/recovery, Sentinel isolation, orphan scans, and a
+  clone-only permanent purge without deleting the canonical Projects.
+- Preserve immutable per-Project results and aggregate performance evidence.
+
+Data risk: medium, isolated. Verification ran only in the dedicated Phase 20
+Metadata/Runtime workspace after a real server restart. Destructive purge ran
+against one disposable clone. Production Project storage was not used.
+
+Current verified slice:
+
+- All 100 Projects pass all required scenarios with zero failed, blocked,
+  skipped, leaked Sentinel, orphan record/file, or critical-error counts.
+- A different verifier instance proves the generated workspace was closed and
+  reopened before verification.
+- Project list, search/sort, open, autosave, preview, publish, Runtime, and
+  restart measurements all remain below their canonical budgets.
+- Backups, recycle-bin moves, restores, SQLite integrity checks, and one
+  clone-only permanent purge all pass.
+- A separate `기능 종합 샘플` Project generator provides 22 Pages, all 22
+  Layout Presets, all 55 Element Types, every Page Type, 9 real Test tables,
+  5,001 rows, five executable Relationship Bindings, a Published Runtime, and
+  a verified backup for direct inspection. Its Test runtime proves real
+  Create, Read, Update, and Delete execution against `Interactive Records`.
+- The Page editor uses a fixed two-column left workspace: Page management is
+  the leftmost vertical list and the Element Palette is the adjacent vertical
+  list. All 55 Element cards render one per row. At 1280×720 the Page list is
+  294px wide with `scrollWidth === clientWidth`, zero row overflow, and no
+  document-level horizontal scroll.
+- Relationship Auto Layout applies from one click without a Preview or
+  confirmation dialog and returns to `저장됨` after persistence.
+
+### Phase 20 retained prerequisite baseline
+
+State: `OPERATIONALLY VERIFIED`
+
+Phase 20 generated the exact canonical 100-Project corpus in an isolated
+workspace with a checksummed manifest and exact inventory/scale coverage.
+
+### Phase 19 retained prerequisite baseline
 
 State: `EXHAUSTIVELY VERIFIED`
 
@@ -104,7 +258,10 @@ Current verified slice:
 | 17    | VERIFIED               | Immutable backups, recovery drills, and restore-as-copy       |
 | 18    | OPERATIONALLY VERIFIED | Accessibility, security, performance, actual domain           |
 | 19    | EXHAUSTIVELY VERIFIED  | Exact canonical inventory and actual-domain UX QA passed      |
-| 20–23 | NOT STARTED            | Must follow sequentially                                      |
+| 20    | OPERATIONALLY VERIFIED | Exact 100-Project isolated generation and manifest passed     |
+| 21    | OPERATIONALLY VERIFIED | 100/100 operational scenarios and performance budgets passed  |
+| 22    | IMPLEMENTED            | Windows package complete; operational execution not run       |
+| 23    | IN PROGRESS            | Non-Windows final audit; canonical release remains HOLD       |
 
 ## Phase 0 evidence
 
@@ -148,6 +305,11 @@ Current verified slice:
   4/4 status colors under protanopia, deuteranopia, and tritanopia matrices
 - Perceptual duplicate gate: all 1,770 theme pairs pass; minimum CIE76 RMS is
   4.0576
+- Distribution provenance review covers all 17 canonical reference families,
+  their MIT or Apache-2.0 evidence, the no-direct-copy boundary, attribution
+  notice, and all 60 original extension themes. The review is preserved in
+  `docs/theme-reference-review.json` and independently validated at
+  `artifacts/phase2/theme-provenance-license-validation.json`.
 - Theme revision lifecycle foundation and per-project default theme behavior:
   unit/component tests PASS
 
@@ -524,6 +686,61 @@ Current verified slice:
   192.203×39px bounds with left-aligned labels
 - Browser console errors and required request failures: 0
 
+## Phase 20 evidence
+
+- Deterministic generation audit and Phase 19 regression:
+  `artifacts/phase20/project-corpus-generation-validation.json`
+- Checksummed 100-Project manifest:
+  `artifacts/phase20/project-corpus-manifest.json`
+- Isolated operational run record:
+  `artifacts/phase20/corpus-generation-run.json`
+- One real isolated run generated 100/100 Projects with category counts
+  10/20/20/15/15/10/5/5 and 100 unique Project, Runtime, and structure
+  Sentinels
+- Exact scale totals: 916 Pages, 6,225 Elements, 6,170 relationship Nodes,
+  701 Tables, and 416,900 Runtime rows
+- Exact coverage: 60 Themes, 12 Page Types, 22 Layout Presets, 55 Element Types,
+  and 11 Binding Types
+- Manifest SHA-256:
+  `0524b4223a7fe71fe5edcb57741dbf0440370b86be2ee4d2e919f7fb6b25d422`
+- Actual HTTPS regression: persistent Home Theme, full-width 1248×391
+  Relationship node area at 1280×720, 24px-aligned auto layout, overlap 0,
+  stable body drag, independently separated Page/Element panels, and a
+  bottom-left 192×112 MiniMap whose click navigation updates the live graph
+  viewport; console errors 0
+
+## Phase 21 evidence
+
+- Operational verification audit and Phase 20 regression:
+  `artifacts/phase21/project-corpus-operational-validation.json`
+- Immutable 100-Project scenario results:
+  `artifacts/phase21/project-corpus-results.json`
+- Aggregate latency, storage, and memory evidence:
+  `artifacts/phase21/project-corpus-performance.json`
+- Isolated post-restart run record:
+  `artifacts/phase21/corpus-verification-run.json`
+- Result: 100 PASS, 0 failed, 0 blocked, 0 skipped, 0 Sentinel leaks, 0 orphan
+  records/files, 0 critical errors, and 1 clone-only permanent purge
+- Maximum measured times: list 107.088ms, search/sort 0.063ms, open 7.761ms,
+  autosave 5.958ms, preview 12.374ms, publish 8.537ms, Runtime 8.962ms, and
+  restart readiness 102.856ms; all required budgets pass
+- Verification SHA-256:
+  `6ffe9c6fb1e2e0d88d55b5374fa222a23063a17de6ea3cda36593e9baee195dd`
+- `기능 종합 샘플` is generated separately from the corpus and is idempotent,
+  published, backed up, and intended for direct human inspection. It contains
+  22 Pages, 148 Elements, 9 Tables, 5,001 Test rows, and five executable
+  Bindings spanning `CONTAINS`, `CREATE`, `READ`, `UPDATE`, and `DELETE`.
+- Actual-domain Relationship QA on that sample renders all 179 Page, Element,
+  and Table Nodes in both the graph and MiniMap. Auto Layout produces ordered
+  Page → Element → DB zones in a 5,076×2,812 overview (1.805:1), keeps every
+  top-left coordinate on the 24px grid, and exposes the current viewport as a
+  distinct MiniMap focus rectangle.
+- Actual-domain Editor QA confirms Page and Element management as adjacent
+  vertical columns. The Page list measures 294×294 client/scroll width with
+  zero row overflow; the Element Palette measures 202×202 client/scroll width,
+  renders all 55 cards at one 183.141px column, and keeps both document client
+  and scroll width at 1280px. Auto Layout opens no dialog and saves directly.
+
 ## Deferred operational hardening
 
 - Sudden power-loss durability for directory rename/delete requires mount-backed
@@ -536,6 +753,6 @@ Current verified slice:
 
 ## Known external blockers
 
-The Phase 18 actual-domain checkpoint requires access to the target Windows PC,
-Cloudflare account/tunnel credentials, and DNS authority. Phase 22 retains the
-final release-hardening and recovery audit after that shared operational check.
+None for the current local and actual-domain environment. Windows operational
+deployment was not run by user direction; the canonical release gate remains
+on `HOLD` until its deployment, recovery, and rollback evidence exists.

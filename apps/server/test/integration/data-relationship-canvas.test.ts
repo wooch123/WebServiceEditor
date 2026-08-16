@@ -545,6 +545,7 @@ describe("Phase 9 Data Relationship Canvas", () => {
       },
     });
     expect(moveResponse.statusCode, moveResponse.body).toBe(200);
+    expect(moveResponse.json().position).toMatchObject({ x: 168, y: 216 });
     const viewportResponse = await app.inject({
       method: "PATCH",
       url: `/api/v1/projects/${seeded.project.id}/relationship-viewport`,
@@ -588,8 +589,8 @@ describe("Phase 9 Data Relationship Canvas", () => {
       original.binding.target.objectId,
     );
     expect(cloneGraph.nodes.find(({ type }) => type === "page")).toMatchObject({
-      x: 176,
-      y: 224,
+      x: 168,
+      y: 216,
       pinned: true,
     });
     expect(cloneGraph.viewport).toMatchObject({ x: 64, y: -48, zoom: 1.4 });
@@ -617,7 +618,7 @@ describe("Phase 9 Data Relationship Canvas", () => {
     expect(importedGraph.edges[0]?.projectId).toBe(imported.id);
     expect(
       importedGraph.nodes.find(({ type }) => type === "page"),
-    ).toMatchObject({ x: 176, y: 224, pinned: true });
+    ).toMatchObject({ x: 168, y: 216, pinned: true });
     expect(importedGraph.viewport).toMatchObject({
       x: 64,
       y: -48,
@@ -666,7 +667,7 @@ describe("Phase 9 Data Relationship Canvas", () => {
     expect(restoredGraph.edges[0]?.id).toBe(cloneGraph.edges[0]?.id);
     expect(
       restoredGraph.nodes.find(({ type }) => type === "page"),
-    ).toMatchObject({ x: 176, y: 224, pinned: true });
+    ).toMatchObject({ x: 168, y: 216, pinned: true });
     expect(restoredGraph.viewport).toEqual(cloneGraph.viewport);
   });
 

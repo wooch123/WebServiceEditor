@@ -1442,9 +1442,15 @@ async function inspectGovernance(repositoryRoot, validation) {
   for (const id of ["REQ-016", "REQ-018", "REQ-031", "REQ-037"]) {
     validation.check(
       requirements[id]?.phase > 7 &&
-        ["NOT STARTED", "IN PROGRESS", "VERIFIED"].includes(
-          requirements[id]?.status,
-        ),
+        [
+          "NOT STARTED",
+          "IN PROGRESS",
+          "IMPLEMENTED",
+          "VERIFIED",
+          "EXHAUSTIVELY VERIFIED",
+          "OPERATIONALLY VERIFIED",
+          "RELEASED",
+        ].includes(requirements[id]?.status),
       `${id} remains assigned to a later Phase`,
       { requirement: requirements[id] },
     );

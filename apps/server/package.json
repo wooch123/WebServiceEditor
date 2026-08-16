@@ -15,7 +15,11 @@
     "build": "pnpm --filter @webeditor/domain build && tsc -p tsconfig.build.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:unit": "pnpm --filter @webeditor/domain build && vitest run test/unit",
-    "test:integration": "pnpm --filter @webeditor/domain build && vitest run test/integration"
+    "test:integration": "pnpm --filter @webeditor/domain build && vitest run test/integration",
+    "corpus:generate": "pnpm --filter @webeditor/domain build && tsx src/project-corpus/generate-cli.ts",
+    "corpus:verify": "pnpm --filter @webeditor/domain build && tsx src/project-corpus/verify-cli.ts",
+    "backup:offline": "node dist/deployment/offline-backup-cli.js",
+    "metadata:version": "node dist/deployment/metadata-version-cli.js"
   },
   "dependencies": {
     "@fastify/cookie": "11.1.2",

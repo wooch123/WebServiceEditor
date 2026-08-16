@@ -161,6 +161,10 @@ function coordinate(value: unknown, code: string): number {
   return value;
 }
 
+function gridCoordinate(value: unknown, code: string): number {
+  return Math.round(coordinate(value, code) / 24) * 24;
+}
+
 function zoom(value: unknown): number {
   assertApi(
     typeof value === "number" &&
@@ -1303,8 +1307,8 @@ export class RelationshipService {
       nodeId: node.id,
       nodeType: node.type,
       objectId: node.objectId,
-      x: coordinate(request.x, "INVALID_RELATIONSHIP_NODE_X"),
-      y: coordinate(request.y, "INVALID_RELATIONSHIP_NODE_Y"),
+      x: gridCoordinate(request.x, "INVALID_RELATIONSHIP_NODE_X"),
+      y: gridCoordinate(request.y, "INVALID_RELATIONSHIP_NODE_Y"),
       pinned: request.pinned,
     };
     const now = this.#now();

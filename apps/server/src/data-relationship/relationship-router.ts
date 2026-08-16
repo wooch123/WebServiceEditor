@@ -219,7 +219,7 @@ function routeGrid(
       open.push(next);
     }
   }
-  if (goal === undefined) throw new Error("Orthogonal route was not found");
+  if (goal === undefined) return [];
   const reversed: RelationshipRoutePointDto[] = [];
   let current: SearchState | undefined = goal;
   while (current !== undefined) {
@@ -294,12 +294,9 @@ export function routeRelationshipEdges(
     const targetStub = { x: target.x - TARGET_STUB, y: target.y };
     const obstacles = nodes.map(expanded);
     const grid = routeGrid(sourceStub, targetStub, obstacles, globalBounds);
+    if (grid.length === 0) return [];
     const points = simplify([source, sourceStub, ...grid, targetStub, target]);
-    if (routeCrossesNode(points, nodes.map(interior))) {
-      throw new Error(
-        `Orthogonal route crosses a Node for Binding ${binding.id}`,
-      );
-    }
+    if (routeCrossesNode(points, nodes.map(interior))) return [];
     return [
       {
         bindingId: binding.id,

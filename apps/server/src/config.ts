@@ -53,6 +53,17 @@ export function resolveStorageRoot(
   return configuredRoot ?? resolveRepositoryDataPath();
 }
 
+export function resolveProjectCorpusManifestPath(
+  configuredPath = process.env.WEBEDITOR_CORPUS_MANIFEST_PATH,
+): string {
+  return (
+    configuredPath ??
+    fileURLToPath(
+      new URL("../../../webeditor_project_corpus_v3.json", import.meta.url),
+    )
+  );
+}
+
 function booleanEnvironment(
   name: string,
   value: string | undefined,

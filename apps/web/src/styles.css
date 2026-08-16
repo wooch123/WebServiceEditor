@@ -3,6 +3,10 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/geist";
 
+#root[data-build-phase="20"] {
+  isolation: isolate;
+}
+
 @custom-variant dark (&:is(.dark *));
 
 * {
@@ -1513,13 +1517,16 @@ svg {
 
 .editor-workspace {
   display: grid;
-  grid-template-columns: 17em minmax(34em, 1fr) 20em;
+  grid-template-columns:
+    clamp(31rem, 42vw, 34rem)
+    minmax(24rem, 1fr)
+    clamp(15rem, 20vw, 18rem);
   height: calc(100vh - 11.6em);
   min-height: 0;
 }
 
 .editor-workspace.is-relationship-canvas {
-  grid-template-columns: 17em minmax(34em, 1fr);
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .editor-left-panel,
@@ -1531,6 +1538,13 @@ svg {
 }
 
 .editor-left-panel {
+  display: grid;
+  isolation: isolate;
+  grid-template-columns: minmax(17rem, 1.45fr) minmax(11rem, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  gap: 0.75rem;
+  padding: 0.75rem;
+  overflow: hidden;
   border-right: 1px solid var(--sidebar-border);
 }
 
@@ -3092,11 +3106,17 @@ svg {
 /* Phase 4: Page Manager */
 .page-manager {
   display: flex;
+  min-width: 0;
   min-height: 0;
   flex: 1;
   flex-direction: column;
+  overflow: hidden;
+  border: 1px solid var(--sidebar-border);
+  border-radius: var(--radius-lg);
+  background: var(--sidebar);
 }
 .page-manager-heading {
+  min-width: 0;
   align-items: stretch;
   flex-direction: column;
   gap: 0.75rem;
@@ -3109,6 +3129,9 @@ svg {
   align-items: center;
   gap: var(--control-gap);
   margin-left: 0;
+}
+.page-manager-actions > * {
+  min-width: 0;
 }
 .page-manager-actions > [data-slot="button"],
 .page-manager-actions > [data-slot="dropdown-menu-trigger"],
@@ -3132,16 +3155,21 @@ svg {
 }
 .page-manager-list {
   display: flex;
+  width: 100%;
   min-height: 0;
   flex-direction: column;
   gap: 0.35rem;
   padding: 0.5rem;
-  overflow: auto;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .page-manager-row {
   position: relative;
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto auto;
+  width: 100%;
+  min-width: 0;
+  grid-template-columns: auto auto minmax(0, 1fr) minmax(0, auto) auto;
   min-height: 3.15rem;
   align-items: center;
   gap: 0.25rem;
@@ -3149,6 +3177,12 @@ svg {
   border-radius: var(--control-radius);
   color: var(--foreground);
   background: transparent;
+}
+.page-manager-row [data-slot="badge"] {
+  max-width: 4.75rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .page-manager-row::before {
   position: absolute;
@@ -3185,6 +3219,7 @@ svg {
 }
 .page-row-name strong,
 .page-row-name small {
+  max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -3634,17 +3669,35 @@ svg {
 
 /* Phase 5: Element Canvas */
 .editor-left-panel {
-  display: flex;
-  flex-direction: column;
+  display: grid;
 }
 
 .element-palette {
-  flex: 0 0 auto;
+  display: grid;
+  min-width: 0;
+  min-height: 0;
+  grid-template-rows: auto minmax(0, 1fr);
+  margin-top: 0;
+  overflow: hidden;
+  border: 1px solid var(--sidebar-border);
+  border-radius: var(--radius-lg);
+  background: var(--sidebar);
+}
+
+.element-palette .palette-grid {
+  width: 100%;
+  grid-template-columns: minmax(0, 1fr);
+  min-height: 0;
+  align-content: start;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior: contain;
 }
 
 .palette-grid .palette-item {
   display: grid;
   width: 100%;
+  min-width: 0;
   height: 4.75rem;
   min-height: 4.75rem;
   grid-template-columns: auto minmax(0, 1fr);
@@ -4716,8 +4769,22 @@ svg {
   }
 
   .editor-left-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    padding: 0.75rem;
     border-right: 0;
     border-bottom: 1px solid var(--sidebar-border);
+  }
+
+  .editor-left-panel .page-manager,
+  .editor-left-panel .element-palette {
+    min-height: 22rem;
+    overflow: visible;
+  }
+
+  .element-palette .palette-grid {
+    overflow: visible;
   }
 
   .editor-main {
@@ -5103,11 +5170,11 @@ svg {
 }
 
 .relationship-workspace {
-  display: grid;
+  display: flex;
   min-width: 0;
   min-height: 0;
   height: 100%;
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  flex-direction: column;
   gap: 0.75rem;
   padding: 1rem;
   overflow: hidden;
@@ -5175,6 +5242,7 @@ svg {
 
 .relationship-viewport {
   position: relative;
+  flex: 1 1 auto;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
@@ -5202,6 +5270,48 @@ svg {
 
 .relationship-viewport .react-flow__pane:active {
   cursor: grabbing;
+}
+
+.relationship-viewport .react-flow__minimap {
+  width: 12rem;
+  height: 7rem;
+  overflow: hidden;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--card);
+  box-shadow: 0 0.5rem 1.5rem
+    color-mix(in srgb, var(--foreground) 14%, transparent);
+  cursor: grab;
+}
+
+.relationship-viewport .react-flow__minimap::after {
+  position: absolute;
+  top: 0.4rem;
+  left: 0.5rem;
+  border-radius: 999px;
+  padding: 0.15rem 0.4rem;
+  color: var(--foreground);
+  background: color-mix(in srgb, var(--card) 88%, transparent);
+  font-size: 0.65rem;
+  font-weight: 750;
+  line-height: 1.2;
+  pointer-events: none;
+  content: "미니맵";
+}
+
+.relationship-viewport .react-flow__minimap:active {
+  cursor: grabbing;
+}
+
+.relationship-viewport .react-flow__minimap-mask {
+  stroke: var(--ring);
+  stroke-width: 4;
+  filter: drop-shadow(0 0 3px var(--ring));
+  vector-effect: non-scaling-stroke;
+}
+
+.relationship-viewport .react-flow__minimap-node {
+  opacity: 0.92;
 }
 
 .relationship-edge-visual {
@@ -5400,46 +5510,6 @@ svg {
 
 .relationship-flow-handle.is-output {
   right: 0.3rem !important;
-}
-
-.relationship-auto-dialog {
-  width: min(46rem, calc(100vw - 2rem));
-}
-
-.relationship-auto-preview {
-  position: relative;
-  min-height: 11rem;
-  overflow: auto;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-lg);
-  background:
-    linear-gradient(var(--canvas-grid) 1px, transparent 1px),
-    linear-gradient(90deg, var(--canvas-grid) 1px, transparent 1px),
-    var(--canvas);
-  background-size: 16px 16px;
-}
-
-.relationship-auto-preview-node {
-  position: absolute;
-  display: flex;
-  min-width: 4.75rem;
-  min-height: 2.4rem;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.35rem;
-  overflow: hidden;
-  border: 1px solid var(--node-border);
-  border-radius: var(--radius-md);
-  padding: 0.35rem;
-  color: var(--node-foreground);
-  background: var(--node);
-  font-size: 0.7rem;
-}
-
-.relationship-auto-preview-node svg {
-  width: 0.8rem;
-  height: 0.8rem;
-  flex: 0 0 auto;
 }
 
 .relationship-port.is-input .relationship-port-marker::before {

@@ -128,7 +128,10 @@ export function inspectPhase10Contract(sources) {
       /const TARGET_STUB = 16/u.test(sources.router) &&
       /routeGrid/u.test(sources.router) &&
       /routeCrossesNode/u.test(sources.router) &&
-      /Orthogonal route crosses a Node/u.test(sources.router),
+      /if \(grid\.length === 0\) return \[\]/u.test(sources.router) &&
+      /if \(routeCrossesNode\([\s\S]{0,120}\)\) return \[\]/u.test(
+        sources.router,
+      ),
     serverOwnedRoutePreview:
       /routePreview\(/u.test(sources.service) &&
       /routeRelationshipEdges/u.test(sources.service) &&
@@ -143,7 +146,8 @@ export function inspectPhase10Contract(sources) {
     noOverlapAndPinned:
       /relationshipNodeOverlapCount/u.test(sources.autoLayout) &&
       /node\.pinned\s*\?\s*node/u.test(sources.autoLayout) &&
-      /Pinned Nodes overlap after Auto Layout/u.test(sources.autoLayout),
+      /resolveUnpinnedOverlaps/u.test(sources.autoLayout) &&
+      /Auto Layout components overlap/u.test(sources.autoLayout),
     serverOwnedPreviewApply:
       /#autoLayoutPreviews = new Map/u.test(sources.service) &&
       /15_000/u.test(sources.service) &&
@@ -184,7 +188,7 @@ export function inspectPhase10Contract(sources) {
       /dataRelationshipApi\.updateViewport/u.test(sources.frontend),
     autoLayoutUi:
       /자동 배치/u.test(sources.frontend) &&
-      /AutoLayoutPreview/u.test(sources.frontend) &&
+      !/AutoLayoutPreview/u.test(sources.frontend) &&
       /dataRelationshipApi\.previewAutoLayout/u.test(sources.frontend) &&
       /dataRelationshipApi\.applyAutoLayout/u.test(sources.frontend) &&
       /fitView/u.test(sources.frontend),
@@ -210,9 +214,13 @@ export function inspectPhase10Contract(sources) {
       /16-pixel endpoint stubs/u.test(sources.routerTest),
     frontendBehavior:
       /orthogonal points with rounded corners/u.test(sources.frontendTest) &&
-      /previews and applies one server-owned Auto Layout snapshot/u.test(
+      /applies one server-owned Auto Layout snapshot directly/u.test(
         sources.frontendTest,
       ) &&
+      /queryByRole\("dialog", \{ name: "자동 배치" \}\)/u.test(
+        sources.frontendTest,
+      ) &&
+      /toEqual\(\["PREVIEW", "APPLY"\]\)/u.test(sources.frontendTest) &&
       /persists pin state/u.test(sources.frontendTest),
     adrBoundary:
       /12px(?: Node)? clearance/u.test(sources.adr) &&

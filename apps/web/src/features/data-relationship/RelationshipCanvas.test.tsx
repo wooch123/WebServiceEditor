@@ -14,6 +14,7 @@ import {
   RelationshipCanvas,
   roundedOrthogonalPath,
 } from "./RelationshipCanvas";
+import relationshipCanvasSource from "./RelationshipCanvas.tsx?raw";
 
 const projectId = "00000000-0000-4000-8000-000000000901";
 const pageId = "00000000-0000-4000-8000-000000000902";
@@ -1052,7 +1053,7 @@ describe("RelationshipCanvas", () => {
     ).toBe(true);
   });
 
-  it("previews and applies one server-owned Auto Layout snapshot, then exposes one durable Undo command", async () => {
+  it("applies one server-owned Auto Layout snapshot directly, then exposes one durable Undo command", async () => {
     const previewPositions = [
       { ...pageNode, x: 40, y: 40, pinned: true, positionRevision: 1 },
       { ...elementNode, x: 420, y: 40, positionRevision: 1 },
@@ -1151,6 +1152,21 @@ describe("RelationshipCanvas", () => {
       />,
     );
     await screen.findByText("측정값");
+    expect(screen.getByLabelText("관계 미니맵")).toBeInTheDocument();
+    expect(relationshipCanvasSource).toContain('position="bottom-left"');
+    expect(relationshipCanvasSource).toContain("pannable");
+    expect(relationshipCanvasSource).toContain("zoomable");
+    expect(relationshipCanvasSource).toContain("snapToGrid");
+    expect(relationshipCanvasSource).toContain(
+      "snapGrid={RELATIONSHIP_SNAP_GRID}",
+    );
+    expect(relationshipCanvasSource).toContain("maskStrokeWidth={4}");
+    expect(relationshipCanvasSource).toContain("onClick={(_event, position)");
+    expect(relationshipCanvasSource).toContain("onNodeClick={(_event, node)");
+    expect(relationshipCanvasSource).toContain("void setCenter(");
+    expect(relationshipCanvasSource).toContain(
+      '<Controls position="bottom-right" showInteractive={false} />',
+    );
     const layoutToolbar = screen.getByRole("group", { name: "위치 도구" });
     const layoutControls = within(layoutToolbar).getAllByRole("button");
     expect(layoutControls).toHaveLength(4);
@@ -1163,21 +1179,20 @@ describe("RelationshipCanvas", () => {
     await user.click(
       within(layoutToolbar).getByRole("button", { name: "자동 배치" }),
     );
-    const dialog = await screen.findByRole("dialog", { name: "자동 배치" });
-    expect(within(dialog).getByText("교차 1 → 0")).toBeInTheDocument();
-    expect(within(dialog).getAllByText(/분석|표|측정값/u)).toHaveLength(3);
-    const dialogActions = within(dialog).getAllByRole("button", {
-      name: /취소|적용/u,
-    });
-    expect(dialogActions).toHaveLength(2);
-    expect(dialogActions[0]).toHaveAttribute("data-size", "default");
-    expect(dialogActions[1]).toHaveAttribute("data-size", "default");
-    await user.click(within(dialog).getByRole("button", { name: "적용" }));
     await waitFor(() =>
       expect(
         within(layoutToolbar).getByRole("button", { name: "위치 취소" }),
       ).toBeEnabled(),
     );
+    expect(
+      screen.queryByRole("dialog", { name: "자동 배치" }),
+    ).not.toBeInTheDocument();
+    const autoLayoutCalls = calls.filter(({ url }) =>
+      url.endsWith("/auto-layout"),
+    );
+    expect(
+      autoLayoutCalls.map(({ body }) => (body as { action: string }).action),
+    ).toEqual(["PREVIEW", "APPLY"]);
     const applyCall = calls.find(
       ({ url, body }) =>
         url.endsWith("/auto-layout") &&
@@ -1191,6 +1206,21 @@ describe("RelationshipCanvas", () => {
     });
     expect(applyCall?.body).not.toHaveProperty("positions");
     expect(onProjectRevisionChange).toHaveBeenCalledWith(6);
+  });
+
+  it("keeps route previews separate from controlled Node positions during drag", () => {
+    const routePreviewBlock = relationshipCanvasSource.slice(
+      relationshipCanvasSource.indexOf("const scheduleRoutes"),
+      relationshipCanvasSource.indexOf("const onNodesChange"),
+    );
+    expect(routePreviewBlock).toContain("setRoutePreviewRoutes(result.routes)");
+    expect(routePreviewBlock).not.toContain("setGraph(");
+    expect(relationshipCanvasSource).toContain(
+      "(routePreviewRoutes ?? graph.routes).map",
+    );
+    expect(relationshipCanvasSource).toContain(
+      "onNodeDragStop={(_event, node) => finishNodeDrag(node)}",
+    );
   });
 
   it("persists pin state through the node-position command without changing coordinates", async () => {

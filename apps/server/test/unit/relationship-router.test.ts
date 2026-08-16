@@ -6,6 +6,8 @@ import type {
 import { describe, expect, it } from "vitest";
 
 import {
+  alignComponentToRowsAndColumns,
+  alignGraphByNodeTypeColumns,
   layoutRelationshipGraph,
   relationshipNodeOverlapCount,
 } from "../../src/data-relationship/relationship-auto-layout.js";
@@ -164,6 +166,36 @@ describe("relationship orthogonal router", () => {
     }
   });
 
+  it("omits a transient unrouteable Edge while overlapping Nodes await Auto Layout", () => {
+    const source = node(
+      "table:00000000-0000-4000-8000-000000001105",
+      0,
+      0,
+      "output",
+    );
+    const target = node(
+      "element:00000000-0000-4000-8000-000000001106",
+      0,
+      0,
+      "input",
+    );
+    const blocker = {
+      ...node(
+        "element:00000000-0000-4000-8000-000000001107",
+        -500,
+        -500,
+        "input",
+      ),
+      width: 2_000,
+      height: 2_000,
+    };
+    const routes = routeRelationshipEdges(
+      [source, target, blocker],
+      [binding(source, target)],
+    );
+    expect(routes).toEqual([]);
+  });
+
   it("keeps a pinned component fixed and separates disconnected components without increasing Edge crossings", async () => {
     const makeNode = (
       id: string,
@@ -259,5 +291,194 @@ describe("relationship orthogonal router", () => {
     );
     expect(relationshipNodeOverlapCount(result.nodes)).toBe(0);
     expect(result.routes.every(({ crossesNode }) => !crossesNode)).toBe(true);
+  });
+
+  it("arranges related Nodes into deterministic Page, Element, and DB columns", async () => {
+    const sources = Array.from({ length: 4 }, (_, index) =>
+      node(
+        `table:source-${index}`,
+        1_800 - index * 270,
+        900 + index * 310,
+        "output",
+      ),
+    );
+    const targets = Array.from({ length: 4 }, (_, index) =>
+      node(
+        `element:target-${index}`,
+        80 + index * 420,
+        1_700 - index * 260,
+        "input",
+      ),
+    );
+    const nodes = [...sources, ...targets];
+    const bindings = sources.map((source, index) => ({
+      ...binding(source, targets[index] as RelationshipNodeDto),
+      id: `binding:${index}`,
+    }));
+
+    const first = await layoutRelationshipGraph(nodes, bindings);
+    const second = await layoutRelationshipGraph(nodes, bindings);
+    expect(second.positions).toEqual(first.positions);
+    expect(relationshipNodeOverlapCount(first.nodes)).toBe(0);
+    expect(first.routes.every(({ crossesNode }) => !crossesNode)).toBe(true);
+
+    const byId = new Map(
+      first.nodes.map((value) => [value.id, value] as const),
+    );
+    for (let index = 0; index < sources.length; index += 1) {
+      const source = byId.get((sources[index] as RelationshipNodeDto).id);
+      const target = byId.get((targets[index] as RelationshipNodeDto).id);
+      expect(source).toBeDefined();
+      expect(target).toBeDefined();
+      expect(target?.x).toBeLessThan(source?.x ?? 0);
+    }
+    for (const value of first.nodes) {
+      expect(value.x % 24).toBe(0);
+      expect(value.y % 24).toBe(0);
+    }
+    const minX = Math.min(...first.nodes.map(({ x }) => x));
+    const minY = Math.min(...first.nodes.map(({ y }) => y));
+    const maxX = Math.max(...first.nodes.map(({ x, width }) => x + width));
+    const maxY = Math.max(...first.nodes.map(({ y, height }) => y + height));
+    expect(maxX - minX).toBeGreaterThan(400);
+    expect(maxY - minY).toBeGreaterThan(400);
+  });
+
+  it("aligns variable-width Nodes by their top-left layer origin", async () => {
+    const sources = [
+      { ...node("table:left-a", 900, 800, "output"), width: 176 },
+      { ...node("table:left-b", 120, 420, "output"), width: 248 },
+      { ...node("table:left-c", 640, 90, "output"), width: 320 },
+    ];
+    const target = {
+      ...node("element:right", 1_500, 600, "input"),
+      width: 280,
+    };
+    const bindings = sources.map((source, index) => ({
+      ...binding(source, target),
+      id: `top-left-binding:${index}`,
+    }));
+    const result = await layoutRelationshipGraph(
+      [...sources, target],
+      bindings,
+    );
+    const alignedSources = alignComponentToRowsAndColumns([
+      { ...sources[0]!, x: 10, y: 0 },
+      { ...sources[1]!, x: 18, y: 300 },
+      { ...sources[2]!, x: 24, y: 600 },
+    ]);
+    expect(new Set(alignedSources.map(({ x }) => x)).size).toBe(1);
+    expect(
+      alignedSources.every(({ x, y }) => x % 24 === 0 && y % 24 === 0),
+    ).toBe(true);
+    const positions = new Map(
+      result.nodes.map((value) => [value.id, value] as const),
+    );
+    expect(result.nodes.every(({ x, y }) => x % 24 === 0 && y % 24 === 0)).toBe(
+      true,
+    );
+    expect(positions.get(target.id)).toBeDefined();
+    expect(
+      sources
+        .map(({ id }) => positions.get(id)?.y)
+        .every((y) => Number.isInteger((y ?? 1) / 24)),
+    ).toBe(true);
+  });
+
+  it("uses Page | Element | DB columns and puts highly connected Nodes first", () => {
+    const pageMain = {
+      ...node("page:main", 900, 900, "output"),
+      type: "page" as const,
+      label: "Main",
+    };
+    const pageOther = {
+      ...node("page:other", 400, 200, "output"),
+      type: "page" as const,
+      label: "Other",
+    };
+    const elementMain = node("element:main", 100, 800, "input");
+    const elementOther = node("element:other", 800, 100, "input");
+    const tableMain = node("table:main", 500, 500, "output");
+    const connect = (
+      id: string,
+      source: RelationshipNodeDto,
+      target: RelationshipNodeDto,
+    ) => ({ ...binding(source, target), id });
+    const bindings = [
+      connect("contains:a", pageMain, elementMain),
+      connect("contains:b", pageMain, elementOther),
+      connect("read:a", tableMain, elementMain),
+      connect("contains:c", pageOther, elementOther),
+    ];
+    const arranged = alignGraphByNodeTypeColumns(
+      [pageOther, tableMain, elementOther, pageMain, elementMain],
+      bindings,
+    );
+    const byId = new Map(arranged.map((value) => [value.id, value] as const));
+    expect(byId.get(pageMain.id)?.y).toBeLessThan(
+      byId.get(pageOther.id)?.y ?? 0,
+    );
+    expect(byId.get(pageMain.id)?.x).toBeLessThan(
+      byId.get(elementMain.id)?.x ?? 0,
+    );
+    expect(byId.get(elementMain.id)?.x).toBeLessThan(
+      byId.get(tableMain.id)?.x ?? 0,
+    );
+    expect(
+      new Set(arranged.filter(({ type }) => type === "page").map(({ x }) => x))
+        .size,
+    ).toBe(1);
+    expect(
+      new Set(
+        arranged.filter(({ type }) => type === "element").map(({ x }) => x),
+      ).size,
+    ).toBe(1);
+  });
+
+  it("wraps large typed inventories toward a 16:9 overview without mixing zones", () => {
+    const pages = Array.from({ length: 22 }, (_, index) => ({
+      ...node(`page:${index}`, index * 11, index * 17, "output"),
+      type: "page" as const,
+      width: 240,
+    }));
+    const elements = Array.from({ length: 55 }, (_, index) =>
+      node(`element:${index}`, index * 13, index * 19, "input"),
+    );
+    const tables = Array.from({ length: 8 }, (_, index) => ({
+      ...node(`table:${index}`, index * 23, index * 29, "output"),
+      width: 300,
+    }));
+    const arranged = alignGraphByNodeTypeColumns(
+      [...tables, ...elements, ...pages],
+      [],
+    );
+    const pageMaxX = Math.max(
+      ...arranged
+        .filter(({ type }) => type === "page")
+        .map(({ x, width }) => x + width),
+    );
+    const elementMinX = Math.min(
+      ...arranged.filter(({ type }) => type === "element").map(({ x }) => x),
+    );
+    const elementMaxX = Math.max(
+      ...arranged
+        .filter(({ type }) => type === "element")
+        .map(({ x, width }) => x + width),
+    );
+    const tableMinX = Math.min(
+      ...arranged.filter(({ type }) => type === "table").map(({ x }) => x),
+    );
+    expect(pageMaxX).toBeLessThan(elementMinX);
+    expect(elementMaxX).toBeLessThan(tableMinX);
+    const minX = Math.min(...arranged.map(({ x }) => x));
+    const minY = Math.min(...arranged.map(({ y }) => y));
+    const maxX = Math.max(...arranged.map(({ x, width }) => x + width));
+    const maxY = Math.max(...arranged.map(({ y, height }) => y + height));
+    const aspect = (maxX - minX) / (maxY - minY);
+    expect(aspect).toBeGreaterThan(1.35);
+    expect(aspect).toBeLessThan(2.25);
+    expect(arranged.every(({ x, y }) => x % 24 === 0 && y % 24 === 0)).toBe(
+      true,
+    );
   });
 });

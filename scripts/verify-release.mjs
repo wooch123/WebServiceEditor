@@ -4,11 +4,18 @@ import {
   isMainModule,
   pathExists,
   readJson,
+  readRepositoryFile,
+  sha256,
   unexpectedFailure,
 } from "./lib/verification.mjs";
 import { validateCorpus } from "./verify-corpus.mjs";
+import { validateCompletionHygiene } from "./verify-completion-hygiene.mjs";
 import { validatePhase0 } from "./verify-phase0.mjs";
+import { validatePhase19 } from "./verify-phase19.mjs";
+import { validatePhase21 } from "./verify-phase21.mjs";
+import { validatePhase22 } from "./verify-phase22.mjs";
 import { validateThemes } from "./verify-themes.mjs";
+import { validateThemeProvenance } from "./verify-theme-provenance.mjs";
 
 const REQUIRED_LATER_EVIDENCE = Object.freeze([
   "reports/exhaustive/feature-inventory.json",
@@ -45,12 +52,17 @@ function validateEvidenceEnvelope(validation, path, evidence) {
   );
 }
 
-export async function validateRelease() {
+export async function validateRelease({ includeFinalReport = true } = {}) {
   const validation = new Validation("Final release gate");
   const baselineReports = await Promise.all([
     validatePhase0(),
     validateThemes(),
     validateCorpus(),
+    validateThemeProvenance(),
+    validateCompletionHygiene(),
+    validatePhase19(),
+    validatePhase21(),
+    validatePhase22(),
   ]);
   for (const report of baselineReports) {
     validation.equal(
@@ -84,7 +96,12 @@ export async function validateRelease() {
   }
 
   const evidenceReports = {};
-  for (const path of REQUIRED_LATER_EVIDENCE) {
+  const requiredEvidence = REQUIRED_LATER_EVIDENCE.filter(
+    (path) =>
+      includeFinalReport ||
+      path !== "reports/release/final-verification-report.json",
+  );
+  for (const path of requiredEvidence) {
     const exists = await pathExists(path);
     validation.check(exists, `${path} exists`);
     if (exists) {
@@ -207,6 +224,123 @@ export async function validateRelease() {
     }
   }
 
+  const layoutReport =
+    evidenceReports["reports/exhaustive/layout-element-report.json"];
+  if (layoutReport) {
+    validation.equal(
+      layoutReport.summary?.layoutPresetTotal,
+      22,
+      "Layout report contains 22 presets",
+    );
+    validation.equal(
+      layoutReport.summary?.layoutPresetPassed,
+      22,
+      "Layout report passes all 22 presets",
+    );
+    validation.equal(
+      layoutReport.summary?.elementTotal,
+      55,
+      "Element report contains 55 elements",
+    );
+    validation.equal(
+      layoutReport.summary?.elementPassed,
+      55,
+      "Element report passes all 55 elements",
+    );
+    validation.equal(
+      layoutReport.summary?.failed,
+      0,
+      "Layout report has zero failures",
+    );
+    validation.equal(
+      layoutReport.summary?.skipped,
+      0,
+      "Layout report has zero skips",
+    );
+  }
+
+  const performanceReport =
+    evidenceReports["reports/corpus/project-corpus-performance.json"];
+  if (performanceReport) {
+    validation.check(
+      Number.isInteger(performanceReport.summary?.metricCount) &&
+        performanceReport.summary.metricCount > 0,
+      "Corpus performance report contains measured metrics",
+    );
+    validation.equal(
+      performanceReport.summary?.passed,
+      performanceReport.summary?.metricCount,
+      "Every corpus performance metric passes",
+    );
+    validation.equal(
+      performanceReport.summary?.failed,
+      0,
+      "Corpus performance report has zero failures",
+    );
+  }
+
+  const rollbackReport =
+    evidenceReports["reports/release/rollback-report.json"];
+  if (rollbackReport) {
+    validation.equal(
+      rollbackReport.rollbackVerified,
+      true,
+      "Rollback report proves the release swap",
+    );
+    validation.check(
+      /^[a-f0-9]{64}$/u.test(rollbackReport.fromReleaseId) &&
+        /^[a-f0-9]{64}$/u.test(rollbackReport.toReleaseId) &&
+        rollbackReport.fromReleaseId !== rollbackReport.toReleaseId,
+      "Rollback report identifies two distinct releases",
+    );
+    validation.equal(
+      rollbackReport.metadata?.applicationIdValid,
+      true,
+      "Rollback metadata application ID is valid",
+    );
+    validation.equal(
+      rollbackReport.metadata?.quickCheck,
+      "ok",
+      "Rollback metadata quick_check passes",
+    );
+    validation.check(
+      Number.isInteger(rollbackReport.metadata?.userVersion) &&
+        rollbackReport.metadata.userVersion <=
+          rollbackReport.metadata?.supportedSchemaVersion,
+      "Rollback release supports the live metadata schema",
+    );
+    validation.equal(
+      rollbackReport.preRollbackBackup?.verified,
+      true,
+      "Rollback report proves its pre-swap backup",
+    );
+    validation.equal(
+      rollbackReport.services?.originReady,
+      true,
+      "Rollback origin reached Ready",
+    );
+    validation.equal(
+      rollbackReport.services?.tunnelRunning,
+      true,
+      "Rollback Tunnel restarted",
+    );
+    validation.equal(
+      rollbackReport.services?.publicHttpsHealth,
+      "ok",
+      "Rollback public HTTPS health passes",
+    );
+    validation.equal(
+      rollbackReport.previousInstallPreserved,
+      true,
+      "Rollback preserved the replaced release",
+    );
+    validation.equal(
+      rollbackReport.liveDataReplaced,
+      false,
+      "Rollback did not replace live data",
+    );
+  }
+
   const finalReport =
     evidenceReports["reports/release/final-verification-report.json"];
   if (finalReport) {
@@ -230,6 +364,39 @@ export async function validateRelease() {
       0,
       "Final report has zero high defects",
     );
+    validation.check(
+      finalReport.releaseReadyFormula !== null &&
+        typeof finalReport.releaseReadyFormula === "object" &&
+        Object.values(finalReport.releaseReadyFormula).length > 0 &&
+        Object.values(finalReport.releaseReadyFormula).every(Boolean),
+      "Final ReleaseReady formula is fully satisfied",
+    );
+    const sourceEntries = Object.entries(finalReport.sourceReports ?? {});
+    validation.equal(
+      sourceEntries.length,
+      REQUIRED_LATER_EVIDENCE.length - 1,
+      "Final report binds every prerequisite report",
+    );
+    for (const path of REQUIRED_LATER_EVIDENCE.filter(
+      (candidate) =>
+        candidate !== "reports/release/final-verification-report.json",
+    )) {
+      validation.check(
+        Object.hasOwn(finalReport.sourceReports ?? {}, path),
+        `Final report includes prerequisite checksum: ${path}`,
+      );
+    }
+    for (const [path, binding] of sourceEntries) {
+      const exists = await pathExists(path);
+      validation.check(exists, `Final report source exists: ${path}`);
+      if (exists) {
+        validation.equal(
+          binding?.sha256,
+          sha256(await readRepositoryFile(path)),
+          `Final report source checksum matches: ${path}`,
+        );
+      }
+    }
   }
 
   return validation.result({
@@ -237,7 +404,7 @@ export async function validateRelease() {
     baseline: Object.fromEntries(
       baselineReports.map((report) => [report.subject, report.result]),
     ),
-    requiredLaterEvidence: REQUIRED_LATER_EVIDENCE,
+    requiredLaterEvidence: requiredEvidence,
     presentLaterEvidence: Object.keys(evidenceReports),
     verifiedRequirementCount: requirements.filter((requirement) =>
       VERIFIED_STATES.has(requirement.status),

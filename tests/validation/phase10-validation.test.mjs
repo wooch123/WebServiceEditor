@@ -113,6 +113,21 @@ describe("Phase 10 validation", () => {
     assert.equal(CANONICAL_PHASE10_ROUTES.length, 7);
   });
 
+  it("keeps pinned Nodes fixed while rejecting any final overlap", async () => {
+    const current = await sources();
+    assert.equal(inspectPhase10Contract(current).noOverlapAndPinned, true);
+    assert.equal(
+      inspectPhase10Contract({
+        ...current,
+        autoLayout: current.autoLayout.replace(
+          'throw new Error("Auto Layout components overlap")',
+          'throw new Error("unchecked overlap")',
+        ),
+      }).noOverlapAndPinned,
+      false,
+    );
+  });
+
   it("rejects routing without clearance, fixed horizontal layout, or rounded corners", async () => {
     const current = await sources();
     assert.equal(

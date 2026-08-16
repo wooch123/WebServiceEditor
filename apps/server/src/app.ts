@@ -12,6 +12,7 @@ import { BackupService } from "./backup/backup-service.js";
 import {
   resolveAuthenticationConfig,
   resolveMetadataDatabasePath,
+  resolveProjectCorpusManifestPath,
   resolveStorageRoot,
   type AuthenticationConfig,
 } from "./config.js";
@@ -35,6 +36,7 @@ import {
 import { MetadataDatabase } from "./metadata/database.js";
 import { PageService } from "./pages/page-service.js";
 import { PerformanceMonitor } from "./performance/performance-monitor.js";
+import { ProjectCorpusService } from "./project-corpus/project-corpus-service.js";
 import { ProjectService } from "./projects/project-service.js";
 import type { LifecycleFailureInjector } from "./projects/project-storage.js";
 import { registerProjectRoutes } from "./routes/projects.js";
@@ -48,6 +50,7 @@ import { registerDataSchemaRoutes } from "./routes/data-schema.js";
 import { registerDataRelationshipRoutes } from "./routes/data-relationship.js";
 import { registerSampleDataRoutes } from "./routes/sample-data.js";
 import { registerProjectVariableRoutes } from "./routes/project-variables.js";
+import { registerProjectCorpusRoutes } from "./routes/project-corpus.js";
 import { registerThemeRoutes } from "./routes/themes.js";
 import { registerValidationRoutes } from "./routes/validation.js";
 import { ThemeRevisionService } from "./themes/theme-revision-service.js";
@@ -64,6 +67,7 @@ export interface BuildServerOptions {
   readonly clock?: () => Date;
   readonly authentication?: AuthenticationConfig;
   readonly staticRoot?: string | false;
+  readonly projectCorpusManifestPath?: string;
 }
 
 export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
@@ -170,6 +174,19 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
     4096,
     options.clock ?? (() => new Date()),
   );
+  const projectCorpusService = new ProjectCorpusService({
+    metadataDatabase,
+    manifestPath:
+      options.projectCorpusManifestPath ?? resolveProjectCorpusManifestPath(),
+    projectService,
+    pageService,
+    elementService,
+    layoutPresetService,
+    schemaService,
+    relationshipService,
+    backupService,
+    ...(options.clock === undefined ? {} : { clock: options.clock }),
+  });
 
   void app.register(cookie);
   void app.register(helmet, {
@@ -282,6 +299,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   void app.register(registerProjectVariableRoutes, { projectVariableService });
   void app.register(registerThemeRoutes, { themeRevisionService });
   void app.register(registerValidationRoutes, { validationService });
+  void app.register(registerProjectCorpusRoutes, { projectCorpusService });
 
   const defaultStaticRoot = fileURLToPath(
     new URL("../../web/dist", import.meta.url),

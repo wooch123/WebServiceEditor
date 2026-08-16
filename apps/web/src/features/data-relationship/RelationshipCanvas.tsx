@@ -8,7 +8,6 @@ import type {
   ReadAggregateFunction,
   ReadFilterOperator,
   ReadQueryMode,
-  RelationshipAutoLayoutPreviewDto,
   RelationshipBindingDto,
   RelationshipBindingType,
   RelationshipConnectionPreviewDto,
@@ -33,6 +32,7 @@ import {
   EdgeLabelRenderer,
   Handle,
   MarkerType,
+  MiniMap,
   Position,
   ReactFlow,
   ReactFlowProvider,
@@ -524,6 +524,7 @@ function OrthogonalRelationshipEdge({
 const nodeTypes = { relationship: RelationshipFlowNodeView };
 const edgeTypes = { orthogonal: OrthogonalRelationshipEdge };
 const ROUTE_PREVIEW_INTERVAL_MS = 80;
+const RELATIONSHIP_SNAP_GRID: [number, number] = [24, 24];
 
 function positionDto(node: RelationshipFlowNode): RelationshipNodePositionDto {
   return {
@@ -537,65 +538,6 @@ function positionDto(node: RelationshipFlowNode): RelationshipNodePositionDto {
   };
 }
 
-function AutoLayoutPreview({
-  preview,
-  nodes,
-}: {
-  readonly preview: RelationshipAutoLayoutPreviewDto;
-  readonly nodes: readonly RelationshipNodeDto[];
-}) {
-  const byId = new Map(nodes.map((node) => [node.id, node] as const));
-  const minX = Math.min(...preview.positions.map(({ x }) => x), 0);
-  const minY = Math.min(...preview.positions.map(({ y }) => y), 0);
-  const maxX = Math.max(
-    ...preview.positions.map(
-      ({ nodeId, x }) => x + (byId.get(nodeId)?.width ?? 200),
-    ),
-    1,
-  );
-  const maxY = Math.max(
-    ...preview.positions.map(
-      ({ nodeId, y }) => y + (byId.get(nodeId)?.height ?? 128),
-    ),
-    1,
-  );
-  const scale = Math.min(
-    1,
-    620 / Math.max(1, maxX - minX),
-    300 / Math.max(1, maxY - minY),
-  );
-  return (
-    <div
-      className="relationship-auto-preview"
-      style={{ height: Math.max(180, (maxY - minY) * scale + 32) }}
-      aria-label="자동 배치 미리보기"
-    >
-      {preview.positions.map((position) => {
-        const node = byId.get(position.nodeId);
-        if (!node) return null;
-        return (
-          <div
-            key={position.nodeId}
-            className="relationship-auto-preview-node"
-            data-node-id={position.nodeId}
-            data-x={position.x}
-            data-y={position.y}
-            style={{
-              left: (position.x - minX) * scale + 16,
-              top: (position.y - minY) * scale + 16,
-              width: Math.max(76, node.width * scale),
-              height: Math.max(38, node.height * scale),
-            }}
-          >
-            <span>{node.label}</span>
-            {position.pinned && <Pin aria-label="고정" />}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 function RelationshipCanvasInner({
   projectId,
   projectRevision,
@@ -606,6 +548,9 @@ function RelationshipCanvasInner({
   const [layoutHistory, setLayoutHistory] =
     useState<RelationshipLayoutHistoryDto | null>(null);
   const [flowNodes, setFlowNodes] = useState<RelationshipFlowNode[]>([]);
+  const [routePreviewRoutes, setRoutePreviewRoutes] = useState<
+    readonly RelationshipEdgeRouteDto[] | null
+  >(null);
   const [sourcePort, setSourcePort] = useState<RelationshipPortDto | null>(
     null,
   );
@@ -626,8 +571,6 @@ function RelationshipCanvasInner({
   const [aggregateFunction, setAggregateFunction] =
     useState<ReadAggregateFunction>("COUNT");
   const [queryLimit, setQueryLimit] = useState(100);
-  const [autoPreview, setAutoPreview] =
-    useState<RelationshipAutoLayoutPreviewDto | null>(null);
   const [bindingType, setBindingType] =
     useState<RelationshipBindingType>("READ");
   const [dataSchema, setDataSchema] = useState<DataSchemaDto | null>(null);
@@ -666,7 +609,7 @@ function RelationshipCanvasInner({
   const routePreviewStartedAtRef = useRef(0);
   const routePreviewInFlightRef = useRef(false);
   const nodeMoveQueueRef = useRef<Promise<void>>(Promise.resolve());
-  const { fitView } = useReactFlow<
+  const { fitView, setCenter } = useReactFlow<
     RelationshipFlowNode,
     RelationshipFlowEdge
   >();
@@ -701,6 +644,8 @@ function RelationshipCanvasInner({
           projectVariablesApi.list(projectId).catch(() => null),
         ]);
       setGraph(nextGraph);
+      routeSequenceRef.current += 1;
+      setRoutePreviewRoutes(null);
       setHistory(nextHistory);
       setLayoutHistory(nextLayoutHistory);
       setVariables(nextVariables?.variables ?? []);
@@ -726,7 +671,6 @@ function RelationshipCanvasInner({
       setSourcePort(null);
       setPreview(null);
       setQueryPreview(null);
-      setAutoPreview(null);
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
@@ -855,6 +799,8 @@ function RelationshipCanvasInner({
             };
             graphRef.current = nextGraph;
             setGraph(nextGraph);
+            routeSequenceRef.current += 1;
+            setRoutePreviewRoutes(null);
             publishRevision(result.projectRevision);
             void dataRelationshipApi
               .layoutHistory(projectId)
@@ -930,11 +876,8 @@ function RelationshipCanvasInner({
         })
         .then((result) => {
           if (sequence !== routeSequenceRef.current) return;
-          setGraph((value) =>
-            value === null || value.graphRevision !== result.graphRevision
-              ? value
-              : { ...value, routes: result.routes },
-          );
+          if (graphRef.current?.graphRevision !== result.graphRevision) return;
+          setRoutePreviewRoutes(result.routes);
         })
         .catch(() => undefined)
         .finally(() => {
@@ -962,7 +905,10 @@ function RelationshipCanvasInner({
   const flowEdges = useMemo<RelationshipFlowEdge[]>(() => {
     if (!graph) return [];
     const routeByBinding = new Map(
-      graph.routes.map((route) => [route.bindingId, route]),
+      (routePreviewRoutes ?? graph.routes).map((route) => [
+        route.bindingId,
+        route,
+      ]),
     );
     return graph.edges.flatMap((binding): RelationshipFlowEdge[] => {
       const route = routeByBinding.get(binding.id);
@@ -987,7 +933,17 @@ function RelationshipCanvasInner({
         },
       ];
     });
-  }, [graph, selectedBindingId]);
+  }, [graph, routePreviewRoutes, selectedBindingId]);
+
+  const finishNodeDrag = useCallback(
+    (node: RelationshipFlowNode) => {
+      routeSequenceRef.current += 1;
+      routePreviewInFlightRef.current = false;
+      setRoutePreviewRoutes(null);
+      void saveNode(node);
+    },
+    [saveNode],
+  );
 
   const selectedBinding =
     graph?.edges.find(({ id }) => id === selectedBindingId) ?? null;
@@ -1476,39 +1432,24 @@ function RelationshipCanvasInner({
     }
   };
 
-  const previewAutoLayout = async () => {
+  const applyAutoLayout = async () => {
     if (!graph || busy) return;
     setBusy(true);
     setError(null);
     try {
-      setAutoPreview(
-        await dataRelationshipApi.previewAutoLayout(projectId, {
-          action: "PREVIEW",
-          expectedGraphRevision: graph.graphRevision,
-          expectedProjectRevision: graph.projectRevision,
-        }),
-      );
-    } catch (requestError) {
-      setError(errorText(requestError));
-    } finally {
-      setBusy(false);
-    }
-  };
-
-  const applyAutoLayout = async () => {
-    if (!autoPreview || busy) return;
-    setBusy(true);
-    setError(null);
-    try {
+      const preview = await dataRelationshipApi.previewAutoLayout(projectId, {
+        action: "PREVIEW",
+        expectedGraphRevision: graph.graphRevision,
+        expectedProjectRevision: graph.projectRevision,
+      });
       const result = await dataRelationshipApi.applyAutoLayout(projectId, {
         action: "APPLY",
-        previewId: autoPreview.previewId,
-        expectedGraphRevision: autoPreview.graphRevision,
-        expectedProjectRevision: autoPreview.projectRevision,
+        previewId: preview.previewId,
+        expectedGraphRevision: preview.graphRevision,
+        expectedProjectRevision: preview.projectRevision,
         idempotencyKey: idempotencyKey("auto-layout"),
       });
       publishRevision(result.projectRevision);
-      setAutoPreview(null);
       await load();
       requestAnimationFrame(
         () => void fitView({ padding: 0.16, duration: 240 }),
@@ -1682,7 +1623,7 @@ function RelationshipCanvasInner({
           type="button"
           variant="outline"
           disabled={busy}
-          onClick={() => void previewAutoLayout()}
+          onClick={() => void applyAutoLayout()}
         >
           <Route data-icon="inline-start" aria-hidden="true" />
           자동 배치
@@ -1742,7 +1683,7 @@ function RelationshipCanvasInner({
             onMoveEnd={(_event, next) => void saveViewport(next)}
             onNodesChange={onNodesChange}
             onNodeDrag={() => scheduleRoutes()}
-            onNodeDragStop={(_event, node) => void saveNode(node)}
+            onNodeDragStop={(_event, node) => finishNodeDrag(node)}
             onConnect={connect}
             onPaneClick={() => setSelectedBindingId(null)}
             connectionLineType={ConnectionLineType.Straight}
@@ -1750,13 +1691,41 @@ function RelationshipCanvasInner({
             maxZoom={2}
             nodesDraggable={!busy}
             nodesConnectable={!busy}
+            snapToGrid
+            snapGrid={RELATIONSHIP_SNAP_GRID}
             panOnDrag={!busy}
             deleteKeyCode={null}
             proOptions={{ hideAttribution: true }}
             aria-label="관계 그래프"
           >
             <Background color="var(--canvas-grid)" gap={24} />
-            <Controls showInteractive={false} />
+            <MiniMap
+              position="bottom-left"
+              pannable
+              zoomable
+              ariaLabel="관계 미니맵"
+              onClick={(_event, position) =>
+                void setCenter(position.x, position.y, {
+                  zoom: viewport.zoom,
+                  duration: 160,
+                })
+              }
+              onNodeClick={(_event, node) =>
+                void setCenter(
+                  node.position.x + (node.measured?.width ?? 0) / 2,
+                  node.position.y + (node.measured?.height ?? 0) / 2,
+                  { zoom: viewport.zoom, duration: 160 },
+                )
+              }
+              nodeColor="var(--primary)"
+              nodeStrokeColor="var(--ring)"
+              nodeStrokeWidth={2}
+              maskColor="color-mix(in srgb, var(--canvas) 68%, transparent)"
+              maskStrokeColor="var(--ring)"
+              maskStrokeWidth={4}
+              bgColor="var(--canvas)"
+            />
+            <Controls position="bottom-right" showInteractive={false} />
           </ReactFlow>
           <div className="relationship-edge-accessibility">
             {graph.edges.map((binding) => (
@@ -2452,51 +2421,6 @@ function RelationshipCanvasInner({
               onClick={() => void createVariable()}
             >
               추가
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        open={autoPreview !== null}
-        onOpenChange={(open) => {
-          if (!open && !busy) setAutoPreview(null);
-        }}
-      >
-        <DialogContent
-          className="relationship-auto-dialog"
-          showCloseButton={!busy}
-        >
-          <DialogHeader>
-            <DialogTitle>자동 배치</DialogTitle>
-            <DialogDescription>
-              교차 {autoPreview?.crossingCountBefore ?? 0} →{" "}
-              {autoPreview?.crossingCountAfter ?? 0}
-            </DialogDescription>
-          </DialogHeader>
-          {autoPreview && (
-            <AutoLayoutPreview preview={autoPreview} nodes={graph.nodes} />
-          )}
-          <DialogFooter className="relationship-dialog-actions">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={busy}
-              onClick={() => setAutoPreview(null)}
-            >
-              취소
-            </Button>
-            <Button
-              type="button"
-              disabled={busy}
-              onClick={() => void applyAutoLayout()}
-            >
-              {busy ? (
-                <LoaderCircle data-icon="inline-start" aria-hidden="true" />
-              ) : (
-                <Route data-icon="inline-start" aria-hidden="true" />
-              )}
-              적용
             </Button>
           </DialogFooter>
         </DialogContent>
