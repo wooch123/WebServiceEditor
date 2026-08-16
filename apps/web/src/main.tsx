@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
 import { App } from "./App";
+import { AuthBoundary } from "./features/auth/AuthBoundary";
 import "./styles.css";
 
 const root = document.querySelector<HTMLDivElement>("#root");
@@ -12,6 +13,8 @@ if (!root) {
 
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <AuthBoundary>
+      <App />
+    </AuthBoundary>
   </StrictMode>,
 );

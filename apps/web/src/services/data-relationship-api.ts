@@ -27,6 +27,8 @@ import type {
   UpdateRelationshipViewportRequest,
 } from "@webeditor/domain";
 
+import { apiFetch } from "./api-fetch";
+
 export class RelationshipApiError extends Error {
   constructor(
     readonly status: number,
@@ -40,7 +42,7 @@ export class RelationshipApiError extends Error {
 }
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
+  const response = await apiFetch(path, {
     ...init,
     headers: {
       ...(init?.body === undefined

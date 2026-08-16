@@ -1,3 +1,5 @@
+import { apiFetch } from "./api-fetch";
+
 export type ProjectLifecycleStatus =
   | "ACTIVE"
   | "TRASHING"
@@ -178,7 +180,7 @@ async function requestJson<T>(
   }
   headers.set("accept", "application/json");
 
-  const response = await fetch(path, { ...init, headers });
+  const response = await apiFetch(path, { ...init, headers });
   if (!response.ok) throw await parseError(response);
   return (await response.json()) as T;
 }
@@ -351,7 +353,7 @@ export interface ProjectExport {
 }
 
 export async function exportProject(projectId: string): Promise<ProjectExport> {
-  const response = await fetch(`/api/v1/projects/${projectId}/export`, {
+  const response = await apiFetch(`/api/v1/projects/${projectId}/export`, {
     method: "POST",
     headers: { accept: "application/json, application/octet-stream" },
   });

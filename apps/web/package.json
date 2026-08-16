@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:unit": "vitest run src/theme.unit.test.ts src/features/elements/element-geometry.test.ts",
-    "test:component": "vitest run src/App.test.tsx src/DesignSystemGallery.test.tsx src/theme.runtime.test.tsx src/features/pages/PageManager.test.tsx src/features/runtime/PublishedRuntime.test.tsx src/features/elements/ElementCanvas.test.tsx src/features/elements/ElementPropertyInspector.test.tsx src/features/elements/ElementRenderers.test.tsx src/features/elements/StatisticalElements.test.tsx src/features/presets/LayoutPresetBrowser.test.tsx src/features/data-schema/DatabaseDesigner.test.tsx src/features/data-relationship/RelationshipCanvas.test.tsx src/features/validation/ValidationReport.test.tsx src/features/projects/BackupManager.test.tsx"
+    "test:component": "vitest run src/App.test.tsx src/DesignSystemGallery.test.tsx src/theme.runtime.test.tsx src/features/pages/PageManager.test.tsx src/features/runtime/PublishedRuntime.test.tsx src/features/elements/ElementCanvas.test.tsx src/features/elements/ElementPropertyInspector.test.tsx src/features/elements/ElementRenderers.test.tsx src/features/elements/StatisticalElements.test.tsx src/features/presets/LayoutPresetBrowser.test.tsx src/features/data-schema/DatabaseDesigner.test.tsx src/features/data-relationship/RelationshipCanvas.test.tsx src/features/validation/ValidationReport.test.tsx src/features/projects/BackupManager.test.tsx src/features/auth/AuthBoundary.test.tsx"
   },
   "dependencies": {
     "@base-ui/react": "^1.7.0",
@@ -53,6 +53,7 @@
     "@types/react": "19.2.18",
     "@types/react-dom": "19.2.4",
     "@vitejs/plugin-react": "6.0.5",
+    "axe-core": "4.13.0",
     "jsdom": "30.0.1",
     "tailwindcss": "^4.3.3",
     "vite": "8.2.1",

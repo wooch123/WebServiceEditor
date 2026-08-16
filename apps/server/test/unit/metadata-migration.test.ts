@@ -84,7 +84,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(14);
+      expect(migrated.assertReady().schemaVersion).toBe(15);
       expect(
         migrated.connection
           .prepare(
@@ -117,6 +117,7 @@ describe("metadata migration", () => {
         { version: 12 },
         { version: 13 },
         { version: 14 },
+        { version: 15 },
       ]);
       expect(
         migrated.connection
@@ -169,11 +170,11 @@ describe("metadata migration", () => {
     const path = join(directory, "metadata.sqlite");
     const future = new Database(path);
     future.pragma("application_id = 1464156741");
-    future.pragma("user_version = 15");
+    future.pragma("user_version = 16");
     future.close();
 
     expect(() => new MetadataDatabase(path)).toThrow(
-      "Refusing unknown future metadata schema version 15",
+      "Refusing unknown future metadata schema version 16",
     );
   });
 
@@ -216,6 +217,9 @@ describe("metadata migration", () => {
     const version3 = new Database(path);
     version3.pragma("foreign_keys = OFF");
     version3.exec(`
+      DROP TABLE auth_events;
+      DROP TABLE auth_sessions;
+      DROP TABLE admin_accounts;
       DROP TABLE backup_restore_runs;
       DROP TABLE backup_commands;
       DROP TABLE project_backups;
@@ -265,7 +269,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(14);
+      expect(migrated.assertReady().schemaVersion).toBe(15);
       expect(
         migrated.connection
           .prepare(
@@ -512,6 +516,9 @@ describe("metadata migration", () => {
         ON element_commands(project_id, history_state, history_sequence);
       CREATE INDEX element_history_operations_project_created_idx
         ON element_history_operations(project_id, created_at, id);
+      DROP TABLE auth_events;
+      DROP TABLE auth_sessions;
+      DROP TABLE admin_accounts;
       DROP TABLE backup_restore_runs;
       DROP TABLE backup_commands;
       DROP TABLE project_backups;
@@ -534,7 +541,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(14);
+      expect(migrated.assertReady().schemaVersion).toBe(15);
       expect(
         migrated.connection
           .prepare(
@@ -695,6 +702,9 @@ describe("metadata migration", () => {
     const version4 = new Database(path);
     version4.pragma("foreign_keys = OFF");
     version4.exec(`
+      DROP TABLE auth_events;
+      DROP TABLE auth_sessions;
+      DROP TABLE admin_accounts;
       DROP TABLE backup_restore_runs;
       DROP TABLE backup_commands;
       DROP TABLE project_backups;

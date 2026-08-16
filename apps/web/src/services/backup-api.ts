@@ -7,6 +7,7 @@ import type {
 } from "@webeditor/domain";
 
 import { ProjectsApiError } from "./projects-api";
+import { apiFetch } from "./api-fetch";
 
 interface ErrorEnvelope {
   readonly error?: {
@@ -20,7 +21,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("accept", "application/json");
   if (init.body !== undefined) headers.set("content-type", "application/json");
-  const response = await fetch(path, { ...init, headers });
+  const response = await apiFetch(path, { ...init, headers });
   if (!response.ok) {
     let body: ErrorEnvelope = {};
     try {

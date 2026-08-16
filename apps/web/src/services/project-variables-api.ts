@@ -7,8 +7,10 @@ import type {
   UpdateProjectVariableRequestDto,
 } from "@webeditor/domain";
 
+import { apiFetch } from "./api-fetch";
+
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
-  const response = await fetch(path, {
+  const response = await apiFetch(path, {
     ...init,
     headers: {
       ...(init?.body === undefined

@@ -6,52 +6,53 @@ Overall state: `IN PROGRESS`
 
 ## Current phase
 
-### PHASE 17 — Backup, Export/Import, Recovery
+### PHASE 18 — Accessibility, Security, Performance
 
-State: `VERIFIED`
+State: `OPERATIONALLY VERIFIED`
 
 Scope:
 
-- Create immutable Project backups from the canonical Export payload.
-- Preserve Metadata, Test Runtime, Production Runtime, Assets, Published
-  Runtime, and checksum evidence.
-- Verify backups with a read-only recovery drill and restore as a new Project.
-- Keep backup ownership independent from trash, restore, and purge state.
+- Keyboard, focus, ARIA, contrast, color-vision, and reduced-motion gates.
+- Argon2id administrator authentication, CSRF, strict cookies, rate limiting,
+  security headers, and loopback-only origin service.
+- Bounded request instrumentation and Chapter 27 Project list budgets.
+- Authenticated deployment at `https://webeditor.dove9999.com/` through a named
+  Cloudflare Tunnel.
 
-Data risk: medium. Backup creation is additive; restore never overwrites the
-source Project and creates a new active Project through the Import boundary.
+Data risk: low. Metadata migration v15 adds authentication tables. Existing
+Project data and storage remain unchanged.
 
 Test plan:
 
-- Verify exact file, payload, and inventory SHA-256 values.
-- Verify idempotent create/restore/drill replay and restart recovery.
-- Trash the source, restore a new Project, and compare Runtime rows, Assets,
-  Published navigation, and sentinels.
-- Tamper with a stored payload and verify fail-closed restore behavior.
+- Verify Argon2id bootstrap, session expiry, login throttling, and audit rows.
+- Reject unauthenticated and CSRF-invalid mutation requests.
+- Run the accessible login through axe and keyboard/browser checks.
+- Measure 100 Project list/search and actual-domain first display/editor open.
 
 ## Phase ledger
 
-| Phase | State       | Notes                                                         |
-| ----- | ----------- | ------------------------------------------------------------- |
-| 0     | VERIFIED    | 337 source/traceability checks and all bootstrap gates passed |
-| 1     | VERIFIED    | 177 design-system checks, 61/61 gallery, browser QA passed    |
-| 2     | VERIFIED    | 120 themes: 40 dark, 40 gray, 40 light                        |
-| 3     | VERIFIED    | Persistent lifecycle, restart recovery, and browser QA passed |
-| 4     | VERIFIED    | Page management and immutable runtime navigation              |
-| 5     | VERIFIED    | Element placement, grid snapping, and eight-way resize        |
-| 6     | VERIFIED    | Registry, Property Inspector, Runtime renderer, Undo/Redo     |
-| 7     | VERIFIED    | Statistical Elements and real Layout Preset instances         |
-| 8     | VERIFIED    | GUI schema design and isolated Test SQLite migration          |
-| 9     | VERIFIED    | Directional ports and durable Binding-backed visual Edges     |
-| 10    | VERIFIED    | Orthogonal routing and server-owned automatic layout          |
-| 11    | VERIFIED    | Safe READ binding engine and deterministic Test data          |
-| 12    | VERIFIED    | Immutable Published Runtime and isolated Draft Preview        |
-| 13    | VERIFIED    | Transactional CRUD bindings and Runtime refresh               |
-| 14    | VERIFIED    | Project variables and typed runtime navigation                |
-| 15    | VERIFIED    | Validated Theme revisions and browser-local Runtime policy    |
-| 16    | VERIFIED    | Validation registry, reports, and deep-link navigation        |
-| 17    | VERIFIED    | Immutable backups, recovery drills, and restore-as-copy       |
-| 18–23 | NOT STARTED | Must follow sequentially                                      |
+| Phase | State                  | Notes                                                         |
+| ----- | ---------------------- | ------------------------------------------------------------- |
+| 0     | VERIFIED               | 337 source/traceability checks and all bootstrap gates passed |
+| 1     | VERIFIED               | 177 design-system checks, 61/61 gallery, browser QA passed    |
+| 2     | VERIFIED               | 120 themes: 40 dark, 40 gray, 40 light                        |
+| 3     | VERIFIED               | Persistent lifecycle, restart recovery, and browser QA passed |
+| 4     | VERIFIED               | Page management and immutable runtime navigation              |
+| 5     | VERIFIED               | Element placement, grid snapping, and eight-way resize        |
+| 6     | VERIFIED               | Registry, Property Inspector, Runtime renderer, Undo/Redo     |
+| 7     | VERIFIED               | Statistical Elements and real Layout Preset instances         |
+| 8     | VERIFIED               | GUI schema design and isolated Test SQLite migration          |
+| 9     | VERIFIED               | Directional ports and durable Binding-backed visual Edges     |
+| 10    | VERIFIED               | Orthogonal routing and server-owned automatic layout          |
+| 11    | VERIFIED               | Safe READ binding engine and deterministic Test data          |
+| 12    | VERIFIED               | Immutable Published Runtime and isolated Draft Preview        |
+| 13    | VERIFIED               | Transactional CRUD bindings and Runtime refresh               |
+| 14    | VERIFIED               | Project variables and typed runtime navigation                |
+| 15    | VERIFIED               | Validated Theme revisions and browser-local Runtime policy    |
+| 16    | VERIFIED               | Validation registry, reports, and deep-link navigation        |
+| 17    | VERIFIED               | Immutable backups, recovery drills, and restore-as-copy       |
+| 18    | OPERATIONALLY VERIFIED | Accessibility, security, performance, actual domain           |
+| 19–23 | NOT STARTED            | Must follow sequentially                                      |
 
 ## Phase 0 evidence
 
@@ -425,13 +426,28 @@ Test plan:
   sibling geometry; mobile tables own their horizontal overflow
 - Browser console errors and required request failures: 0
 
-## Phase 18 operational checkpoint
+## Phase 18 evidence
 
-- Per user direction, Phase 18 includes an actual-domain deployment checkpoint
-  after accessibility, security, and performance hardening so the user can open
-  the real service and verify its behavior together. The checkpoint is not
-  satisfied by localhost or a mock hostname. Credentials, tunnel tokens, and
-  private keys remain outside the repository.
+- Static, behavioral, browser, actual-domain, and Phase 17 regression audit:
+  `artifacts/phase18/accessibility-security-performance-validation.json`
+- Actual HTTPS browser evidence:
+  `artifacts/phase18/browser-security-performance-validation.json`
+- Metadata migration v15 stores Argon2id administrator accounts, hashed opaque
+  sessions, CSRF digests, and authentication audit events
+- Public API requires authentication; mutations additionally require the exact
+  HTTPS Origin and matching cookie/header CSRF token
+- Session cookies are `__Host-`, Secure, HttpOnly, and SameSite Strict; login is
+  limited to five attempts per minute
+- CSP, HSTS, frame denial, no-sniff, and no-referrer headers are active at the
+  Cloudflare-served actual domain
+- Accessible login axe violations: 0; visible unlabeled controls: 0; reduced
+  motion and all 120 contrast/color-vision checked themes remain active
+- Isolated 100-Project measurement: list 51.73ms, search/sort 40.05ms, server
+  list p95 51.56ms; all Chapter 27 thresholds pass
+- Actual domain first Project display 544ms and Editor open 291ms
+- `https://webeditor.dove9999.com/` returns HTTP 200 through an active named
+  tunnel; credentials and tunnel secrets remain outside the repository
+- Browser console errors and required request failures: 0
 
 ## Deferred operational hardening
 

@@ -7,7 +7,7 @@ import { themes } from "@webeditor/theme-core";
 import Database from "better-sqlite3";
 
 const METADATA_APPLICATION_ID = 0x57454245;
-export const LATEST_METADATA_SCHEMA_VERSION = 14;
+export const LATEST_METADATA_SCHEMA_VERSION = 15;
 
 const lifecycleSqlValues = PROJECT_LIFECYCLE_STATUSES.map(
   (status) => `'${status}'`,
@@ -1590,6 +1590,80 @@ export const PROJECT_BACKUP_RECOVERY_SCHEMA_CHECKSUM = createHash("sha256")
   .update(projectBackupRecoverySchemaSql)
   .digest("hex");
 
+const authenticationSecuritySchemaSql = `
+  CREATE TABLE admin_accounts (
+    id TEXT PRIMARY KEY NOT NULL,
+    username TEXT NOT NULL UNIQUE CHECK (
+      length(username) BETWEEN 3 AND 64 AND username = trim(username)
+    ),
+    password_hash TEXT NOT NULL CHECK (password_hash GLOB '$argon2id$*'),
+    disabled INTEGER NOT NULL DEFAULT 0 CHECK (
+      typeof(disabled) = 'integer' AND disabled IN (0, 1)
+    ),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL
+  );
+
+  CREATE TABLE auth_sessions (
+    id TEXT PRIMARY KEY NOT NULL,
+    account_id TEXT NOT NULL REFERENCES admin_accounts(id) ON DELETE CASCADE,
+    token_hash TEXT NOT NULL UNIQUE CHECK (
+      length(token_hash) = 64 AND token_hash = lower(token_hash) AND
+      token_hash NOT GLOB '*[^0-9a-f]*'
+    ),
+    csrf_hash TEXT NOT NULL CHECK (
+      length(csrf_hash) = 64 AND csrf_hash = lower(csrf_hash) AND
+      csrf_hash NOT GLOB '*[^0-9a-f]*'
+    ),
+    created_at TEXT NOT NULL,
+    expires_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL,
+    revoked_at TEXT,
+    user_agent_hash TEXT NOT NULL CHECK (
+      length(user_agent_hash) = 64 AND user_agent_hash = lower(user_agent_hash) AND
+      user_agent_hash NOT GLOB '*[^0-9a-f]*'
+    ),
+    ip_hash TEXT NOT NULL CHECK (
+      length(ip_hash) = 64 AND ip_hash = lower(ip_hash) AND
+      ip_hash NOT GLOB '*[^0-9a-f]*'
+    )
+  );
+  CREATE INDEX auth_sessions_account_expiry_idx
+    ON auth_sessions(account_id, expires_at, id);
+  CREATE INDEX auth_sessions_active_expiry_idx
+    ON auth_sessions(expires_at, revoked_at, id);
+
+  CREATE TABLE auth_events (
+    id TEXT PRIMARY KEY NOT NULL,
+    account_id TEXT REFERENCES admin_accounts(id) ON DELETE SET NULL,
+    username TEXT CHECK (
+      username IS NULL OR length(username) BETWEEN 1 AND 64
+    ),
+    action TEXT NOT NULL CHECK (
+      action IN (
+        'LOGIN_SUCCESS', 'LOGIN_FAILURE', 'LOGOUT', 'SESSION_EXPIRED',
+        'CSRF_REJECTED', 'AUTHORIZATION_REJECTED'
+      )
+    ),
+    ip_hash TEXT NOT NULL CHECK (
+      length(ip_hash) = 64 AND ip_hash = lower(ip_hash) AND
+      ip_hash NOT GLOB '*[^0-9a-f]*'
+    ),
+    created_at TEXT NOT NULL,
+    detail_json TEXT NOT NULL CHECK (
+      json_valid(detail_json) AND json_type(detail_json) = 'object'
+    )
+  );
+  CREATE INDEX auth_events_action_created_idx
+    ON auth_events(action, created_at DESC, id DESC);
+  CREATE INDEX auth_events_account_created_idx
+    ON auth_events(account_id, created_at DESC, id DESC);
+`;
+
+export const AUTHENTICATION_SECURITY_SCHEMA_CHECKSUM = createHash("sha256")
+  .update(authenticationSecuritySchemaSql)
+  .digest("hex");
+
 const metadataMigrations = [
   {
     checksum: INITIAL_METADATA_SCHEMA_CHECKSUM,
@@ -1674,6 +1748,12 @@ const metadataMigrations = [
     name: "project-backup-export-import-recovery",
     sql: projectBackupRecoverySchemaSql,
     version: 14,
+  },
+  {
+    checksum: AUTHENTICATION_SECURITY_SCHEMA_CHECKSUM,
+    name: "authentication-security-boundary",
+    sql: authenticationSecuritySchemaSql,
+    version: 15,
   },
 ] as const;
 

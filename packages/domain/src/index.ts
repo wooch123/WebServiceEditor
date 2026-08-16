@@ -16,6 +16,15 @@ export {
   type VerifyProjectBackupRequest,
 } from "./backup.js";
 export {
+  type AuthSessionDto,
+  type LoginRequest,
+  type LoginResponse,
+} from "./auth.js";
+export {
+  type PerformanceRouteSummaryDto,
+  type PerformanceSummaryDto,
+} from "./performance.js";
+export {
   VALIDATION_INVENTORY_CATEGORIES,
   VALIDATION_LEVELS,
   VALIDATION_RESULTS,

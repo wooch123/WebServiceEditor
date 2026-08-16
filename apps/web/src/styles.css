@@ -5280,3 +5280,39 @@ svg {
     animation: none;
   }
 }
+/* Authentication boundary */
+.auth-page {
+  align-items: center;
+  background: var(--background);
+  display: flex;
+  justify-content: center;
+  min-height: 100dvh;
+  padding: 24px;
+}
+
+.auth-card {
+  width: min(100%, 360px);
+}
+
+.auth-form {
+  display: grid;
+  gap: 16px;
+}
+
+.auth-field {
+  display: grid;
+  gap: 8px;
+}
+
+.auth-submit {
+  min-height: 40px;
+  width: 100%;
+}
+
+.auth-logout {
+  bottom: 16px;
+  min-height: 40px;
+  position: fixed;
+  right: 16px;
+  z-index: 80;
+}

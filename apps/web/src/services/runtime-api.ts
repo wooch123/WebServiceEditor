@@ -8,6 +8,8 @@ import type {
   RuntimeBindingMutationDto,
 } from "@webeditor/domain";
 
+import { apiFetch } from "./api-fetch";
+
 interface ApiErrorEnvelope {
   readonly error?: {
     readonly code?: unknown;
@@ -41,7 +43,7 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
   const headers = new Headers(init.headers);
   headers.set("accept", "application/json");
   if (init.body !== undefined) headers.set("content-type", "application/json");
-  const response = await fetch(path, { ...init, headers });
+  const response = await apiFetch(path, { ...init, headers });
   if (!response.ok) {
     let envelope: ApiErrorEnvelope = {};
     try {
