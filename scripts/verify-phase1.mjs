@@ -563,7 +563,8 @@ export async function validatePhase1({
     "Header theme selector groups",
   );
   validation.check(
-    /themes\.filter\s*\(/u.test(themePickerSource) &&
+    /availableThemes\s*=\s*themes/u.test(themePickerSource) &&
+      /(?:themes|availableThemes)\.filter\s*\(/u.test(themePickerSource) &&
       /theme\.group\s*===\s*group/u.test(themePickerSource) &&
       /visibleThemes\.map\s*\(/u.test(themePickerSource) &&
       !themePickerSource.includes(".slice("),

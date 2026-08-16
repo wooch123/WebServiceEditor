@@ -6,28 +6,29 @@ Overall state: `IN PROGRESS`
 
 ## Current phase
 
-### PHASE 9 — Data Relationship Canvas
+### PHASE 15 — Theme Revision and Runtime Policy
 
 State: `VERIFIED`
 
 Scope:
 
-- Project active Page, Element, Table, and Field metadata as graph nodes.
-- Enforce left-input and right-output port direction before persistence.
-- Create one durable Binding record from one server-owned connection preview.
-- Render each visual Edge directly from its Binding identity.
-- Preserve delete, Undo/Redo, clone/import, and Project lifecycle boundaries.
+- Create immutable Draft Theme Revisions from the 120-theme inventory.
+- Validate token schema, contrast, and render smoke checks before activation.
+- Publish or roll back revisions without exposing an invalid runtime state.
+- Poll the Runtime Theme Manifest every three seconds without remounting content.
+- Keep optional user theme choices browser-local and Project-scoped.
 
-Data risk: medium. A malformed Binding can make the visual graph inconsistent.
-Preview scope, optimistic revisions, SQLite direction constraints, topology
-checks, and lifecycle-aware endpoint handling fail closed.
+Data risk: medium. Invalid Theme tokens or stale runtime preferences can make
+the Editor and Published Runtime disagree. Optimistic revisions, validation,
+allowed-theme policy, and manifest fallback fail closed.
 
 Test plan:
 
-- Validate exact Page, Element, and Table node inventories and port sides.
-- Reject reversed, stale, duplicate, incompatible, and orphaned connections.
-- Prove Preview-to-Binding-to-visual-Edge identity is exactly one-to-one.
-- Verify delete, Undo/Redo, restart, clone/import remap, trash, and restore.
+- Verify Draft, validate, auto-publish, explicit publish, and rollback paths.
+- Preserve the last valid Runtime pointer after validation failure.
+- Verify exact 120-theme and 40/40/40 inventory behavior.
+- Verify browser-local preference persistence, removal fallback, and 3-second
+  live switching without a full-page reload.
 
 ## Phase ledger
 
@@ -43,7 +44,13 @@ Test plan:
 | 7     | VERIFIED    | Statistical Elements and real Layout Preset instances         |
 | 8     | VERIFIED    | GUI schema design and isolated Test SQLite migration          |
 | 9     | VERIFIED    | Directional ports and durable Binding-backed visual Edges     |
-| 10–23 | NOT STARTED | Must follow sequentially                                      |
+| 10    | VERIFIED    | Orthogonal routing and server-owned automatic layout          |
+| 11    | VERIFIED    | Safe READ binding engine and deterministic Test data          |
+| 12    | VERIFIED    | Immutable Published Runtime and isolated Draft Preview        |
+| 13    | VERIFIED    | Transactional CRUD bindings and Runtime refresh               |
+| 14    | VERIFIED    | Project variables and typed runtime navigation                |
+| 15    | VERIFIED    | Validated Theme revisions and browser-local Runtime policy    |
+| 16–23 | NOT STARTED | Must follow sequentially                                      |
 
 ## Phase 0 evidence
 
@@ -342,6 +349,31 @@ Test plan:
   height and equal width; Variable dialog actions are both 172×40px
 - Browser QA at 419×800: document width remains 419px, navigation and the
   filtered Chart remain reachable; console errors and failed requests are 0
+
+## Phase 15 evidence
+
+- Static, behavioral, browser, and Phase 0–14 regression audit:
+  `artifacts/phase15/theme-revision-runtime-validation.json`
+- Isolated browser evidence:
+  `artifacts/phase15/browser-theme-revision-runtime-validation.json`
+- Metadata migration v12 stores Project-owned Theme Revisions, Runtime Theme
+  policy, monotonic manifest versions, and idempotent command responses
+- Draft validation checks the exact 52-token schema, text and boundary
+  contrast, and render readiness before publishing; failures preserve the last
+  valid Runtime pointer
+- Explicit publish, rollback, auto-apply, restart persistence, optimistic
+  revisions, and all 120 immutable presets with exact 40/40/40 grouping PASS
+- Published Runtime waits for the initial Theme Manifest before mounting,
+  polls every three seconds, swaps semantic CSS variables without remounting
+  Page content, and exposes Theme ID and revision diagnostics
+- The exact Project-scoped preference key persists in the same browser profile;
+  corrupt, removed, or disallowed choices fall back to Project Default
+- Browser QA at 1280×720: Font and Theme controls are both 104×40px; Theme
+  picker actions are both 202×40px; live revision polling and allowed-override
+  persistence PASS
+- Browser QA at 419×800: document width remains 419px, picker and header
+  controls remain reachable, and picker actions are both 171.5×40px
+- Browser console errors and required request failures: 0
 
 ## Phase 18 operational checkpoint
 

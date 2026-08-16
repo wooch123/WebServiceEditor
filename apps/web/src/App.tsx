@@ -39,8 +39,11 @@ import {
   PublishedRuntime,
 } from "@/features/runtime/PublishedRuntime";
 import type { PageDto } from "@/services/pages-api";
-import { updateProject } from "@/services/projects-api";
 import type { ProjectDto } from "@/services/projects-api";
+import {
+  createThemeRevision,
+  validateThemeRevision,
+} from "@/services/themes-api";
 import { ThemePicker } from "./ThemePicker";
 import { defaultTheme, themes, themeToCssVariables } from "./theme";
 
@@ -67,6 +70,8 @@ interface HeaderControlsProps {
   onFontSizeChange: (size: number) => void;
   themeId: string;
   onThemeChange: (themeId: string) => void;
+  themePending: boolean;
+  themeStatus: string;
 }
 
 function HeaderControls({
@@ -74,6 +79,8 @@ function HeaderControls({
   onFontSizeChange,
   themeId,
   onThemeChange,
+  themePending,
+  themeStatus,
 }: HeaderControlsProps) {
   return (
     <div className="header-controls" aria-label="화면 표시 설정">
@@ -104,7 +111,16 @@ function HeaderControls({
           <Plus aria-hidden="true" />
         </Button>
       </div>
-      <ThemePicker themeId={themeId} onThemeChange={onThemeChange} />
+      {themeStatus && (
+        <span className="theme-sync-status" role="status">
+          {themeStatus}
+        </span>
+      )}
+      <ThemePicker
+        themeId={themeId}
+        onThemeChange={onThemeChange}
+        disabled={themePending}
+      />
     </div>
   );
 }
@@ -415,6 +431,8 @@ function ProductApp() {
   );
   const [fontSize, setFontSize] = useState(12);
   const [themeId, setThemeId] = useState(defaultTheme.id);
+  const [themePending, setThemePending] = useState(false);
+  const [themeStatus, setThemeStatus] = useState("");
   const themeRequestSequenceRef = useRef(0);
 
   const selectedTheme =
@@ -423,42 +441,81 @@ function ProductApp() {
     fontSize,
     onFontSizeChange: setFontSize,
     themeId,
+    themePending,
+    themeStatus,
     onThemeChange: (nextThemeId) => {
       const previousThemeId = selectedProject?.themeId ?? themeId;
       setThemeId(nextThemeId);
       if (surface === "editor" && selectedProject) {
         const requestSequence = ++themeRequestSequenceRef.current;
         const projectAtRequest = selectedProject;
+        setThemePending(true);
+        setThemeStatus("저장 중");
         setSelectedProject({ ...projectAtRequest, themeId: nextThemeId });
-        void updateProject(projectAtRequest.id, {
-          expectedRevision: projectAtRequest.revision,
-          themeId: nextThemeId,
-        })
-          .then((updatedProject) => {
+        void createThemeRevision(
+          projectAtRequest.id,
+          nextThemeId,
+          projectAtRequest.revision,
+        )
+          .then((created) => {
+            if (requestSequence === themeRequestSequenceRef.current) {
+              setThemeStatus("검증 중");
+              setSelectedProject((current) =>
+                current?.id === projectAtRequest.id
+                  ? {
+                      ...current,
+                      themeId: nextThemeId,
+                      revision: Math.max(
+                        current.revision,
+                        created.projectRevision,
+                      ),
+                    }
+                  : current,
+              );
+            }
+            return validateThemeRevision(
+              projectAtRequest.id,
+              created.revision,
+              created.projectRevision,
+            );
+          })
+          .then((validated) => {
+            if (requestSequence !== themeRequestSequenceRef.current) return;
             setSelectedProject((current) => {
               if (
-                current?.id !== updatedProject.id ||
-                updatedProject.revision < current.revision
+                current?.id !== projectAtRequest.id ||
+                validated.projectRevision < current.revision
               ) {
                 return current;
               }
               return {
-                ...updatedProject,
-                themeId:
-                  requestSequence === themeRequestSequenceRef.current
-                    ? updatedProject.themeId
-                    : current.themeId,
+                ...current,
+                revision: validated.projectRevision,
+                themeId: validated.revision.presetId,
               };
             });
+            setThemeStatus(
+              validated.revision.status === "INVALID"
+                ? "검증 실패"
+                : validated.runtimeApplied
+                  ? "적용됨"
+                  : "검증됨",
+            );
           })
           .catch(() => {
             if (requestSequence !== themeRequestSequenceRef.current) return;
             setThemeId(previousThemeId);
+            setThemeStatus("저장 실패");
             setSelectedProject((current) =>
               current?.id === projectAtRequest.id
                 ? { ...current, themeId: previousThemeId }
                 : current,
             );
+          })
+          .finally(() => {
+            if (requestSequence === themeRequestSequenceRef.current) {
+              setThemePending(false);
+            }
           });
       }
     },
@@ -503,7 +560,10 @@ function ProductApp() {
       {surface === "editor" && selectedProject ? (
         <EditorSurface
           project={selectedProject}
-          onBack={() => setSurface("home")}
+          onBack={() => {
+            setThemeStatus("");
+            setSurface("home");
+          }}
           onProjectRevisionChange={(revision) =>
             setSelectedProject((current) =>
               current
@@ -528,6 +588,7 @@ function ProductApp() {
             onOpenProject={(project) => {
               setSelectedProject(project);
               setThemeId(project.themeId);
+              setThemeStatus("");
               setSurface("editor");
             }}
           />

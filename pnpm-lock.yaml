@@ -37,6 +37,9 @@ importers:
       "@webeditor/domain":
         specifier: workspace:*
         version: link:../../packages/domain
+      "@webeditor/theme-core":
+        specifier: workspace:*
+        version: link:../../packages/theme-core
       better-sqlite3:
         specifier: 13.0.3
         version: 13.0.3

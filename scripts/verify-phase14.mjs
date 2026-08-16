@@ -77,7 +77,12 @@ export function inspectPhase14Contract(source) {
       /id:\s*"selection"/u.test(source.elementDomain) &&
       /valueType:\s*"record"/u.test(source.elementDomain),
     metadataV11:
-      /LATEST_METADATA_SCHEMA_VERSION\s*=\s*11/u.test(source.metadata) &&
+      /LATEST_METADATA_SCHEMA_VERSION\s*=\s*(?:1[1-9]|[2-9]\d+)/u.test(
+        source.metadata,
+      ) &&
+      /name:\s*"project-variable-navigation"[\s\S]{0,160}version:\s*11/u.test(
+        source.metadata,
+      ) &&
       /CREATE TABLE project_variables/u.test(source.metadata) &&
       /CREATE TABLE project_variable_commands/u.test(source.metadata) &&
       /sensitive = 0 OR transport = 'SESSION_STATE'/u.test(source.metadata),

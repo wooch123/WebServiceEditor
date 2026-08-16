@@ -22,6 +22,7 @@ import type {
   RelationshipBindingDto,
   ProjectVariableDto,
 } from "@webeditor/domain";
+import type { RuntimeThemeManifest } from "@webeditor/theme-core";
 
 import { ThemePicker } from "@/ThemePicker";
 import { Button } from "@/components/ui/button";
@@ -72,12 +73,21 @@ import {
   RuntimeApiError,
   type RuntimeDefinitionPage,
 } from "@/services/runtime-api";
-import { defaultTheme, themes, themeToCssVariables } from "@/theme";
+import { getRuntimeThemeManifest } from "@/services/themes-api";
+import { defaultTheme, themes, themeTokensToCssVariables } from "@/theme";
 import { DynamicLucideIcon } from "@/features/pages/DynamicLucideIcon";
 import {
   assertRuntimeRendererDefinitions,
   RuntimeElementRenderer,
 } from "./RuntimeElementRenderer";
+import {
+  clearRuntimeThemePreference,
+  readRuntimeThemePreference,
+  resolveRuntimeTheme,
+  runtimeThemePreferenceIsAllowed,
+  writeRuntimeThemePreference,
+  type RuntimeThemePreference,
+} from "./runtime-theme";
 
 const SEARCH_THRESHOLD = 30;
 
@@ -302,11 +312,19 @@ function RuntimeControls({
   onFontSizeChange,
   themeId,
   onThemeChange,
+  availableThemeIds,
+  projectDefaultSelected,
+  onUseProjectDefault,
+  allowThemeSelection,
 }: {
   fontSize: number;
   onFontSizeChange: (value: number) => void;
   themeId: string;
   onThemeChange: (value: string) => void;
+  availableThemeIds: readonly string[];
+  projectDefaultSelected: boolean;
+  onUseProjectDefault: () => void;
+  allowThemeSelection: boolean;
 }) {
   return (
     <div
@@ -334,7 +352,18 @@ function RuntimeControls({
           <Plus />
         </Button>
       </div>
-      <ThemePicker themeId={themeId} onThemeChange={onThemeChange} />
+      {allowThemeSelection && (
+        <ThemePicker
+          themeId={themeId}
+          onThemeChange={onThemeChange}
+          availableThemes={themes.filter(({ id }) =>
+            availableThemeIds.includes(id),
+          )}
+          includeProjectDefault
+          projectDefaultSelected={projectDefaultSelected}
+          onUseProjectDefault={onUseProjectDefault}
+        />
+      )}
     </div>
   );
 }
@@ -357,6 +386,7 @@ function RuntimeShell({
   selectedRows,
   onRowSelect,
   onNavigate,
+  themeManifest,
 }: {
   navigation: RuntimeNavigationPayload;
   activePage: RuntimePageDto | null;
@@ -379,25 +409,57 @@ function RuntimeShell({
     rowIndex: number,
   ) => void;
   onNavigate: (page: RuntimePageDto) => void;
+  themeManifest: RuntimeThemeManifest | null;
 }) {
   const isMobile = useIsMobile();
   const [collapsed, setCollapsed] = useState(false);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [fontSize, setFontSize] = useState(12);
-  const [themeId, setThemeId] = useState(navigation.themeId ?? defaultTheme.id);
-  const selectedTheme =
-    themes.find((theme) => theme.id === themeId) ?? defaultTheme;
+  const [themePreference, setThemePreference] =
+    useState<RuntimeThemePreference | null>(() =>
+      themeManifest === null
+        ? null
+        : readRuntimeThemePreference(themeManifest.projectId),
+    );
+  const [themeStorageMessage, setThemeStorageMessage] = useState("");
+  const previewTheme =
+    themes.find((theme) => theme.id === navigation.themeId) ?? defaultTheme;
+  const themeResolution = themeManifest
+    ? resolveRuntimeTheme(themeManifest, themePreference)
+    : {
+        themeId: previewTheme.id,
+        themeRevisionId: `preview:${previewTheme.id}`,
+        tokens: previewTheme.tokens,
+        userOverrideActive: false,
+      };
+
+  useEffect(() => {
+    if (
+      themeManifest === null ||
+      runtimeThemePreferenceIsAllowed(themeManifest, themePreference)
+    ) {
+      return;
+    }
+    const persisted = clearRuntimeThemePreference(themeManifest.projectId);
+    setThemePreference(null);
+    setThemeStorageMessage(persisted ? "" : "세션만 유지");
+  }, [themeManifest, themePreference]);
 
   useLayoutEffect(() => {
-    const variables = themeToCssVariables(selectedTheme);
+    const variables = themeTokensToCssVariables(themeResolution.tokens);
     const root = document.documentElement;
     for (const [name, value] of Object.entries(variables))
       root.style.setProperty(name, value);
-    root.dataset.webeditorThemeId = selectedTheme.id;
-  }, [selectedTheme]);
+    root.dataset.webeditorThemeId = themeResolution.themeId;
+    root.dataset.webeditorThemeRevision = themeResolution.themeRevisionId;
+  }, [
+    themeResolution.themeId,
+    themeResolution.themeRevisionId,
+    themeResolution.tokens,
+  ]);
 
   const style = {
-    ...themeToCssVariables(selectedTheme),
+    ...themeTokensToCssVariables(themeResolution.tokens),
     "--app-base-font-size": `${fontSize}px`,
   } as CSSProperties;
 
@@ -417,7 +479,8 @@ function RuntimeShell({
     <div
       className="webeditor-app runtime-app"
       style={style}
-      data-theme-id={themeId}
+      data-theme-id={themeResolution.themeId}
+      data-theme-revision={themeResolution.themeRevisionId}
     >
       <header className="app-header runtime-header">
         {isMobile && (
@@ -447,14 +510,43 @@ function RuntimeShell({
         )}
         <strong className="runtime-app-name">WebEditor</strong>
         {preview && <span className="runtime-preview-badge">미리보기</span>}
+        {themeResolution.userOverrideActive && (
+          <span className="runtime-theme-override">사용자 테마</span>
+        )}
+        {themeStorageMessage && (
+          <span className="runtime-theme-storage" role="status">
+            {themeStorageMessage}
+          </span>
+        )}
         <span className="runtime-breadcrumb">
           {activePage?.name ?? "페이지 없음"}
         </span>
         <RuntimeControls
           fontSize={fontSize}
           onFontSizeChange={setFontSize}
-          themeId={themeId}
-          onThemeChange={setThemeId}
+          themeId={themeResolution.themeId}
+          onThemeChange={(nextThemeId) => {
+            if (themeManifest === null) return;
+            const result = writeRuntimeThemePreference(
+              themeManifest.projectId,
+              nextThemeId,
+            );
+            setThemePreference(result.preference);
+            setThemeStorageMessage(result.persisted ? "" : "세션만 유지");
+          }}
+          availableThemeIds={themeManifest?.allowedThemeIds ?? []}
+          projectDefaultSelected={themePreference === null}
+          onUseProjectDefault={() => {
+            if (themeManifest === null) return;
+            const persisted = clearRuntimeThemePreference(
+              themeManifest.projectId,
+            );
+            setThemePreference(null);
+            setThemeStorageMessage(persisted ? "" : "세션만 유지");
+          }}
+          allowThemeSelection={
+            themeManifest?.allowRuntimeThemeSelection ?? false
+          }
         />
       </header>
       <div className={cn("runtime-layout", collapsed && "is-collapsed")}>
@@ -580,6 +672,8 @@ function RuntimeApplication({
     null,
   );
   const [registry, setRegistry] = useState<ElementRegistryDto | null>(null);
+  const [themeManifest, setThemeManifest] =
+    useState<RuntimeThemeManifest | null>(null);
   const [runtimePage, setRuntimePage] = useState<RuntimeDefinitionPage | null>(
     null,
   );
@@ -611,8 +705,11 @@ function RuntimeApplication({
         ? getDraftRuntimeNavigation(sourceId)
         : getRuntimeNavigation(sourceId),
       listElementRegistry(controller.signal),
+      preview
+        ? Promise.resolve(null)
+        : getRuntimeThemeManifest(projectId, controller.signal),
     ])
-      .then(([navigationPayload, registryPayload]) => {
+      .then(([navigationPayload, registryPayload, themePayload]) => {
         assertRuntimeRendererDefinitions(registryPayload.definitions);
         if (!controller.signal.aborted) {
           if (navigationPayload.projectId !== projectId) {
@@ -625,6 +722,7 @@ function RuntimeApplication({
             ),
           });
           setRegistry(registryPayload);
+          setThemeManifest(themePayload);
         }
       })
       .catch((reason: unknown) => {
@@ -635,6 +733,29 @@ function RuntimeApplication({
       controller.abort();
     };
   }, [preview, projectId, sourceId]);
+
+  useEffect(() => {
+    if (preview) return;
+    const controller = new AbortController();
+    const interval = window.setInterval(() => {
+      void getRuntimeThemeManifest(projectId, controller.signal)
+        .then((payload) => {
+          if (controller.signal.aborted) return;
+          setThemeManifest((current) =>
+            current === null || payload.version >= current.version
+              ? payload
+              : current,
+          );
+        })
+        .catch(() => {
+          // Keep the last validated theme during a transient poll failure.
+        });
+    }, 3_000);
+    return () => {
+      controller.abort();
+      window.clearInterval(interval);
+    };
+  }, [preview, projectId]);
 
   const activePage =
     navigation?.pages.find((page) => cleanRoute(page.route) === route) ?? null;
@@ -962,7 +1083,7 @@ function RuntimeApplication({
         <p>{error}</p>
       </main>
     );
-  if (!navigation || !registry)
+  if (!navigation || !registry || (!preview && themeManifest === null))
     return (
       <main className="runtime-load-state" role="status">
         <Skeleton className="h-8 w-48" />
@@ -1004,6 +1125,7 @@ function RuntimeApplication({
         if (next !== location.pathname)
           navigate(`${next}${location.search}`, { state: location.state });
       }}
+      themeManifest={themeManifest}
     />
   );
 }

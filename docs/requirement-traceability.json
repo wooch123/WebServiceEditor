@@ -533,28 +533,66 @@
       "id": "REQ-027",
       "title": "Validated editor-to-runtime theme revision",
       "phase": 15,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "docs/adr/0016-theme-revision-runtime-policy.md",
+        "packages/theme-core/src/theme-revision.ts",
+        "apps/server/src/metadata/database.ts",
+        "apps/server/src/themes/theme-revision-service.ts",
+        "apps/server/src/routes/themes.ts",
+        "apps/web/src/App.tsx",
+        "apps/web/src/features/runtime/PublishedRuntime.tsx"
+      ],
+      "tests": [
+        "apps/server/test/integration/theme-revision-runtime.test.ts",
+        "apps/web/src/theme.runtime.test.tsx",
+        "apps/web/src/features/runtime/runtime-theme.test.tsx",
+        "scripts/verify-phase15.mjs"
+      ],
+      "evidence": [
+        "artifacts/phase15/theme-revision-runtime-validation.json",
+        "artifacts/phase15/browser-theme-revision-runtime-validation.json"
+      ]
     },
     {
       "id": "REQ-028",
       "title": "Runtime theme selection",
       "phase": 15,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "apps/server/src/themes/theme-revision-service.ts",
+        "apps/server/src/routes/themes.ts",
+        "apps/web/src/ThemePicker.tsx",
+        "apps/web/src/features/runtime/PublishedRuntime.tsx",
+        "apps/web/src/features/runtime/runtime-theme.ts"
+      ],
+      "tests": [
+        "apps/server/test/integration/theme-revision-runtime.test.ts",
+        "apps/web/src/features/runtime/runtime-theme.test.tsx",
+        "scripts/verify-phase15.mjs"
+      ],
+      "evidence": [
+        "artifacts/phase15/theme-revision-runtime-validation.json",
+        "artifacts/phase15/browser-theme-revision-runtime-validation.json"
+      ]
     },
     {
       "id": "REQ-029",
       "title": "Browser-local runtime theme preference",
       "phase": 15,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "apps/web/src/features/runtime/runtime-theme.ts",
+        "apps/web/src/features/runtime/PublishedRuntime.tsx"
+      ],
+      "tests": [
+        "apps/web/src/features/runtime/runtime-theme.test.tsx",
+        "scripts/verify-phase15.mjs"
+      ],
+      "evidence": [
+        "artifacts/phase15/theme-revision-runtime-validation.json",
+        "artifacts/phase15/browser-theme-revision-runtime-validation.json"
+      ]
     },
     {
       "id": "REQ-030",

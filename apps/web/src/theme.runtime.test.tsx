@@ -76,20 +76,87 @@ beforeEach(() => {
       if (pathname === "/api/v1/recycle-bin/projects" && method === "GET") {
         return Response.json({ projects: [] });
       }
-      if (pathname === "/api/v1/projects/project-spc" && method === "PATCH") {
-        const body = JSON.parse(String(init.body)) as { themeId?: string };
+      if (
+        pathname === "/api/v1/projects/project-spc/theme-revisions" &&
+        method === "POST"
+      ) {
+        const body = JSON.parse(String(init.body)) as { presetId: string };
         const current = activeProjects.find(
           (candidate) => candidate.id === "project-spc",
         )!;
         const updated = {
           ...current,
-          themeId: body.themeId ?? current.themeId,
+          themeId: body.presetId,
           revision: current.revision + 1,
         };
         activeProjects = activeProjects.map((candidate) =>
           candidate.id === updated.id ? updated : candidate,
         );
-        return Response.json({ project: updated });
+        return Response.json(
+          {
+            revision: {
+              id: "00000000-0000-4000-8000-000000000151",
+              projectId: updated.id,
+              presetId: updated.themeId,
+              tokenHash: "a".repeat(64),
+              tokens: themes.find(({ id }) => id === updated.themeId)!.tokens,
+              status: "DRAFT",
+              revision: 1,
+              createdAt: "2026-08-16T00:00:00.000Z",
+              updatedAt: "2026-08-16T00:00:00.000Z",
+              basedOnRevisionId: null,
+              validationRunId: null,
+              publishedAt: null,
+              validation: null,
+            },
+            policy: {},
+            projectRevision: updated.revision,
+            commandId: "theme-create-command",
+            runtimeApplied: false,
+          },
+          { status: 201 },
+        );
+      }
+      if (
+        pathname ===
+          "/api/v1/projects/project-spc/theme-revisions/00000000-0000-4000-8000-000000000151/validate" &&
+        method === "POST"
+      ) {
+        const current = activeProjects.find(
+          (candidate) => candidate.id === "project-spc",
+        )!;
+        const updated = { ...current, revision: current.revision + 1 };
+        activeProjects = activeProjects.map((candidate) =>
+          candidate.id === updated.id ? updated : candidate,
+        );
+        const selected = themes.find(({ id }) => id === updated.themeId)!;
+        return Response.json({
+          revision: {
+            id: "00000000-0000-4000-8000-000000000151",
+            projectId: updated.id,
+            presetId: selected.id,
+            tokenHash: "a".repeat(64),
+            tokens: selected.tokens,
+            status: "PUBLISHED",
+            revision: 2,
+            createdAt: "2026-08-16T00:00:00.000Z",
+            updatedAt: "2026-08-16T00:00:01.000Z",
+            basedOnRevisionId: null,
+            validationRunId: "theme-validation",
+            publishedAt: "2026-08-16T00:00:01.000Z",
+            validation: {
+              schemaValid: true,
+              contrastValid: true,
+              smokeValid: true,
+              errors: [],
+              validatedAt: "2026-08-16T00:00:01.000Z",
+            },
+          },
+          policy: {},
+          projectRevision: updated.revision,
+          commandId: "theme-validate-command",
+          runtimeApplied: true,
+        });
       }
 
       return Response.json(

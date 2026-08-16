@@ -347,9 +347,14 @@ export function inspectThemePickerSource(source) {
         source,
       ),
     filtersCompleteGroupInventory:
-      /return\s+themes\.filter\(\s*\(theme\)\s*=>\s*theme\.group\s*===\s*group\s*&&/su.test(
+      (/return\s+themes\.filter\(\s*\(theme\)\s*=>\s*theme\.group\s*===\s*group\s*&&/su.test(
         source,
-      ) && !source.includes(".slice("),
+      ) ||
+        (/availableThemes\s*=\s*themes/u.test(source) &&
+          /return\s+availableThemes\.filter\(\s*\(theme\)\s*=>\s*theme\.group\s*===\s*group\s*&&/su.test(
+            source,
+          ))) &&
+      !source.includes(".slice("),
     rendersEveryVisibleTheme: /visibleThemes\.map\(\s*\(theme\)\s*=>/su.test(
       source,
     ),
@@ -369,6 +374,9 @@ export function inspectThemeAppSource(source) {
       .filter(Boolean),
   );
 
+  const pickerProps =
+    /<ThemePicker\b(?<props>[\s\S]*?)\/>/u.exec(source)?.groups?.props ?? "";
+
   return {
     importsCompleteResolver:
       importedNames.has("defaultTheme") &&
@@ -387,9 +395,8 @@ export function inspectThemeAppSource(source) {
     ),
     exposesResolvedThemeId: /data-theme-id=\{selectedTheme\.id\}/u.test(source),
     delegatesThemeSelection:
-      /<ThemePicker\s+themeId=\{themeId\}\s+onThemeChange=\{onThemeChange\}\s*\/>/u.test(
-        source,
-      ),
+      /\bthemeId=\{themeId\}/u.test(pickerProps) &&
+      /\bonThemeChange=\{onThemeChange\}/u.test(pickerProps),
   };
 }
 

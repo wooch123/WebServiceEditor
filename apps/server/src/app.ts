@@ -31,6 +31,8 @@ import { registerDataSchemaRoutes } from "./routes/data-schema.js";
 import { registerDataRelationshipRoutes } from "./routes/data-relationship.js";
 import { registerSampleDataRoutes } from "./routes/sample-data.js";
 import { registerProjectVariableRoutes } from "./routes/project-variables.js";
+import { registerThemeRoutes } from "./routes/themes.js";
+import { ThemeRevisionService } from "./themes/theme-revision-service.js";
 
 export interface BuildServerOptions {
   readonly logger?: boolean;
@@ -69,6 +71,11 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   );
   const projectVariableService = new ProjectVariableService(
     metadataDatabase,
+    options.clock ?? (() => new Date()),
+  );
+  const themeRevisionService = new ThemeRevisionService(
+    metadataDatabase,
+    projectService.storage,
     options.clock ?? (() => new Date()),
   );
   const pageService = new PageService({
@@ -172,6 +179,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   void app.register(registerDataRelationshipRoutes, { relationshipService });
   void app.register(registerSampleDataRoutes, { sampleDataService });
   void app.register(registerProjectVariableRoutes, { projectVariableService });
+  void app.register(registerThemeRoutes, { themeRevisionService });
 
   return app;
 }

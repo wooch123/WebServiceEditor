@@ -48,9 +48,19 @@ function ThemeThumbnail({ theme }: { theme: WebEditorTheme }) {
 export function ThemePicker({
   themeId,
   onThemeChange,
+  availableThemes = themes,
+  includeProjectDefault = false,
+  projectDefaultSelected = false,
+  onUseProjectDefault,
+  disabled = false,
 }: {
   readonly themeId: string;
   readonly onThemeChange: (themeId: string) => void;
+  readonly availableThemes?: readonly WebEditorTheme[];
+  readonly includeProjectDefault?: boolean;
+  readonly projectDefaultSelected?: boolean;
+  readonly onUseProjectDefault?: () => void;
+  readonly disabled?: boolean;
 }) {
   const currentTheme =
     themes.find((theme) => theme.id === themeId) ?? defaultTheme;
@@ -61,7 +71,7 @@ export function ThemePicker({
 
   const visibleThemes = useMemo(() => {
     const normalizedQuery = query.trim().toLocaleLowerCase("ko");
-    return themes.filter(
+    return availableThemes.filter(
       (theme) =>
         theme.group === group &&
         (!normalizedQuery ||
@@ -69,7 +79,7 @@ export function ThemePicker({
             .toLocaleLowerCase("ko")
             .includes(normalizedQuery)),
     );
-  }, [group, query]);
+  }, [availableThemes, group, query]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     if (nextOpen) {
@@ -88,6 +98,7 @@ export function ThemePicker({
           variant="outline"
           size="sm"
           type="button"
+          disabled={disabled}
           aria-label={`테마 선택, 현재 ${currentTheme.name}`}
         >
           <Palette aria-hidden="true" />
@@ -118,7 +129,10 @@ export function ThemePicker({
               <TabsTrigger key={item.id} value={item.id}>
                 {item.label}
                 <span>
-                  {themes.filter((theme) => theme.group === item.id).length}
+                  {
+                    availableThemes.filter((theme) => theme.group === item.id)
+                      .length
+                  }
                 </span>
               </TabsTrigger>
             ))}
@@ -142,8 +156,27 @@ export function ThemePicker({
             role="listbox"
             aria-label={`${themeGroups.find((item) => item.id === group)?.label} 테마`}
           >
+            {includeProjectDefault &&
+              (!query.trim() || "프로젝트 기본값".includes(query.trim())) && (
+                <button
+                  type="button"
+                  className={`theme-option theme-default-option ${projectDefaultSelected ? "is-selected" : ""}`}
+                  role="option"
+                  aria-selected={projectDefaultSelected}
+                  aria-label="프로젝트 기본값 사용"
+                  onClick={onUseProjectDefault}
+                >
+                  <ThemeThumbnail theme={currentTheme} />
+                  <span className="theme-option-copy">
+                    <strong>프로젝트 기본값</strong>
+                    <small>자동 반영</small>
+                  </span>
+                  {projectDefaultSelected && <Check aria-hidden="true" />}
+                </button>
+              )}
             {visibleThemes.map((theme) => {
-              const selected = theme.id === currentTheme.id;
+              const selected =
+                !projectDefaultSelected && theme.id === currentTheme.id;
               return (
                 <button
                   key={theme.id}

@@ -3,10 +3,11 @@ import { mkdirSync } from "node:fs";
 import { dirname } from "node:path";
 
 import { PROJECT_LIFECYCLE_STATUSES } from "@webeditor/domain";
+import { themes } from "@webeditor/theme-core";
 import Database from "better-sqlite3";
 
 const METADATA_APPLICATION_ID = 0x57454245;
-export const LATEST_METADATA_SCHEMA_VERSION = 11;
+export const LATEST_METADATA_SCHEMA_VERSION = 12;
 
 const lifecycleSqlValues = PROJECT_LIFECYCLE_STATUSES.map(
   (status) => `'${status}'`,
@@ -1295,6 +1296,119 @@ export const PROJECT_VARIABLE_NAVIGATION_SCHEMA_CHECKSUM = createHash("sha256")
   .update(projectVariableNavigationSchemaSql)
   .digest("hex");
 
+const initialAllowedThemeIdsJson = JSON.stringify(
+  themes.map((theme) => theme.id),
+).replaceAll("'", "''");
+
+const themeRevisionRuntimePolicySchemaSql = `
+  CREATE TABLE theme_revisions (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    preset_id TEXT NOT NULL CHECK (length(trim(preset_id)) BETWEEN 1 AND 120),
+    token_hash TEXT NOT NULL CHECK (
+      length(token_hash) = 64 AND token_hash = lower(token_hash) AND
+      token_hash NOT GLOB '*[^0-9a-f]*'
+    ),
+    tokens_json TEXT NOT NULL CHECK (
+      json_valid(tokens_json) AND json_type(tokens_json) = 'object'
+    ),
+    status TEXT NOT NULL CHECK (
+      status IN ('DRAFT', 'VALIDATING', 'VALID', 'INVALID', 'PUBLISHED', 'SUPERSEDED')
+    ),
+    revision INTEGER NOT NULL DEFAULT 1 CHECK (
+      revision >= 1 AND typeof(revision) = 'integer'
+    ),
+    based_on_revision_id TEXT,
+    validation_run_id TEXT,
+    validation_json TEXT CHECK (
+      validation_json IS NULL OR
+      (json_valid(validation_json) AND json_type(validation_json) = 'object')
+    ),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    published_at TEXT,
+    UNIQUE(id, project_id),
+    FOREIGN KEY (based_on_revision_id, project_id)
+      REFERENCES theme_revisions(id, project_id)
+  );
+  CREATE INDEX theme_revisions_project_created_idx
+    ON theme_revisions(project_id, created_at, id);
+  CREATE INDEX theme_revisions_project_status_idx
+    ON theme_revisions(project_id, status, updated_at);
+
+  CREATE TABLE project_theme_settings (
+    project_id TEXT PRIMARY KEY NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    default_theme_preset_id TEXT NOT NULL CHECK (
+      length(trim(default_theme_preset_id)) BETWEEN 1 AND 120
+    ),
+    current_theme_revision_id TEXT,
+    published_theme_revision_id TEXT,
+    auto_apply_theme_to_runtime INTEGER NOT NULL DEFAULT 1 CHECK (
+      auto_apply_theme_to_runtime IN (0, 1)
+    ),
+    allow_runtime_theme_selection INTEGER NOT NULL DEFAULT 1 CHECK (
+      allow_runtime_theme_selection IN (0, 1)
+    ),
+    allowed_runtime_theme_ids_json TEXT NOT NULL CHECK (
+      json_valid(allowed_runtime_theme_ids_json) AND
+      json_type(allowed_runtime_theme_ids_json) = 'array'
+    ),
+    runtime_theme_version INTEGER NOT NULL DEFAULT 0 CHECK (
+      runtime_theme_version >= 0 AND typeof(runtime_theme_version) = 'integer'
+    ),
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (current_theme_revision_id, project_id)
+      REFERENCES theme_revisions(id, project_id),
+    FOREIGN KEY (published_theme_revision_id, project_id)
+      REFERENCES theme_revisions(id, project_id)
+  );
+  INSERT INTO project_theme_settings (
+    project_id, default_theme_preset_id, allowed_runtime_theme_ids_json, updated_at
+  )
+    SELECT id, theme_id, '${initialAllowedThemeIdsJson}', updated_at FROM projects;
+  CREATE TRIGGER projects_initialize_theme_settings
+    AFTER INSERT ON projects
+    BEGIN
+      INSERT INTO project_theme_settings (
+        project_id, default_theme_preset_id, allowed_runtime_theme_ids_json, updated_at
+      ) VALUES (
+        NEW.id, NEW.theme_id, '${initialAllowedThemeIdsJson}', NEW.updated_at
+      );
+    END;
+
+  CREATE TABLE theme_revision_commands (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    revision_id TEXT,
+    command_type TEXT NOT NULL CHECK (
+      command_type IN ('CREATE', 'VALIDATE', 'PUBLISH', 'ROLLBACK', 'POLICY')
+    ),
+    idempotency_key TEXT NOT NULL CHECK (
+      length(idempotency_key) BETWEEN 1 AND 200
+    ),
+    request_hash TEXT NOT NULL CHECK (
+      length(request_hash) = 64 AND request_hash = lower(request_hash) AND
+      request_hash NOT GLOB '*[^0-9a-f]*'
+    ),
+    response_status INTEGER NOT NULL CHECK (
+      response_status BETWEEN 200 AND 499 AND typeof(response_status) = 'integer'
+    ),
+    response_json TEXT NOT NULL CHECK (json_valid(response_json)),
+    created_at TEXT NOT NULL,
+    UNIQUE(project_id, idempotency_key),
+    FOREIGN KEY (revision_id, project_id)
+      REFERENCES theme_revisions(id, project_id) ON DELETE CASCADE
+  );
+  CREATE INDEX theme_revision_commands_project_created_idx
+    ON theme_revision_commands(project_id, created_at, id);
+`;
+
+export const THEME_REVISION_RUNTIME_POLICY_SCHEMA_CHECKSUM = createHash(
+  "sha256",
+)
+  .update(themeRevisionRuntimePolicySchemaSql)
+  .digest("hex");
+
 const metadataMigrations = [
   {
     checksum: INITIAL_METADATA_SCHEMA_CHECKSUM,
@@ -1361,6 +1475,12 @@ const metadataMigrations = [
     name: "project-variable-navigation",
     sql: projectVariableNavigationSchemaSql,
     version: 11,
+  },
+  {
+    checksum: THEME_REVISION_RUNTIME_POLICY_SCHEMA_CHECKSUM,
+    name: "theme-revision-runtime-policy",
+    sql: themeRevisionRuntimePolicySchemaSql,
+    version: 12,
   },
 ] as const;
 

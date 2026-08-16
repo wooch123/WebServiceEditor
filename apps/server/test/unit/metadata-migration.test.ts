@@ -84,7 +84,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(11);
+      expect(migrated.assertReady().schemaVersion).toBe(12);
       expect(
         migrated.connection
           .prepare(
@@ -114,6 +114,7 @@ describe("metadata migration", () => {
         { version: 9 },
         { version: 10 },
         { version: 11 },
+        { version: 12 },
       ]);
       expect(
         migrated.connection
@@ -166,11 +167,11 @@ describe("metadata migration", () => {
     const path = join(directory, "metadata.sqlite");
     const future = new Database(path);
     future.pragma("application_id = 1464156741");
-    future.pragma("user_version = 12");
+    future.pragma("user_version = 13");
     future.close();
 
     expect(() => new MetadataDatabase(path)).toThrow(
-      "Refusing unknown future metadata schema version 12",
+      "Refusing unknown future metadata schema version 13",
     );
   });
 
@@ -213,6 +214,10 @@ describe("metadata migration", () => {
     const version3 = new Database(path);
     version3.pragma("foreign_keys = OFF");
     version3.exec(`
+      DROP TRIGGER projects_initialize_theme_settings;
+      DROP TABLE theme_revision_commands;
+      DROP TABLE project_theme_settings;
+      DROP TABLE theme_revisions;
       DROP TABLE binding_query_runs;
       DROP TABLE sample_data_commands;
       DROP TABLE project_variable_commands;
@@ -252,7 +257,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(11);
+      expect(migrated.assertReady().schemaVersion).toBe(12);
       expect(
         migrated.connection
           .prepare(
@@ -387,6 +392,10 @@ describe("metadata migration", () => {
     const version5 = new Database(path);
     version5.pragma("foreign_keys = OFF");
     version5.exec(`
+      DROP TRIGGER projects_initialize_theme_settings;
+      DROP TABLE theme_revision_commands;
+      DROP TABLE project_theme_settings;
+      DROP TABLE theme_revisions;
       DROP TABLE binding_query_runs;
       DROP TABLE sample_data_commands;
       DROP TABLE project_variable_commands;
@@ -511,7 +520,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(11);
+      expect(migrated.assertReady().schemaVersion).toBe(12);
       expect(
         migrated.connection
           .prepare(
@@ -672,6 +681,10 @@ describe("metadata migration", () => {
     const version4 = new Database(path);
     version4.pragma("foreign_keys = OFF");
     version4.exec(`
+      DROP TRIGGER projects_initialize_theme_settings;
+      DROP TABLE theme_revision_commands;
+      DROP TABLE project_theme_settings;
+      DROP TABLE theme_revisions;
       DROP TABLE binding_query_runs;
       DROP TABLE sample_data_commands;
       DROP TABLE project_variable_commands;

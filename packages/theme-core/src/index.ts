@@ -27,6 +27,9 @@ export {
   THEME_REVISION_STATUSES,
   canTransitionThemeRevision,
   createDraftThemeRevision,
+  type RuntimeThemeManifest,
+  type RuntimeThemePolicy,
   type ThemeRevision,
   type ThemeRevisionStatus,
+  type ThemeRevisionValidation,
 } from "./theme-revision.js";

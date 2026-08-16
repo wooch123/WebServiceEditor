@@ -18,6 +18,26 @@ import { App } from "@/App";
 import { PageManager } from "@/features/pages/PageManager";
 import type { ProjectDto } from "@/services/projects-api";
 import type { PageDto, RuntimePageDto } from "@/services/pages-api";
+import { defaultTheme, themes } from "@/theme";
+
+function runtimeThemeManifest(projectId: string) {
+  return {
+    schemaVersion: 1,
+    projectId,
+    version: 0,
+    defaultThemeId: defaultTheme.id,
+    publishedThemeRevisionId: null,
+    publishedThemeId: null,
+    resolvedThemeId: defaultTheme.id,
+    resolvedThemeRevisionId: `preset:${defaultTheme.id}`,
+    tokenHash: "a".repeat(64),
+    tokens: defaultTheme.tokens,
+    allowRuntimeThemeSelection: true,
+    allowedThemeIds: themes.map(({ id }) => id),
+    fallbackThemeId: defaultTheme.id,
+    updatedAt: "2026-08-15T00:00:00Z",
+  };
+}
 
 function registryPayload() {
   return {
@@ -120,6 +140,9 @@ function installRuntimeApi(elements: ElementEntryDto[] = []) {
       calls.push(path);
       if (path === "/api/v1/elements/registry") {
         return Response.json(registryPayload());
+      }
+      if (path === "/api/v1/runtime/runtime-project/theme-manifest") {
+        return Response.json(runtimeThemeManifest("runtime-project"));
       }
       if (path === "/api/v1/runtime/runtime-project/navigation") {
         return new Response(
@@ -235,6 +258,9 @@ function installPublishTransitionApi() {
       calls.push({ path, method });
       if (path === "/api/v1/elements/registry") {
         return Response.json(registryPayload());
+      }
+      if (path === "/api/v1/runtime/publish-project/theme-manifest") {
+        return Response.json(runtimeThemeManifest("publish-project"));
       }
       if (path === "/api/v1/runtime/publish-project/navigation") {
         return Response.json({
@@ -595,6 +621,9 @@ describe("PublishedRuntime", () => {
         if (path === "/api/v1/elements/registry") {
           return Response.json(registryPayload());
         }
+        if (path === "/api/v1/runtime/runtime-project/theme-manifest") {
+          return Response.json(runtimeThemeManifest("runtime-project"));
+        }
         if (path === "/api/v1/draft-previews/preview-1/navigation") {
           return Response.json({
             projectId: "runtime-project",
@@ -946,6 +975,9 @@ describe("PublishedRuntime", () => {
         const path = new URL(String(input), "http://local").pathname;
         if (path === "/api/v1/elements/registry") {
           return Response.json(registryPayload());
+        }
+        if (path === "/api/v1/runtime/runtime-project/theme-manifest") {
+          return Response.json(runtimeThemeManifest("runtime-project"));
         }
         if (path === "/api/v1/runtime/runtime-project/navigation") {
           return Response.json({

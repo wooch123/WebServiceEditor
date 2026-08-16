@@ -24,6 +24,43 @@ export interface ThemeRevision {
   readonly publishedAt?: string;
 }
 
+export interface ThemeRevisionValidation {
+  readonly schemaValid: boolean;
+  readonly contrastValid: boolean;
+  readonly smokeValid: boolean;
+  readonly errors: readonly string[];
+  readonly validatedAt: string;
+}
+
+export interface RuntimeThemePolicy {
+  readonly projectId: string;
+  readonly defaultThemePresetId: string;
+  readonly currentThemeRevisionId: string | null;
+  readonly publishedThemeRevisionId: string | null;
+  readonly autoApplyThemeToRuntime: boolean;
+  readonly allowRuntimeThemeSelection: boolean;
+  readonly allowedRuntimeThemeIds: readonly string[];
+  readonly runtimeThemeVersion: number;
+  readonly updatedAt: string;
+}
+
+export interface RuntimeThemeManifest {
+  readonly schemaVersion: 1;
+  readonly projectId: string;
+  readonly version: number;
+  readonly defaultThemeId: string;
+  readonly publishedThemeRevisionId: string | null;
+  readonly publishedThemeId: string | null;
+  readonly resolvedThemeId: string;
+  readonly resolvedThemeRevisionId: string;
+  readonly tokenHash: string;
+  readonly tokens: ThemeTokens;
+  readonly allowRuntimeThemeSelection: boolean;
+  readonly allowedThemeIds: readonly string[];
+  readonly fallbackThemeId: string;
+  readonly updatedAt: string;
+}
+
 const transitions = {
   DRAFT: ["VALIDATING"],
   VALIDATING: ["VALID", "INVALID"],
