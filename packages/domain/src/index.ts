@@ -5,6 +5,26 @@ export {
   type ProjectLifecycleStatus,
 } from "./project-lifecycle.js";
 export {
+  VALIDATION_INVENTORY_CATEGORIES,
+  VALIDATION_LEVELS,
+  VALIDATION_RESULTS,
+  VALIDATION_RULE_IDS,
+  VALIDATION_TARGET_KINDS,
+  REQUIREMENT_IDS,
+  type RunValidationRequest,
+  type ValidationInventoryCategory,
+  type ValidationInventoryItemDto,
+  type ValidationIssueDto,
+  type ValidationLevel,
+  type ValidationResult,
+  type ValidationRunDto,
+  type ValidationRunListDto,
+  type ValidationRuleId,
+  type ValidationSummaryDto,
+  type ValidationTargetDto,
+  type ValidationTargetKind,
+} from "./validation.js";
+export {
   PROJECT_STATUSES,
   RESTORE_CONFLICT_RESOLUTIONS,
   type CreateProjectRequest,

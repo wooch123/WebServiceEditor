@@ -32,7 +32,9 @@ import { registerDataRelationshipRoutes } from "./routes/data-relationship.js";
 import { registerSampleDataRoutes } from "./routes/sample-data.js";
 import { registerProjectVariableRoutes } from "./routes/project-variables.js";
 import { registerThemeRoutes } from "./routes/themes.js";
+import { registerValidationRoutes } from "./routes/validation.js";
 import { ThemeRevisionService } from "./themes/theme-revision-service.js";
+import { ValidationService } from "./validation/validation-service.js";
 
 export interface BuildServerOptions {
   readonly logger?: boolean;
@@ -47,6 +49,15 @@ export interface BuildServerOptions {
 
 export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   const app = Fastify({ logger: options.logger ?? false });
+  const registeredApiRoutes = new Set<string>();
+  app.addHook("onRoute", (route) => {
+    const methods = Array.isArray(route.method) ? route.method : [route.method];
+    for (const method of methods) {
+      if (route.url.startsWith("/api/v1") && method !== "HEAD") {
+        registeredApiRoutes.add(`${method} ${route.url}`);
+      }
+    }
+  });
   const metadataDatabase = new MetadataDatabase(
     resolveMetadataDatabasePath(options.metadataDatabasePath),
   );
@@ -116,6 +127,12 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
     projectService.storage,
     options.clock ?? (() => new Date()),
   );
+  const validationService = new ValidationService(
+    metadataDatabase,
+    projectService.storage,
+    () => [...registeredApiRoutes].sort(),
+    options.clock ?? (() => new Date()),
+  );
 
   app.setErrorHandler(async (error, _request, reply) => {
     if (error instanceof ApiError) {
@@ -180,6 +197,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   void app.register(registerSampleDataRoutes, { sampleDataService });
   void app.register(registerProjectVariableRoutes, { projectVariableService });
   void app.register(registerThemeRoutes, { themeRevisionService });
+  void app.register(registerValidationRoutes, { validationService });
 
   return app;
 }

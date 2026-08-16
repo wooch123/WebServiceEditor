@@ -7,7 +7,7 @@ import { themes } from "@webeditor/theme-core";
 import Database from "better-sqlite3";
 
 const METADATA_APPLICATION_ID = 0x57454245;
-export const LATEST_METADATA_SCHEMA_VERSION = 12;
+export const LATEST_METADATA_SCHEMA_VERSION = 13;
 
 const lifecycleSqlValues = PROJECT_LIFECYCLE_STATUSES.map(
   (status) => `'${status}'`,
@@ -1409,6 +1409,94 @@ export const THEME_REVISION_RUNTIME_POLICY_SCHEMA_CHECKSUM = createHash(
   .update(themeRevisionRuntimePolicySchemaSql)
   .digest("hex");
 
+const validationInventoryReportSchemaSql = `
+  CREATE TABLE validation_runs (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    project_revision INTEGER NOT NULL CHECK (
+      project_revision >= 0 AND typeof(project_revision) = 'integer'
+    ),
+    levels_json TEXT NOT NULL CHECK (
+      json_valid(levels_json) AND json_type(levels_json) = 'array'
+    ),
+    status TEXT NOT NULL CHECK (
+      status IN ('PASS', 'WARNING', 'FAIL', 'BLOCKED')
+    ),
+    inventory_required INTEGER NOT NULL CHECK (
+      inventory_required >= 0 AND typeof(inventory_required) = 'integer'
+    ),
+    inventory_verified INTEGER NOT NULL CHECK (
+      inventory_verified >= 0 AND inventory_verified <= inventory_required AND
+      typeof(inventory_verified) = 'integer'
+    ),
+    summary_json TEXT NOT NULL CHECK (
+      json_valid(summary_json) AND json_type(summary_json) = 'object'
+    ),
+    issues_json TEXT NOT NULL CHECK (
+      json_valid(issues_json) AND json_type(issues_json) = 'array'
+    ),
+    inventory_json TEXT NOT NULL CHECK (
+      json_valid(inventory_json) AND json_type(inventory_json) = 'array'
+    ),
+    started_at TEXT NOT NULL,
+    completed_at TEXT NOT NULL
+  );
+  CREATE INDEX validation_runs_project_completed_idx
+    ON validation_runs(project_id, completed_at DESC, id DESC);
+
+  CREATE TABLE validation_run_items (
+    id TEXT PRIMARY KEY NOT NULL,
+    validation_run_id TEXT NOT NULL REFERENCES validation_runs(id) ON DELETE CASCADE,
+    project_id TEXT NOT NULL,
+    inventory_id TEXT,
+    rule_id TEXT NOT NULL,
+    level TEXT NOT NULL CHECK (
+      level IN ('STATIC', 'REFERENCE', 'DATABASE', 'BINDING', 'RENDER', 'INTERACTION', 'INVENTORY')
+    ),
+    result TEXT NOT NULL CHECK (
+      result IN ('PASS', 'WARNING', 'FAIL', 'BLOCKED')
+    ),
+    title TEXT NOT NULL,
+    detail TEXT NOT NULL,
+    target_json TEXT NOT NULL CHECK (
+      json_valid(target_json) AND json_type(target_json) = 'object'
+    ),
+    evidence_json TEXT NOT NULL CHECK (
+      json_valid(evidence_json) AND json_type(evidence_json) = 'array'
+    ),
+    created_at TEXT NOT NULL,
+    FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
+  );
+  CREATE INDEX validation_run_items_run_result_idx
+    ON validation_run_items(validation_run_id, result, level, id);
+
+  CREATE TABLE validation_commands (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    validation_run_id TEXT REFERENCES validation_runs(id) ON DELETE SET NULL,
+    command_type TEXT NOT NULL CHECK (
+      command_type IN ('VALIDATE', 'VALIDATE_INVENTORY')
+    ),
+    idempotency_key TEXT NOT NULL CHECK (length(idempotency_key) BETWEEN 1 AND 200),
+    request_hash TEXT NOT NULL CHECK (
+      length(request_hash) = 64 AND request_hash = lower(request_hash) AND
+      request_hash NOT GLOB '*[^0-9a-f]*'
+    ),
+    response_status INTEGER NOT NULL CHECK (
+      response_status BETWEEN 200 AND 499 AND typeof(response_status) = 'integer'
+    ),
+    response_json TEXT NOT NULL CHECK (json_valid(response_json)),
+    created_at TEXT NOT NULL,
+    UNIQUE(project_id, idempotency_key)
+  );
+  CREATE INDEX validation_commands_project_created_idx
+    ON validation_commands(project_id, created_at, id);
+`;
+
+export const VALIDATION_INVENTORY_REPORT_SCHEMA_CHECKSUM = createHash("sha256")
+  .update(validationInventoryReportSchemaSql)
+  .digest("hex");
+
 const metadataMigrations = [
   {
     checksum: INITIAL_METADATA_SCHEMA_CHECKSUM,
@@ -1481,6 +1569,12 @@ const metadataMigrations = [
     name: "theme-revision-runtime-policy",
     sql: themeRevisionRuntimePolicySchemaSql,
     version: 12,
+  },
+  {
+    checksum: VALIDATION_INVENTORY_REPORT_SCHEMA_CHECKSUM,
+    name: "validation-inventory-report",
+    sql: validationInventoryReportSchemaSql,
+    version: 13,
   },
 ] as const;
 

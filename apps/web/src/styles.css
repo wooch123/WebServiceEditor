@@ -1985,6 +1985,193 @@ svg {
   background: var(--warning);
 }
 
+.validation-report {
+  display: flex;
+  min-width: 0;
+  min-height: 0;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.25rem;
+  overflow: auto;
+  background: var(--canvas);
+}
+
+.validation-report-toolbar,
+.validation-report-actions,
+.validation-report [data-slot="card-header"],
+.validation-report [data-slot="card-content"] {
+  display: flex;
+  align-items: center;
+}
+
+.validation-report-toolbar {
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.validation-report-toolbar h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+
+.validation-report-toolbar span,
+.validation-summary-grid [data-slot="card-content"] span {
+  color: var(--muted-foreground);
+  font-size: 0.75rem;
+}
+
+.validation-report-actions {
+  gap: var(--control-gap);
+}
+
+.validation-report-actions [data-slot="button"] {
+  width: 6rem;
+  height: var(--control-height);
+  min-height: var(--control-height);
+  justify-content: center;
+  border-radius: var(--control-radius);
+}
+
+.validation-summary-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.validation-summary-grid [data-slot="card"] {
+  gap: 0;
+}
+
+.validation-summary-grid [data-slot="card-header"] {
+  justify-content: space-between;
+  padding: 0.9rem 1rem 0.45rem;
+}
+
+.validation-summary-grid [data-slot="card-title"] {
+  font-size: 0.78rem;
+}
+
+.validation-summary-grid [data-slot="card-content"] {
+  min-height: 4rem;
+  justify-content: center;
+  flex-direction: column;
+  gap: 0.35rem;
+  padding: 0.45rem 1rem 0.9rem;
+}
+
+.validation-summary-grid [data-slot="progress"] {
+  width: 100%;
+}
+
+.validation-summary-grid strong {
+  font-size: 1.5rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.validation-report [data-result="PASS"] {
+  color: var(--success-foreground);
+  background: var(--success);
+}
+
+.validation-report [data-result="WARNING"] {
+  color: var(--warning-foreground);
+  background: var(--warning);
+}
+
+.validation-report [data-result="FAIL"],
+.validation-report [data-result="BLOCKED"] {
+  color: var(--error-foreground);
+  background: var(--error);
+}
+
+.validation-loading,
+.validation-empty {
+  display: grid;
+  min-height: 14rem;
+  place-items: center;
+  align-content: center;
+  gap: 0.5rem;
+  color: var(--muted-foreground);
+}
+
+.validation-issue-scroll {
+  min-height: 12rem;
+  flex: 1;
+  border: 1px solid var(--border);
+  border-radius: var(--control-radius);
+}
+
+.validation-issues {
+  display: flex;
+  flex-direction: column;
+}
+
+.validation-issue {
+  display: grid;
+  width: 100%;
+  min-height: 4.5rem;
+  grid-template-columns: 2rem minmax(0, 1fr) 1rem;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border: 0;
+  border-bottom: 1px solid var(--border);
+  color: var(--foreground);
+  background: var(--card);
+  text-align: left;
+}
+
+.validation-issue:last-child {
+  border-bottom: 0;
+}
+
+.validation-issue:hover,
+.validation-issue:focus-visible {
+  background: var(--accent);
+}
+
+.validation-issue > span:first-child {
+  display: grid;
+  width: 2rem;
+  height: 2rem;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.validation-issue > span:nth-child(2) {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.validation-issue small {
+  overflow: hidden;
+  color: var(--muted-foreground);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.validation-issue svg {
+  width: 1rem;
+  height: 1rem;
+}
+
+@media (max-width: 700px) {
+  .validation-report-toolbar {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .validation-report-actions > * {
+    flex: 1;
+  }
+
+  .validation-summary-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 .editor-statusbar {
   display: flex;
   height: 2.9em;

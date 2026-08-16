@@ -2,9 +2,7 @@ import {
   ArrowLeft,
   ArrowRight,
   Blocks,
-  Check,
   ChevronRight,
-  Clock3,
   Database,
   LayoutDashboard,
   Minus,
@@ -14,8 +12,16 @@ import {
   Waypoints,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
+import type { ValidationTargetDto } from "@webeditor/domain";
 import type { CSSProperties } from "react";
-import { lazy, Suspense, useLayoutEffect, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 
 import { Button } from "@/components/ui/button";
@@ -31,14 +37,16 @@ import {
 } from "@/features/elements/ElementPropertyInspector";
 import {
   ElementWorkspaceProvider,
+  useElementWorkspace,
   WorkspaceElementPalette,
 } from "@/features/elements/ElementWorkspace";
 import { PageManager } from "@/features/pages/PageManager";
+import { ValidationReport } from "@/features/validation/ValidationReport";
 import {
   DraftPreviewRuntime,
   PublishedRuntime,
 } from "@/features/runtime/PublishedRuntime";
-import type { PageDto } from "@/services/pages-api";
+import { listPages, type PageDto } from "@/services/pages-api";
 import type { ProjectDto } from "@/services/projects-api";
 import {
   createThemeRevision,
@@ -136,44 +144,34 @@ function Brand() {
   );
 }
 
-function ValidationPreview({ pageExists }: { pageExists: boolean }) {
-  const checks = [
-    ["페이지 구조", pageExists ? "1/1 통과" : "페이지 필요"],
-    ["데이터 연결", "2개 확인 필요"],
-    ["샘플 입출력", "실행 대기"],
-  ];
-
-  return (
-    <div className="validation-stage">
-      <div className="validation-hero">
-        <span className="validation-icon">
-          <ShieldCheck aria-hidden="true" />
-        </span>
-        <div>
-          <h2>검증</h2>
-        </div>
-      </div>
-      <div className="validation-list">
-        {checks.map(([label, result], index) => (
-          <div key={label}>
-            <span
-              className={
-                index === 0 && pageExists ? "check-complete" : "check-pending"
-              }
-            >
-              {index === 0 && pageExists ? (
-                <Check aria-hidden="true" />
-              ) : (
-                <Clock3 aria-hidden="true" />
-              )}
-            </span>
-            <strong>{label}</strong>
-            <span>{result}</span>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
+function ValidationTargetNavigator({
+  target,
+  pageId,
+  onDone,
+}: {
+  target: ValidationTargetDto | null;
+  pageId: string | null;
+  onDone: () => void;
+}) {
+  const workspace = useElementWorkspace();
+  useEffect(() => {
+    if (!target || target.pageId !== pageId) return;
+    if (target.elementId) workspace.selectElement(target.elementId, false);
+    if (target.propertyTabId) {
+      requestAnimationFrame(() => {
+        const tabs = [...document.querySelectorAll<HTMLElement>("[role=tab]")];
+        tabs
+          .find(
+            (tab) =>
+              tab.textContent?.trim().toLocaleLowerCase() ===
+              target.propertyTabId?.toLocaleLowerCase(),
+          )
+          ?.click();
+      });
+    }
+    onDone();
+  }, [onDone, pageId, target, workspace]);
+  return null;
 }
 
 function EditorSurface({
@@ -194,6 +192,37 @@ function EditorSurface({
   >({});
   const [saved, setSaved] = useState(true);
   const [dataView, setDataView] = useState<"schema" | "relationship">("schema");
+  const [validationTarget, setValidationTarget] =
+    useState<ValidationTargetDto | null>(null);
+
+  const navigateFromValidation = (target: ValidationTargetDto) => {
+    if (target.kind === "TABLE" || target.kind === "FIELD") {
+      setDataView("schema");
+      setStep("data");
+      return;
+    }
+    if (target.kind === "BINDING") {
+      setDataView("relationship");
+      setStep("data");
+      return;
+    }
+    if (target.kind === "RUNTIME_ROUTE" && target.route) {
+      window.open(target.route, "_blank", "noopener,noreferrer");
+      return;
+    }
+    if (target.kind === "THEME") {
+      document.querySelector<HTMLElement>("[aria-label='테마 선택']")?.focus();
+      return;
+    }
+    setStep("page");
+    setValidationTarget(target);
+    if (target.pageId && target.pageId !== selectedPage?.id) {
+      void listPages(project.id).then(({ pages }) => {
+        const page = pages.find((candidate) => candidate.id === target.pageId);
+        if (page) setSelectedPage(page);
+      });
+    }
+  };
 
   const steps: Array<{
     id: EditorStep;
@@ -228,6 +257,11 @@ function EditorSurface({
         }))
       }
     >
+      <ValidationTargetNavigator
+        target={validationTarget}
+        pageId={selectedPage?.id ?? null}
+        onDone={() => setValidationTarget(null)}
+      />
       <div className="surface editor-surface">
         <header className="app-header editor-header">
           <button
@@ -345,7 +379,11 @@ function EditorSurface({
               </Suspense>
             )}
             {step === "validation" && (
-              <ValidationPreview pageExists={selectedPage !== null} />
+              <ValidationReport
+                projectId={project.id}
+                projectRevision={project.revision}
+                onNavigate={navigateFromValidation}
+              />
             )}
           </main>
 
@@ -391,20 +429,16 @@ function EditorSurface({
             {step === "validation" && (
               <div className="inspector-summary">
                 <span>
-                  {selectedPage ? (
-                    <Check aria-hidden="true" />
-                  ) : (
-                    <Clock3 aria-hidden="true" />
-                  )}
-                  통과 {selectedPage ? 1 : 0}
-                </span>
-                <span>
-                  <Clock3 aria-hidden="true" />
-                  확인 필요 {selectedPage ? 2 : 3}
-                </span>
-                <span>
                   <ShieldCheck aria-hidden="true" />
-                  샘플 검증 전 게시 차단
+                  정적
+                </span>
+                <span>
+                  <Database aria-hidden="true" />
+                  DB
+                </span>
+                <span>
+                  <Waypoints aria-hidden="true" />
+                  Binding
                 </span>
               </div>
             )}

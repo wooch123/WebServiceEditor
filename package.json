@@ -36,6 +36,7 @@
     "verify:phase13": "pnpm test && node scripts/verify-phase13.mjs",
     "verify:phase14": "pnpm test && node scripts/verify-phase14.mjs",
     "verify:phase15": "pnpm test && node scripts/verify-phase15.mjs",
+    "verify:phase16": "pnpm test && node scripts/verify-phase16.mjs",
     "verify:themes": "node scripts/verify-themes.mjs",
     "verify:theme-extension": "node scripts/verify-theme-extension.mjs",
     "verify:corpus": "node scripts/verify-corpus.mjs",

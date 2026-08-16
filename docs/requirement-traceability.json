@@ -607,10 +607,27 @@
       "id": "REQ-031",
       "title": "Exhaustive feature inventory verification",
       "phase": 19,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "IN PROGRESS",
+      "implementation": [
+        "docs/adr/0017-validation-inventory-report.md",
+        "packages/domain/src/validation.ts",
+        "apps/server/src/metadata/database.ts",
+        "apps/server/src/validation/feature-inventory.ts",
+        "apps/server/src/validation/validation-service.ts",
+        "apps/server/src/routes/validation.ts",
+        "apps/web/src/features/validation/ValidationReport.tsx",
+        "apps/web/src/services/validation-api.ts"
+      ],
+      "tests": [
+        "apps/server/test/integration/validation-report.test.ts",
+        "apps/web/src/features/validation/ValidationReport.test.tsx",
+        "tests/validation/phase16-validation.test.mjs",
+        "scripts/verify-phase16.mjs"
+      ],
+      "evidence": [
+        "artifacts/phase16/validation-system-inventory.json",
+        "artifacts/phase16/browser-validation-report.json"
+      ]
     },
     {
       "id": "REQ-032",

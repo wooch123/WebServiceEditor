@@ -6,29 +6,28 @@ Overall state: `IN PROGRESS`
 
 ## Current phase
 
-### PHASE 15 — Theme Revision and Runtime Policy
+### PHASE 16 — Validation System
 
 State: `VERIFIED`
 
 Scope:
 
-- Create immutable Draft Theme Revisions from the 120-theme inventory.
-- Validate token schema, contrast, and render smoke checks before activation.
-- Publish or roll back revisions without exposing an invalid runtime state.
-- Poll the Runtime Theme Manifest every three seconds without remounting content.
-- Keep optional user theme choices browser-local and Project-scoped.
+- Generate Requirement, Rule, Element, Preset, Theme, Binding, API, and
+  lifecycle inventory from canonical registries.
+- Persist immutable Validation Runs and exact idempotent replay evidence.
+- Detect broken Page routes, Element layouts, Binding references, Test DB
+  physical schema, and Theme policy references.
+- Navigate from report errors to the affected Editor object.
 
-Data risk: medium. Invalid Theme tokens or stale runtime preferences can make
-the Editor and Published Runtime disagree. Optimistic revisions, validation,
-allowed-theme policy, and manifest fallback fail closed.
+Data risk: low. Validation is read-only except for its own run evidence.
 
 Test plan:
 
-- Verify Draft, validate, auto-publish, explicit publish, and rollback paths.
-- Preserve the last valid Runtime pointer after validation failure.
-- Verify exact 120-theme and 40/40/40 inventory behavior.
-- Verify browser-local preference persistence, removal fallback, and 3-second
-  live switching without a full-page reload.
+- Verify PASS, WARNING, FAIL, and BLOCKED summaries.
+- Verify no implemented inventory item lacks a Test Reference or evidence.
+- Inject broken Route, Binding, and physical Test schema references.
+- Verify restart persistence, idempotent replay, deep-link navigation, and
+  responsive equal action geometry.
 
 ## Phase ledger
 
@@ -50,7 +49,8 @@ Test plan:
 | 13    | VERIFIED    | Transactional CRUD bindings and Runtime refresh               |
 | 14    | VERIFIED    | Project variables and typed runtime navigation                |
 | 15    | VERIFIED    | Validated Theme revisions and browser-local Runtime policy    |
-| 16–23 | NOT STARTED | Must follow sequentially                                      |
+| 16    | VERIFIED    | Validation registry, reports, and deep-link navigation        |
+| 17–23 | NOT STARTED | Must follow sequentially                                      |
 
 ## Phase 0 evidence
 
@@ -375,11 +375,39 @@ Test plan:
   controls remain reachable, and picker actions are both 171.5×40px
 - Browser console errors and required request failures: 0
 
+## Phase 16 evidence
+
+- Static, behavioral, browser, and Phase 15 regression audit:
+  `artifacts/phase16/validation-system-inventory.json`
+- Browser report QA:
+  `artifacts/phase16/browser-validation-report.json`
+- Metadata migration v13: immutable Validation Runs, normalized run items, and
+  idempotent command responses
+- Current-build inventory: 352/352 items with zero missing Test Reference and
+  zero missing run evidence
+- Requirement 37, Validation Rule 19, Element 12, Layout Preset 22, Theme 120,
+  Binding, Field Type, Page Type, Lucide, actual Fastify Route, Action, and
+  lifecycle inventories are generated from canonical sources
+- Normal Project validation PASS; injected broken Page Route, Binding target,
+  and Test DB physical Table are detected as three exact navigable issues
+- Validation Run replay is byte-identical and the latest report survives a
+  browser reload and server-backed re-open
+- Clicking `PAGE_ROUTE_INVALID` returns to the Page step with the target Page
+  selected
+- Browser QA at 1280×720: Validation actions are both 96×40px; Project Home
+  Backup and its four peer navigation items share the same 192.203×39px bounds
+  and exact label alignment
+- Browser QA at 419×800: document width remains 419px, the report stays
+  reachable, and Validation actions are both 185.5×40px
+- Browser console errors and required request failures: 0
+
 ## Phase 18 operational checkpoint
 
 - Per user direction, Phase 18 includes an actual-domain deployment checkpoint
-  so the user can open the service and verify behavior together. Credentials,
-  tunnel tokens, and private keys remain outside the repository.
+  after accessibility, security, and performance hardening so the user can open
+  the real service and verify its behavior together. The checkpoint is not
+  satisfied by localhost or a mock hostname. Credentials, tunnel tokens, and
+  private keys remain outside the repository.
 
 ## Deferred operational hardening
 

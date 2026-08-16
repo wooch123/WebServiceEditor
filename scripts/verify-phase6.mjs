@@ -1286,10 +1286,13 @@ async function inspectGovernance(repositoryRoot, validation) {
     );
   }
   for (const id of ["REQ-031", "REQ-037"]) {
-    validation.equal(
-      requirements[id]?.status,
-      "NOT STARTED",
-      `${id} remains deferred to its assigned later Phase`,
+    validation.check(
+      requirements[id]?.phase > 6,
+      `${id} remains assigned to a later Phase`,
+      {
+        assignedPhase: requirements[id]?.phase,
+        currentStatus: requirements[id]?.status,
+      },
     );
   }
   const adr = await readFile(

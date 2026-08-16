@@ -65,7 +65,9 @@ export function inspectPhase15Contract(source) {
         source.themeCore,
       ),
     metadataV12:
-      /LATEST_METADATA_SCHEMA_VERSION\s*=\s*12/u.test(source.metadata) &&
+      /LATEST_METADATA_SCHEMA_VERSION\s*=\s*(?:1[2-9]|[2-9]\d+)/u.test(
+        source.metadata,
+      ) &&
       /CREATE TABLE theme_revisions/u.test(source.metadata) &&
       /CREATE TABLE project_theme_settings/u.test(source.metadata) &&
       /CREATE TABLE theme_revision_commands/u.test(source.metadata) &&

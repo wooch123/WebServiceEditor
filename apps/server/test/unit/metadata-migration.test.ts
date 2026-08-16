@@ -84,7 +84,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(12);
+      expect(migrated.assertReady().schemaVersion).toBe(13);
       expect(
         migrated.connection
           .prepare(
@@ -115,6 +115,7 @@ describe("metadata migration", () => {
         { version: 10 },
         { version: 11 },
         { version: 12 },
+        { version: 13 },
       ]);
       expect(
         migrated.connection
@@ -167,11 +168,11 @@ describe("metadata migration", () => {
     const path = join(directory, "metadata.sqlite");
     const future = new Database(path);
     future.pragma("application_id = 1464156741");
-    future.pragma("user_version = 13");
+    future.pragma("user_version = 14");
     future.close();
 
     expect(() => new MetadataDatabase(path)).toThrow(
-      "Refusing unknown future metadata schema version 13",
+      "Refusing unknown future metadata schema version 14",
     );
   });
 
@@ -214,6 +215,9 @@ describe("metadata migration", () => {
     const version3 = new Database(path);
     version3.pragma("foreign_keys = OFF");
     version3.exec(`
+      DROP TABLE validation_commands;
+      DROP TABLE validation_run_items;
+      DROP TABLE validation_runs;
       DROP TRIGGER projects_initialize_theme_settings;
       DROP TABLE theme_revision_commands;
       DROP TABLE project_theme_settings;
@@ -257,7 +261,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(12);
+      expect(migrated.assertReady().schemaVersion).toBe(13);
       expect(
         migrated.connection
           .prepare(
@@ -504,6 +508,9 @@ describe("metadata migration", () => {
         ON element_commands(project_id, history_state, history_sequence);
       CREATE INDEX element_history_operations_project_created_idx
         ON element_history_operations(project_id, created_at, id);
+      DROP TABLE validation_commands;
+      DROP TABLE validation_run_items;
+      DROP TABLE validation_runs;
       DELETE FROM metadata_migrations WHERE version >= 6;
     `);
     expect(
@@ -520,7 +527,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(12);
+      expect(migrated.assertReady().schemaVersion).toBe(13);
       expect(
         migrated.connection
           .prepare(
@@ -681,6 +688,9 @@ describe("metadata migration", () => {
     const version4 = new Database(path);
     version4.pragma("foreign_keys = OFF");
     version4.exec(`
+      DROP TABLE validation_commands;
+      DROP TABLE validation_run_items;
+      DROP TABLE validation_runs;
       DROP TRIGGER projects_initialize_theme_settings;
       DROP TABLE theme_revision_commands;
       DROP TABLE project_theme_settings;
