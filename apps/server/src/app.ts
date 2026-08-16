@@ -37,6 +37,7 @@ import { MetadataDatabase } from "./metadata/database.js";
 import { PageService } from "./pages/page-service.js";
 import { PerformanceMonitor } from "./performance/performance-monitor.js";
 import { ProjectCorpusService } from "./project-corpus/project-corpus-service.js";
+import { ReferenceApplicationsService } from "./project-corpus/reference-applications-service.js";
 import { ProjectService } from "./projects/project-service.js";
 import type { LifecycleFailureInjector } from "./projects/project-storage.js";
 import { registerProjectRoutes } from "./routes/projects.js";
@@ -188,6 +189,16 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
     backupService,
     ...(options.clock === undefined ? {} : { clock: options.clock }),
   });
+  const referenceApplicationsService = new ReferenceApplicationsService({
+    metadataDatabase,
+    projectService,
+    pageService,
+    elementService,
+    schemaService,
+    relationshipService,
+    backupService,
+    ...(options.clock === undefined ? {} : { clock: options.clock }),
+  });
 
   void app.register(cookie);
   void app.register(helmet, {
@@ -300,7 +311,10 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   void app.register(registerProjectVariableRoutes, { projectVariableService });
   void app.register(registerThemeRoutes, { themeRevisionService });
   void app.register(registerValidationRoutes, { validationService });
-  void app.register(registerProjectCorpusRoutes, { projectCorpusService });
+  void app.register(registerProjectCorpusRoutes, {
+    projectCorpusService,
+    referenceApplicationsService,
+  });
 
   const defaultStaticRoot = fileURLToPath(
     new URL("../../web/dist", import.meta.url),

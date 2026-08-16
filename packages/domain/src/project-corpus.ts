@@ -92,6 +92,39 @@ export interface FeatureShowcaseProjectDto {
   readonly status: "READY";
 }
 
+export const REFERENCE_APPLICATION_KINDS = [
+  "SEMICONDUCTOR_YIELD",
+  "COMMERCE_OPERATIONS",
+  "PERSONAL_BLOG",
+  "WORK_MANAGEMENT",
+] as const;
+
+export type ReferenceApplicationKind =
+  (typeof REFERENCE_APPLICATION_KINDS)[number];
+
+export interface ReferenceApplicationProjectDto {
+  readonly kind: ReferenceApplicationKind;
+  readonly projectId: string;
+  readonly name: string;
+  readonly slug: string;
+  readonly pageCount: number;
+  readonly elementCount: number;
+  readonly tableCount: number;
+  readonly testRowCount: number;
+  readonly productionRowCount: number;
+  readonly bindingCount: number;
+  readonly publishedVersionId: string;
+  readonly status: "READY";
+}
+
+export interface ReferenceApplicationSuiteDto {
+  readonly projects: readonly ReferenceApplicationProjectDto[];
+  readonly totalProjectCount: 4;
+  readonly totalTestRowCount: number;
+  readonly totalProductionRowCount: number;
+  readonly status: "READY";
+}
+
 export interface ProjectCorpusScaleDto {
   readonly pageCount: number;
   readonly elementCount: number;

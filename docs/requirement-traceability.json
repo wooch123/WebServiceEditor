@@ -12,6 +12,8 @@
         "apps/server/src/project-corpus/project-corpus-service.ts",
         "apps/server/src/auth/auth-service.ts",
         "apps/server/src/performance/performance-monitor.ts",
+        "docs/adr/0024-reference-applications-and-real-data.md",
+        "apps/server/src/project-corpus/reference-applications-service.ts",
         "apps/web/src/App.tsx",
         "apps/web/src/features/auth/AuthBoundary.tsx",
         "apps/web/src/features/data-relationship/RelationshipCanvas.tsx"
@@ -19,15 +21,19 @@
       "tests": [
         "apps/server/test/integration/auth-security-performance.test.ts",
         "apps/server/test/integration/feature-showcase-workflows.test.ts",
+        "apps/server/test/integration/reference-applications.test.ts",
         "apps/web/src/features/auth/AuthBoundary.test.tsx",
         "scripts/verify-phase18.mjs",
-        "scripts/verify-phase21.mjs"
+        "scripts/verify-phase21.mjs",
+        "scripts/verify-phase25.mjs"
       ],
       "evidence": [
         "artifacts/phase18/accessibility-security-performance-validation.json",
         "artifacts/phase18/browser-security-performance-validation.json",
         "artifacts/phase21/project-corpus-operational-validation.json",
-        "artifacts/phase21/browser-feature-showcase-relationship-validation.json"
+        "artifacts/phase21/browser-feature-showcase-relationship-validation.json",
+        "artifacts/phase25/reference-applications-validation.json",
+        "artifacts/phase25/browser-reference-applications-validation.json"
       ]
     },
     {
@@ -350,6 +356,7 @@
         "docs/adr/0014-transactional-crud-binding-runtime.md",
         "docs/adr/0015-project-variable-navigation.md",
         "docs/adr/0023-production-schema-publish-and-working-showcase.md",
+        "docs/adr/0024-reference-applications-and-real-data.md",
         "packages/domain/src/binding-query.ts",
         "packages/domain/src/project-variable.ts",
         "apps/server/src/data-relationship/binding-dependency-compiler.ts",
@@ -364,6 +371,7 @@
         "apps/server/src/routes/project-variables.ts",
         "apps/server/src/runtime/project-variable-service.ts",
         "apps/server/src/project-corpus/project-corpus-service.ts",
+        "apps/server/src/project-corpus/reference-applications-service.ts",
         "apps/web/src/features/data-relationship/RelationshipCanvas.tsx",
         "apps/web/src/features/elements/ElementWorkspace.tsx",
         "apps/web/src/features/elements/ElementRenderer.tsx",
@@ -376,6 +384,7 @@
         "apps/server/test/integration/crud-binding-runtime.test.ts",
         "apps/server/test/integration/project-variable-navigation.test.ts",
         "apps/server/test/integration/feature-showcase-workflows.test.ts",
+        "apps/server/test/integration/reference-applications.test.ts",
         "apps/web/src/features/data-relationship/RelationshipCanvas.test.tsx",
         "apps/web/src/features/elements/ElementCanvas.test.tsx",
         "apps/web/src/features/runtime/PublishedRuntime.test.tsx",
@@ -385,7 +394,8 @@
         "scripts/verify-phase11.mjs",
         "scripts/verify-phase13.mjs",
         "scripts/verify-phase14.mjs",
-        "scripts/verify-phase24.mjs"
+        "scripts/verify-phase24.mjs",
+        "scripts/verify-phase25.mjs"
       ],
       "evidence": [
         "artifacts/phase11/safe-read-binding-engine-validation.json",
@@ -396,7 +406,9 @@
         "artifacts/phase14/browser-project-variable-navigation-validation.json",
         "artifacts/phase21/project-corpus-operational-validation.json",
         "artifacts/phase24/working-published-showcase-validation.json",
-        "artifacts/phase24/browser-working-published-showcase-validation.json"
+        "artifacts/phase24/browser-working-published-showcase-validation.json",
+        "artifacts/phase25/reference-applications-validation.json",
+        "artifacts/phase25/browser-reference-applications-validation.json"
       ]
     },
     {

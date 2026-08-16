@@ -46,6 +46,7 @@
     "verify:phase23": "pnpm test && node scripts/verify-phase23.mjs",
     "verify:phase23:local": "node scripts/verify-phase23-local.mjs",
     "verify:phase24": "pnpm test && node scripts/verify-phase24.mjs",
+    "verify:phase25": "pnpm test && node scripts/verify-phase25.mjs",
     "test:corpus:generate": "pnpm --filter @webeditor/server corpus:generate",
     "test:corpus:verify": "pnpm --filter @webeditor/server corpus:verify",
     "verify:themes": "node scripts/verify-themes.mjs",

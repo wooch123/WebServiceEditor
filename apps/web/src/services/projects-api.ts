@@ -352,6 +352,53 @@ export interface ProjectExport {
   filename: string;
 }
 
+export interface ReferenceApplicationProjectDto {
+  kind:
+    | "SEMICONDUCTOR_YIELD"
+    | "COMMERCE_OPERATIONS"
+    | "PERSONAL_BLOG"
+    | "WORK_MANAGEMENT";
+  projectId: string;
+  name: string;
+  slug: string;
+  pageCount: number;
+  elementCount: number;
+  tableCount: number;
+  testRowCount: number;
+  productionRowCount: number;
+  bindingCount: number;
+  publishedVersionId: string;
+  status: "READY";
+}
+
+export interface ReferenceApplicationSuiteDto {
+  projects: ReferenceApplicationProjectDto[];
+  totalProjectCount: 4;
+  totalTestRowCount: number;
+  totalProductionRowCount: number;
+  status: "READY";
+}
+
+export async function createReferenceApplications(): Promise<ReferenceApplicationSuiteDto> {
+  const payload = await requestJson<unknown>(
+    "/api/v1/internal/sample-projects/reference-applications",
+    { method: "POST", body: JSON.stringify({}) },
+  );
+  if (
+    payload !== null &&
+    typeof payload === "object" &&
+    "suite" in payload &&
+    payload.suite !== null &&
+    typeof payload.suite === "object"
+  ) {
+    return payload.suite as ReferenceApplicationSuiteDto;
+  }
+  throw new ProjectsApiError("예제 프로젝트 응답 형식이 올바르지 않습니다.", {
+    status: 502,
+    code: "INVALID_RESPONSE",
+  });
+}
+
 export async function exportProject(projectId: string): Promise<ProjectExport> {
   const response = await apiFetch(`/api/v1/projects/${projectId}/export`, {
     method: "POST",

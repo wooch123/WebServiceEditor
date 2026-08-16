@@ -6,6 +6,7 @@ import type { FastifyInstance } from "fastify";
 
 import { assertApi } from "../errors.js";
 import type { ProjectCorpusService } from "../project-corpus/project-corpus-service.js";
+import type { ReferenceApplicationsService } from "../project-corpus/reference-applications-service.js";
 
 function generationRequest(body: unknown): GenerateProjectCorpusRequest {
   assertApi(
@@ -49,7 +50,10 @@ function verificationRequest(body: unknown): VerifyProjectCorpusRequest {
 
 export async function registerProjectCorpusRoutes(
   server: FastifyInstance,
-  options: { readonly projectCorpusService: ProjectCorpusService },
+  options: {
+    readonly projectCorpusService: ProjectCorpusService;
+    readonly referenceApplicationsService: ReferenceApplicationsService;
+  },
 ): Promise<void> {
   const service = options.projectCorpusService;
 
@@ -82,6 +86,13 @@ export async function registerProjectCorpusRoutes(
     async (_request, reply) =>
       reply.code(201).send({
         project: await service.createFeatureShowcase(),
+      }),
+  );
+  server.post(
+    "/api/v1/internal/sample-projects/reference-applications",
+    async (_request, reply) =>
+      reply.code(201).send({
+        suite: await options.referenceApplicationsService.createSuite(),
       }),
   );
 }

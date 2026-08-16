@@ -1,6 +1,6 @@
 # Implementation status
 
-Updated: 2026-08-16 (Asia/Seoul)
+Updated: 2026-08-17 (Asia/Seoul)
 
 Overall state: `EXHAUSTIVELY VERIFIED`
 
@@ -10,6 +10,48 @@ explicitly excluded by user direction, remain unverified, and are not treated
 as passing release evidence.
 
 ## Current phase
+
+### PHASE 25 — Real-domain Reference Applications
+
+State: `OPERATIONALLY VERIFIED`
+
+Scope:
+
+- Provide four recognizable systems built with the same Page, Element, schema,
+  relationship, publish, Runtime, and backup boundaries as user Projects.
+- Seed hundreds of deterministic records into each isolated Test and Production
+  database, connect real reads and mutations, and make the results directly
+  accessible from Project Home.
+- Exercise the suite as a user would, then remove avoidable setup and control
+  inconsistencies found during the walkthrough.
+
+Current verified slice:
+
+- Semiconductor yield, commerce operations, personal blog, and work management
+  Projects each contain four Pages, nineteen Elements, related domain Tables,
+  thirteen executable Bindings, an immutable Published Runtime, and a verified
+  backup.
+- Test and Production each contain exactly 3,938 real sample rows across the
+  four Projects: 600 semiconductor, 1,370 commerce, 1,012 blog, and 956 work
+  records. The two environments use separate SQLite files and no Test rows are
+  copied during publish.
+- Data Table, aggregate KPI, Line/Bar/Histogram, CREATE, UPDATE, and DELETE
+  paths execute through stable logical IDs. Published Production CRUD performs
+  a create-update-delete round trip and returns to the original row count.
+- Re-running the generator returns the same four Project IDs after exact Page,
+  Element, Table, Binding, version, and row-count verification.
+- Project Home now exposes an equal-size `예제 프로젝트` action, a concise
+  four-domain dialog with row counts and busy/error states, and an `예제` badge
+  on generated Project cards. Import, Example, and New Project actions share
+  the same rendered control contract and wrap cleanly on narrow screens.
+- Server integration 87/87 and Web component 215/215 pass, including the new
+  real-data generator and user-facing creation flow.
+
+Phase 25 validation evidence:
+`artifacts/phase25/reference-applications-validation.json`.
+
+Phase 25 browser evidence:
+`artifacts/phase25/browser-reference-applications-validation.json`.
 
 ### PHASE 24 — Working Published Showcase
 
@@ -289,33 +331,34 @@ Current verified slice:
 
 ## Phase ledger
 
-| Phase | State                  | Notes                                                         |
-| ----- | ---------------------- | ------------------------------------------------------------- |
-| 0     | VERIFIED               | 337 source/traceability checks and all bootstrap gates passed |
-| 1     | VERIFIED               | 177 design-system checks, 61/61 gallery, browser QA passed    |
-| 2     | VERIFIED               | 120 themes: 40 dark, 40 gray, 40 light                        |
-| 3     | VERIFIED               | Persistent lifecycle, restart recovery, and browser QA passed |
-| 4     | VERIFIED               | Page management and immutable runtime navigation              |
-| 5     | VERIFIED               | Element placement, grid snapping, and eight-way resize        |
-| 6     | VERIFIED               | Registry, Property Inspector, Runtime renderer, Undo/Redo     |
-| 7     | VERIFIED               | Statistical Elements and real Layout Preset instances         |
-| 8     | VERIFIED               | GUI schema design and isolated Test SQLite migration          |
-| 9     | VERIFIED               | Directional ports and durable Binding-backed visual Edges     |
-| 10    | VERIFIED               | Orthogonal routing and server-owned automatic layout          |
-| 11    | VERIFIED               | Safe READ binding engine and deterministic Test data          |
-| 12    | VERIFIED               | Immutable Published Runtime and isolated Draft Preview        |
-| 13    | VERIFIED               | Transactional CRUD bindings and Runtime refresh               |
-| 14    | VERIFIED               | Project variables and typed runtime navigation                |
-| 15    | VERIFIED               | Validated Theme revisions and browser-local Runtime policy    |
-| 16    | VERIFIED               | Validation registry, reports, and deep-link navigation        |
-| 17    | VERIFIED               | Immutable backups, recovery drills, and restore-as-copy       |
-| 18    | OPERATIONALLY VERIFIED | Accessibility, security, performance, actual domain           |
-| 19    | EXHAUSTIVELY VERIFIED  | Exact canonical inventory and actual-domain UX QA passed      |
-| 20    | OPERATIONALLY VERIFIED | Exact 100-Project isolated generation and manifest passed     |
-| 21    | OPERATIONALLY VERIFIED | 100/100 operational scenarios and performance budgets passed  |
-| 22    | IMPLEMENTED            | Windows package complete; operational execution not run       |
-| 23    | EXHAUSTIVELY VERIFIED  | Non-Windows audit complete; canonical release remains HOLD    |
-| 24    | OPERATIONALLY VERIFIED | Working published showcase and Production CRUD passed         |
+| Phase | State                  | Notes                                                          |
+| ----- | ---------------------- | -------------------------------------------------------------- |
+| 0     | VERIFIED               | 337 source/traceability checks and all bootstrap gates passed  |
+| 1     | VERIFIED               | 177 design-system checks, 61/61 gallery, browser QA passed     |
+| 2     | VERIFIED               | 120 themes: 40 dark, 40 gray, 40 light                         |
+| 3     | VERIFIED               | Persistent lifecycle, restart recovery, and browser QA passed  |
+| 4     | VERIFIED               | Page management and immutable runtime navigation               |
+| 5     | VERIFIED               | Element placement, grid snapping, and eight-way resize         |
+| 6     | VERIFIED               | Registry, Property Inspector, Runtime renderer, Undo/Redo      |
+| 7     | VERIFIED               | Statistical Elements and real Layout Preset instances          |
+| 8     | VERIFIED               | GUI schema design and isolated Test SQLite migration           |
+| 9     | VERIFIED               | Directional ports and durable Binding-backed visual Edges      |
+| 10    | VERIFIED               | Orthogonal routing and server-owned automatic layout           |
+| 11    | VERIFIED               | Safe READ binding engine and deterministic Test data           |
+| 12    | VERIFIED               | Immutable Published Runtime and isolated Draft Preview         |
+| 13    | VERIFIED               | Transactional CRUD bindings and Runtime refresh                |
+| 14    | VERIFIED               | Project variables and typed runtime navigation                 |
+| 15    | VERIFIED               | Validated Theme revisions and browser-local Runtime policy     |
+| 16    | VERIFIED               | Validation registry, reports, and deep-link navigation         |
+| 17    | VERIFIED               | Immutable backups, recovery drills, and restore-as-copy        |
+| 18    | OPERATIONALLY VERIFIED | Accessibility, security, performance, actual domain            |
+| 19    | EXHAUSTIVELY VERIFIED  | Exact canonical inventory and actual-domain UX QA passed       |
+| 20    | OPERATIONALLY VERIFIED | Exact 100-Project isolated generation and manifest passed      |
+| 21    | OPERATIONALLY VERIFIED | 100/100 operational scenarios and performance budgets passed   |
+| 22    | IMPLEMENTED            | Windows package complete; operational execution not run        |
+| 23    | EXHAUSTIVELY VERIFIED  | Non-Windows audit complete; canonical release remains HOLD     |
+| 24    | OPERATIONALLY VERIFIED | Working published showcase and Production CRUD passed          |
+| 25    | OPERATIONALLY VERIFIED | Four real-domain systems and 3,938 rows per environment passed |
 
 ## Phase 0 evidence
 

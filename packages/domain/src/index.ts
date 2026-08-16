@@ -27,6 +27,7 @@ export {
 export {
   PROJECT_CORPUS_RESULT_STATUSES,
   PROJECT_CORPUS_RUN_STATUSES,
+  REFERENCE_APPLICATION_KINDS,
   type FeatureShowcaseProjectDto,
   type GenerateProjectCorpusRequest,
   type ProjectCorpusCoverageDto,
@@ -41,6 +42,9 @@ export {
   type ProjectCorpusSummaryDto,
   type ProjectCorpusVerificationDto,
   type ProjectCorpusVerificationSummaryDto,
+  type ReferenceApplicationKind,
+  type ReferenceApplicationProjectDto,
+  type ReferenceApplicationSuiteDto,
   type VerifyProjectCorpusRequest,
 } from "./project-corpus.js";
 export {

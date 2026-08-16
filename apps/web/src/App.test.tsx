@@ -525,6 +525,75 @@ function installMockApi(options: MockApiOptions = {}) {
         return jsonResponse({ results });
       }
 
+      if (
+        pathname ===
+          "/api/v1/internal/sample-projects/reference-applications" &&
+        method === "POST"
+      ) {
+        const definitions = [
+          [
+            "SEMICONDUCTOR_YIELD",
+            "반도체 수율 관리 시스템",
+            "sample-semiconductor-yield",
+            600,
+          ],
+          [
+            "COMMERCE_OPERATIONS",
+            "쇼핑몰 운영 시스템",
+            "sample-commerce-operations",
+            1_370,
+          ],
+          ["PERSONAL_BLOG", "개인 블로그", "sample-personal-blog", 1_012],
+          [
+            "WORK_MANAGEMENT",
+            "업무 관리 시스템",
+            "sample-work-management",
+            956,
+          ],
+        ] as const;
+        const projects = definitions.map(([kind, name, slug, rows], index) => {
+          const created = project(`reference-${index + 1}`, {
+            name,
+            slug,
+            description: "실제 데이터가 연결된 예제",
+            status: "PUBLISHED",
+            favorite: true,
+            pageCount: 4,
+            elementCount: 19,
+            bindingCount: 13,
+            tableCount: index === 1 ? 7 : index === 0 ? 5 : 6,
+            assetCount: 0,
+          });
+          if (!active.some(({ id }) => id === created.id)) active.push(created);
+          return {
+            kind,
+            projectId: created.id,
+            name,
+            slug,
+            pageCount: 4,
+            elementCount: 19,
+            bindingCount: 13,
+            tableCount: created.tableCount,
+            testRowCount: rows,
+            productionRowCount: rows,
+            publishedVersionId: `version-${index + 1}`,
+            status: "READY",
+          };
+        });
+        return jsonResponse(
+          {
+            suite: {
+              projects,
+              totalProjectCount: 4,
+              totalTestRowCount: 3_938,
+              totalProductionRowCount: 3_938,
+              status: "READY",
+            },
+          },
+          201,
+        );
+      }
+
       return jsonResponse(
         {
           error: {
@@ -957,9 +1026,12 @@ describe("WebEditor persistent project home", () => {
     const importButton = screen.getByRole("button", {
       name: "프로젝트 가져오기",
     });
+    const examplesButton = screen.getByRole("button", {
+      name: "예제 프로젝트",
+    });
     const createButton = screen.getByRole("button", { name: "새 프로젝트" });
     expectSameComputedStyle(
-      [importButton, createButton],
+      [examplesButton, importButton, createButton],
       [
         "width",
         "height",
@@ -972,6 +1044,7 @@ describe("WebEditor persistent project home", () => {
       ],
     );
     expect(importButton).toHaveClass("project-entry-button");
+    expect(examplesButton).toHaveClass("project-entry-button");
     expect(createButton).toHaveClass("project-entry-button");
     expect(getComputedStyle(importButton).minWidth).not.toBe("");
     expect(stylesCss).toContain("--control-height: 2.5rem;");
@@ -1087,6 +1160,54 @@ describe("WebEditor persistent project home", () => {
       "padding-left",
       "padding-right",
     ]);
+  });
+
+  it("creates the four real-data example projects from one concise dialog", async () => {
+    const { fetchMock } = installMockApi({ active: [] });
+    const user = userEvent.setup();
+    render(<App />);
+    await screen.findByText("프로젝트 없음");
+
+    await user.click(screen.getByRole("button", { name: "예제 프로젝트" }));
+    const dialog = screen.getByRole("dialog", { name: "예제 프로젝트" });
+    expect(
+      within(dialog).getByText("4개 시스템 · 실제 데이터 3,938건"),
+    ).toBeInTheDocument();
+    for (const name of [
+      "반도체 수율",
+      "쇼핑몰 운영",
+      "개인 블로그",
+      "업무 관리",
+    ]) {
+      expect(within(dialog).getByText(name)).toBeInTheDocument();
+    }
+
+    await user.click(
+      within(dialog).getByRole("button", { name: "4개 만들기" }),
+    );
+    expect(
+      await within(dialog).findByText("예제 4개 준비됨"),
+    ).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "닫기" }));
+    expect(
+      await screen.findByRole("heading", { name: "반도체 수율 관리 시스템" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "쇼핑몰 운영 시스템" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "개인 블로그" }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("heading", { name: "업무 관리 시스템" }),
+    ).toBeInTheDocument();
+    expect(
+      fetchMock.mock.calls.some(
+        ([url, init]) =>
+          url === "/api/v1/internal/sample-projects/reference-applications" &&
+          init?.method === "POST",
+      ),
+    ).toBe(true);
   });
 
   it("creates, favorites, clones, and exports through the API transport", async () => {

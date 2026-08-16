@@ -1,5 +1,6 @@
 import {
   ArchiveRestore,
+  Boxes,
   ChevronRight,
   CircleAlert,
   Copy,
@@ -7,11 +8,15 @@ import {
   FolderClock,
   FolderHeart,
   Folders,
+  Factory,
   Heart,
   LayoutDashboard,
+  ListChecks,
+  NotebookText,
   Plus,
   RefreshCw,
   Search,
+  ShoppingCart,
   ShieldAlert,
   Trash2,
   Upload,
@@ -88,6 +93,7 @@ import {
   batchPurgeProjects,
   batchRestoreProjects,
   cloneProject,
+  createReferenceApplications,
   createProject,
   createPurgePlan,
   exportProject,
@@ -106,6 +112,7 @@ import type {
   ProjectDto,
   ProjectExportPayload,
   PurgePlanDto,
+  ReferenceApplicationSuiteDto,
   RestoreConflictResolution,
 } from "@/services/projects-api";
 import { BackupManager } from "./BackupManager";
@@ -275,6 +282,8 @@ function ProjectCard({
   const purgeAllowed =
     project.lifecycleStatus === "TRASHED" ||
     project.lifecycleStatus === "PURGE_FAILED";
+  const referenceSample =
+    project.slug === "feature-showcase" || project.slug.startsWith("sample-");
 
   return (
     <article className="project-card-shell">
@@ -324,6 +333,7 @@ function ProjectCard({
             <Badge variant={trashed ? "destructive" : "secondary"}>
               {lifecycleLabel(project.lifecycleStatus)}
             </Badge>
+            {referenceSample && <Badge variant="outline">예제</Badge>}
             <code>/{project.slug}</code>
           </div>
           <dl className="project-metadata">
@@ -728,6 +738,149 @@ function ImportProjectDialog({
             </Button>
           </DialogFooter>
         </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+const referenceApplicationItems = [
+  {
+    kind: "SEMICONDUCTOR_YIELD",
+    name: "반도체 수율",
+    detail: "로트·웨이퍼·불량·경보",
+    rows: 600,
+    icon: Factory,
+  },
+  {
+    kind: "COMMERCE_OPERATIONS",
+    name: "쇼핑몰 운영",
+    detail: "상품·주문·재고·결제",
+    rows: 1_370,
+    icon: ShoppingCart,
+  },
+  {
+    kind: "PERSONAL_BLOG",
+    name: "개인 블로그",
+    detail: "글·댓글·조회·구독",
+    rows: 1_012,
+    icon: NotebookText,
+  },
+  {
+    kind: "WORK_MANAGEMENT",
+    name: "업무 관리",
+    detail: "프로젝트·업무·시간",
+    rows: 956,
+    icon: ListChecks,
+  },
+] as const;
+
+function ReferenceApplicationsDialog({
+  onGenerated,
+}: {
+  onGenerated: () => Promise<void>;
+}) {
+  const [open, setOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [suite, setSuite] = useState<ReferenceApplicationSuiteDto | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const reset = () => {
+    setSuite(null);
+    setError(null);
+  };
+
+  return (
+    <Dialog
+      open={open}
+      onOpenChange={(nextOpen) => {
+        if (submitting) return;
+        setOpen(nextOpen);
+        if (!nextOpen) reset();
+      }}
+    >
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          variant="outline"
+          className="project-entry-button"
+        >
+          <Boxes data-icon="inline-start" aria-hidden="true" />
+          예제 프로젝트
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="lifecycle-dialog reference-applications-dialog">
+        <DialogHeader>
+          <DialogTitle>예제 프로젝트</DialogTitle>
+          <DialogDescription>
+            4개 시스템 · 실제 데이터 3,938건
+          </DialogDescription>
+        </DialogHeader>
+        <div className="reference-application-grid">
+          {referenceApplicationItems.map((item) => {
+            const Icon = item.icon;
+            const generated = suite?.projects.find(
+              ({ kind }) => kind === item.kind,
+            );
+            return (
+              <Card key={item.kind} className="reference-application-card">
+                <CardHeader>
+                  <Icon aria-hidden="true" />
+                  <CardTitle>{item.name}</CardTitle>
+                  <CardDescription>{item.detail}</CardDescription>
+                </CardHeader>
+                <CardContent>
+                  <span>{item.rows.toLocaleString("ko-KR")}건</span>
+                  <Badge variant={generated ? "secondary" : "outline"}>
+                    {generated ? "준비됨" : "Test + Production"}
+                  </Badge>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+        {suite && (
+          <Alert>
+            <Boxes aria-hidden="true" />
+            <AlertTitle>예제 4개 준비됨</AlertTitle>
+            <AlertDescription>
+              페이지·차트·테이블·CRUD·백업 연결 완료
+            </AlertDescription>
+          </Alert>
+        )}
+        {error && (
+          <Alert variant="destructive">
+            <CircleAlert aria-hidden="true" />
+            <AlertTitle>생성 실패</AlertTitle>
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+        <DialogFooter>
+          <DialogClose asChild>
+            <Button type="button" variant="outline" disabled={submitting}>
+              {suite ? "닫기" : "취소"}
+            </Button>
+          </DialogClose>
+          {!suite && (
+            <Button
+              type="button"
+              disabled={submitting}
+              onClick={() => {
+                setSubmitting(true);
+                setError(null);
+                void createReferenceApplications()
+                  .then(async (result) => {
+                    setSuite(result);
+                    await onGenerated();
+                  })
+                  .catch((reason: unknown) => setError(errorMessage(reason)))
+                  .finally(() => setSubmitting(false));
+              }}
+            >
+              {submitting && <Spinner data-icon="inline-start" />}
+              {submitting ? "준비 중" : "4개 만들기"}
+            </Button>
+          )}
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   );
@@ -1318,6 +1471,7 @@ export function ProjectHome({
                 </div>
                 {section !== "trash" && (
                   <div className="home-hero-actions">
+                    <ReferenceApplicationsDialog onGenerated={() => load()} />
                     <ImportProjectDialog
                       onImported={(project) =>
                         setActiveProjects((current) => [project, ...current])

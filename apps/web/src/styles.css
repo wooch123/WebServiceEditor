@@ -574,7 +574,9 @@ svg {
 .home-hero-actions {
   display: flex;
   flex: 0 0 auto;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 0.65em;
 }
 
@@ -582,6 +584,39 @@ svg {
   min-width: 13rem;
   height: var(--control-height-large);
   min-height: var(--control-height-large);
+}
+
+.reference-applications-dialog {
+  width: min(48rem, calc(100vw - 2rem));
+}
+
+.reference-application-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.reference-application-card [data-slot="card-header"] {
+  display: grid;
+  grid-template-columns: var(--control-height) minmax(0, 1fr);
+  align-items: center;
+  gap: 0.2rem 0.75rem;
+}
+
+.reference-application-card [data-slot="card-header"] > svg {
+  grid-row: 1 / span 2;
+  width: var(--control-icon-size);
+  height: var(--control-icon-size);
+  color: var(--primary);
+}
+
+.reference-application-card [data-slot="card-content"] {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  color: var(--muted-foreground);
+  font-size: 0.875em;
 }
 
 .project-toolbar {
@@ -2398,6 +2433,10 @@ svg {
   .selection-actions,
   .selection-actions > button {
     width: 100%;
+  }
+
+  .reference-application-grid {
+    grid-template-columns: 1fr;
   }
 
   .selection-actions {
