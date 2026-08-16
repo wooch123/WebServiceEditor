@@ -84,7 +84,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(15);
+      expect(migrated.assertReady().schemaVersion).toBe(16);
       expect(
         migrated.connection
           .prepare(
@@ -118,6 +118,7 @@ describe("metadata migration", () => {
         { version: 13 },
         { version: 14 },
         { version: 15 },
+        { version: 16 },
       ]);
       expect(
         migrated.connection
@@ -162,6 +163,93 @@ describe("metadata migration", () => {
     }
   });
 
+  it("backfills and initializes the canonical Page type assignment inventory", () => {
+    const directory = mkdtempSync(
+      join(tmpdir(), "webeditor-v16-page-types-migration-"),
+    );
+    directories.push(directory);
+    const path = join(directory, "metadata.sqlite");
+    const projectId = "00000000-0000-4000-8000-000000000101";
+    const firstPageId = "00000000-0000-4000-8000-000000000102";
+    const secondPageId = "00000000-0000-4000-8000-000000000103";
+    const now = "2026-08-16T03:00:00.000Z";
+    const current = new MetadataDatabase(path);
+    current.connection
+      .prepare(
+        `INSERT INTO projects (
+           id, name, slug, lifecycle_status, status, schema_version, revision,
+           lifecycle_revision, favorite, theme_id, created_at, updated_at
+         ) VALUES (?, 'Page type project', 'page-type-project', 'ACTIVE',
+           'DRAFT', 1, 0, 0, 0, 'light-clean-paper', ?, ?)`,
+      )
+      .run(projectId, now, now);
+    current.connection
+      .prepare(
+        `INSERT INTO pages (
+           id, project_id, schema_version, revision, name, route, page_type,
+           icon_name, icon_catalog_version, navigation_visible, sort_order,
+           created_at, updated_at
+         ) VALUES (?, ?, 1, 1, 'First Page', '/first', 'blank', 'File',
+           '1.31.0', 1, 0, ?, ?)`,
+      )
+      .run(firstPageId, projectId, now, now);
+    current.close();
+
+    const version15 = new Database(path);
+    version15.pragma("foreign_keys = OFF");
+    version15.exec(`
+      DROP TRIGGER pages_initialize_page_type_assignment;
+      DROP TABLE page_type_assignments;
+      DELETE FROM metadata_migrations WHERE version = 16;
+    `);
+    version15.pragma("user_version = 15");
+    version15.close();
+
+    const migrated = new MetadataDatabase(path);
+    try {
+      expect(migrated.assertReady().schemaVersion).toBe(16);
+      expect(
+        migrated.connection
+          .prepare(
+            "SELECT page_id, project_id, page_type FROM page_type_assignments",
+          )
+          .all(),
+      ).toEqual([
+        {
+          page_id: firstPageId,
+          project_id: projectId,
+          page_type: "blank",
+        },
+      ]);
+      migrated.connection
+        .prepare(
+          `INSERT INTO pages (
+             id, project_id, schema_version, revision, name, route, page_type,
+             icon_name, icon_catalog_version, navigation_visible, sort_order,
+             created_at, updated_at
+           ) VALUES (?, ?, 1, 1, 'Second Page', '/second', 'blank', 'File',
+             '1.31.0', 1, 1, ?, ?)`,
+        )
+        .run(secondPageId, projectId, now, now);
+      expect(
+        migrated.connection
+          .prepare(
+            "SELECT page_type FROM page_type_assignments WHERE page_id = ?",
+          )
+          .get(secondPageId),
+      ).toEqual({ page_type: "blank" });
+      expect(() =>
+        migrated.connection
+          .prepare(
+            "UPDATE page_type_assignments SET page_type = 'unknown' WHERE page_id = ?",
+          )
+          .run(secondPageId),
+      ).toThrow();
+    } finally {
+      migrated.close();
+    }
+  });
+
   it("fails closed on a future SQLite user_version", () => {
     const directory = mkdtempSync(
       join(tmpdir(), "webeditor-future-migration-"),
@@ -170,11 +258,11 @@ describe("metadata migration", () => {
     const path = join(directory, "metadata.sqlite");
     const future = new Database(path);
     future.pragma("application_id = 1464156741");
-    future.pragma("user_version = 16");
+    future.pragma("user_version = 17");
     future.close();
 
     expect(() => new MetadataDatabase(path)).toThrow(
-      "Refusing unknown future metadata schema version 16",
+      "Refusing unknown future metadata schema version 17",
     );
   });
 
@@ -217,6 +305,8 @@ describe("metadata migration", () => {
     const version3 = new Database(path);
     version3.pragma("foreign_keys = OFF");
     version3.exec(`
+      DROP TRIGGER pages_initialize_page_type_assignment;
+      DROP TABLE page_type_assignments;
       DROP TABLE auth_events;
       DROP TABLE auth_sessions;
       DROP TABLE admin_accounts;
@@ -269,7 +359,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(15);
+      expect(migrated.assertReady().schemaVersion).toBe(16);
       expect(
         migrated.connection
           .prepare(
@@ -516,6 +606,8 @@ describe("metadata migration", () => {
         ON element_commands(project_id, history_state, history_sequence);
       CREATE INDEX element_history_operations_project_created_idx
         ON element_history_operations(project_id, created_at, id);
+      DROP TRIGGER pages_initialize_page_type_assignment;
+      DROP TABLE page_type_assignments;
       DROP TABLE auth_events;
       DROP TABLE auth_sessions;
       DROP TABLE admin_accounts;
@@ -541,7 +633,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(15);
+      expect(migrated.assertReady().schemaVersion).toBe(16);
       expect(
         migrated.connection
           .prepare(
@@ -702,6 +794,8 @@ describe("metadata migration", () => {
     const version4 = new Database(path);
     version4.pragma("foreign_keys = OFF");
     version4.exec(`
+      DROP TRIGGER pages_initialize_page_type_assignment;
+      DROP TABLE page_type_assignments;
       DROP TABLE auth_events;
       DROP TABLE auth_sessions;
       DROP TABLE admin_accounts;

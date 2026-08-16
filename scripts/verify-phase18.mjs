@@ -231,10 +231,7 @@ export async function validatePhase18({
       "REQ-001 Phase 18 traceability is incomplete",
     );
     validation.check(
-      /### PHASE 18 — Accessibility, Security, Performance/u.test(
-        source.status,
-      ) &&
-        /State: `OPERATIONALLY VERIFIED`/u.test(source.status) &&
+      /\|\s*18\s*\|\s*OPERATIONALLY VERIFIED\s*\|/u.test(source.status) &&
         /## Phase 18 evidence/u.test(source.status) &&
         source.status.includes(PHASE18_EVIDENCE_PATH),
       "Phase 18 implementation status is incomplete",

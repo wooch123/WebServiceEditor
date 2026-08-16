@@ -50,7 +50,7 @@ describe("system routes", () => {
           metadataDatabase: "ready",
           projectStorage: "ready",
         },
-        schemaVersion: 15,
+        schemaVersion: 16,
         status: "ready",
       });
     } finally {
@@ -78,6 +78,7 @@ describe("system routes", () => {
       { name: "validation-inventory-report", version: 13 },
       { name: "project-backup-export-import-recovery", version: 14 },
       { name: "authentication-security-boundary", version: 15 },
+      { name: "full-inventory-page-types", version: 16 },
     ]);
     expect(database.pragma("quick_check", { simple: true })).toBe("ok");
     expect(() =>

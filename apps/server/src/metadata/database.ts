@@ -7,7 +7,7 @@ import { themes } from "@webeditor/theme-core";
 import Database from "better-sqlite3";
 
 const METADATA_APPLICATION_ID = 0x57454245;
-export const LATEST_METADATA_SCHEMA_VERSION = 15;
+export const LATEST_METADATA_SCHEMA_VERSION = 16;
 
 const lifecycleSqlValues = PROJECT_LIFECYCLE_STATUSES.map(
   (status) => `'${status}'`,
@@ -1664,6 +1664,36 @@ export const AUTHENTICATION_SECURITY_SCHEMA_CHECKSUM = createHash("sha256")
   .update(authenticationSecuritySchemaSql)
   .digest("hex");
 
+const fullInventoryPageTypesSchemaSql = `
+  CREATE TABLE page_type_assignments (
+    page_id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL,
+    page_type TEXT NOT NULL CHECK (
+      page_type IN (
+        'analysis', 'blank', 'board', 'chat', 'dashboard', 'data-viewer',
+        'experiment-comparison', 'form', 'report', 'search-result',
+        'settings', 'spc-dashboard'
+      )
+    ),
+    FOREIGN KEY (page_id, project_id)
+      REFERENCES pages(id, project_id) ON DELETE CASCADE
+  );
+  CREATE INDEX page_type_assignments_project_type_idx
+    ON page_type_assignments(project_id, page_type, page_id);
+  INSERT INTO page_type_assignments (page_id, project_id, page_type)
+    SELECT id, project_id, 'blank' FROM pages;
+  CREATE TRIGGER pages_initialize_page_type_assignment
+    AFTER INSERT ON pages
+    BEGIN
+      INSERT INTO page_type_assignments (page_id, project_id, page_type)
+      VALUES (NEW.id, NEW.project_id, 'blank');
+    END;
+`;
+
+export const FULL_INVENTORY_PAGE_TYPES_SCHEMA_CHECKSUM = createHash("sha256")
+  .update(fullInventoryPageTypesSchemaSql)
+  .digest("hex");
+
 const metadataMigrations = [
   {
     checksum: INITIAL_METADATA_SCHEMA_CHECKSUM,
@@ -1754,6 +1784,12 @@ const metadataMigrations = [
     name: "authentication-security-boundary",
     sql: authenticationSecuritySchemaSql,
     version: 15,
+  },
+  {
+    checksum: FULL_INVENTORY_PAGE_TYPES_SCHEMA_CHECKSUM,
+    name: "full-inventory-page-types",
+    sql: fullInventoryPageTypesSchemaSql,
+    version: 16,
   },
 ] as const;
 

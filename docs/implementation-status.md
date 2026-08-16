@@ -6,28 +6,43 @@ Overall state: `IN PROGRESS`
 
 ## Current phase
 
-### PHASE 18 — Accessibility, Security, Performance
+### PHASE 19 — Exhaustive Feature, Element, and Layout Verification
 
-State: `OPERATIONALLY VERIFIED`
+State: `IN PROGRESS`
 
 Scope:
 
-- Keyboard, focus, ARIA, contrast, color-vision, and reduced-motion gates.
-- Argon2id administrator authentication, CSRF, strict cookies, rate limiting,
-  security headers, and loopback-only origin service.
-- Bounded request instrumentation and Chapter 27 Project list budgets.
-- Authenticated deployment at `https://webeditor.dove9999.com/` through a named
-  Cloudflare Tunnel.
+- Reconcile the canonical 12 Page Types, 55 Element Types, 22 Layout Presets,
+  11 Binding Types, 120 Themes, and complete action/route inventories.
+- Preserve every previously verified Editor, Runtime, lifecycle, and security
+  boundary while expanding the registries.
+- Exercise each inventory entry with deterministic implementation, behavioral,
+  and operational evidence before advancing to the 100-Project corpus phase.
 
-Data risk: low. Metadata migration v15 adds authentication tables. Existing
-Project data and storage remain unchanged.
+Data risk: low. Metadata migration v16 adds a Project-owned Page Type assignment
+table, backfills every existing Page as `blank`, and initializes new Pages with
+the same safe default. Existing Page rows and Runtime databases remain
+unchanged.
 
 Test plan:
 
-- Verify Argon2id bootstrap, session expiry, login throttling, and audit rows.
-- Reject unauthenticated and CSRF-invalid mutation requests.
-- Run the accessible login through axe and keyboard/browser checks.
-- Measure 100 Project list/search and actual-domain first display/editor open.
+- Verify exact inventory counts, order, schema, cross-references, and runtime
+  projection without weakening Phase 0–18 regression gates.
+- Verify v15→v16 backfill, new-Page initialization, invalid Page Type rejection,
+  restart readiness, and the actual HTTPS deployment.
+- Keep graph movement responsive by bounding route previews, applying position
+  responses directly, and avoiding a full graph reload after every drop.
+
+Current verified slice:
+
+- Relationship route previews are frame-coalesced, single-flight, and bounded
+  to one request per 80 ms while a Node is moving.
+- Node drop applies the server position and routed Edges directly; the server
+  computes those routes from the already-loaded graph instead of performing a
+  second graph read.
+- Actual-domain empty-area drag returned in 18 ms, persisted after reload, and
+  produced zero browser console errors at
+  `https://webeditor.dove9999.com/`.
 
 ## Phase ledger
 
@@ -52,7 +67,8 @@ Test plan:
 | 16    | VERIFIED               | Validation registry, reports, and deep-link navigation        |
 | 17    | VERIFIED               | Immutable backups, recovery drills, and restore-as-copy       |
 | 18    | OPERATIONALLY VERIFIED | Accessibility, security, performance, actual domain           |
-| 19–23 | NOT STARTED            | Must follow sequentially                                      |
+| 19    | IN PROGRESS            | Exhaustive inventory reconciliation and regression hardening  |
+| 20–23 | NOT STARTED            | Must follow sequentially                                      |
 
 ## Phase 0 evidence
 
