@@ -41,12 +41,18 @@ import {
   type StatisticalRenderData,
 } from "./statistical-rendering";
 
+export interface ElementRenderData extends StatisticalRenderData {
+  readonly columns?: readonly string[];
+  readonly rows?: readonly Readonly<Record<string, unknown>>[];
+  readonly scalar?: string | number | boolean | null;
+}
+
 interface CanvasRendererProps {
   entry: ElementEntryDto;
   definition: ElementDefinitionDto;
   compact: boolean;
   renderState?: ElementRenderState;
-  renderData?: StatisticalRenderData;
+  renderData?: ElementRenderData;
 }
 
 function stringValue(
@@ -117,7 +123,12 @@ function ContainerRenderer({
   );
 }
 
-function KpiRenderer({ entry, compact, renderState }: CanvasRendererProps) {
+function KpiRenderer({
+  entry,
+  compact,
+  renderState,
+  renderData,
+}: CanvasRendererProps) {
   if (renderState === "LOADING") {
     return (
       <div className="element-data-loading" role="status" aria-label="로딩">
@@ -145,7 +156,9 @@ function KpiRenderer({ entry, compact, renderState }: CanvasRendererProps) {
           {stringValue(entry.element.props, "label", entry.element.name)}
         </CardDescription>
         <CardTitle>
-          {stringValue(entry.element.props, "value", "0")}
+          {renderData?.scalar === undefined
+            ? stringValue(entry.element.props, "value", "0")
+            : String(renderData.scalar ?? "")}
           {stringValue(entry.element.props, "suffix", "")}
         </CardTitle>
       </CardHeader>
@@ -210,6 +223,7 @@ function DataTableRenderer({
   entry,
   compact,
   renderState,
+  renderData,
 }: CanvasRendererProps) {
   const title = stringValue(entry.element.props, "title", entry.element.name);
   if (renderState === "LOADING") {
@@ -239,17 +253,21 @@ function DataTableRenderer({
     );
   }
 
-  const columns = Array.isArray(entry.element.props.columns)
-    ? entry.element.props.columns.filter(
-        (column): column is string => typeof column === "string",
-      )
-    : [];
-  const rows = Array.isArray(entry.element.props.rows)
-    ? entry.element.props.rows.filter(
-        (row): row is Record<string, unknown> =>
-          typeof row === "object" && row !== null && !Array.isArray(row),
-      )
-    : [];
+  const columns = Array.isArray(renderData?.columns)
+    ? [...renderData.columns]
+    : Array.isArray(entry.element.props.columns)
+      ? entry.element.props.columns.filter(
+          (column): column is string => typeof column === "string",
+        )
+      : [];
+  const rows = Array.isArray(renderData?.rows)
+    ? [...renderData.rows]
+    : Array.isArray(entry.element.props.rows)
+      ? entry.element.props.rows.filter(
+          (row): row is Record<string, unknown> =>
+            typeof row === "object" && row !== null && !Array.isArray(row),
+        )
+      : [];
   if (columns.length === 0 || rows.length === 0) {
     return (
       <EmptyData

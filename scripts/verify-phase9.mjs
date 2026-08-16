@@ -129,7 +129,10 @@ export function inspectPhase9Contract(sources) {
   );
   const createRoute = sources.routes.slice(
     createRouteStart,
-    sources.routes.indexOf('"/api/v1/bindings/:bindingId"'),
+    sources.routes.indexOf(
+      '"/api/v1/projects/:projectId/binding-query-previews"',
+      createRouteStart,
+    ),
   );
   return {
     nodeTypesExact: exactArray(
@@ -153,9 +156,9 @@ export function inspectPhase9Contract(sources) {
       routePresent(sources.routes, method, path),
     ),
     exactCreateAllowlist:
-      /"previewId"[\s\S]*"bindingType"[\s\S]*\.\.\.graphRevisions[\s\S]*"idempotencyKey"/u.test(
+      /"previewId"[\s\S]*"bindingType"[\s\S]*(?:"queryPreviewId"[\s\S]*)?\.\.\.graphRevisions[\s\S]*"idempotencyKey"/u.test(
         createRoute,
-      ) && !/sourcePortId|targetPortId|query|mapping/u.test(createRoute),
+      ) && !/sourcePortId|targetPortId|"query"|"mapping"/u.test(createRoute),
     schemaVersionEight:
       /LATEST_METADATA_SCHEMA_VERSION\s*=\s*(?:[89]|[1-9]\d+)/u.test(
         sources.migration,

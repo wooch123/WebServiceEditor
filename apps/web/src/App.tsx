@@ -200,6 +200,7 @@ function EditorSurface({
       layoutRevision={
         selectedPage ? (layoutRevisions[selectedPage.id] ?? 0) : 0
       }
+      bindingExecutionActive={step === "page"}
       onProjectRevisionChange={onProjectRevisionChange}
       onLayoutRevisionChange={(pageId, revision) =>
         setLayoutRevisions((current) => ({

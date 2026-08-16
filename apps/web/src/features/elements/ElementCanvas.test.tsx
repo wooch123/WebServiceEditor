@@ -128,6 +128,11 @@ function overlaps(
 function installElementApi(
   options: {
     entries?: ElementEntryDto[];
+    bindingExecutions?: readonly {
+      bindingId: string;
+      targetElementId: string;
+      result: Readonly<Record<string, unknown>>;
+    }[];
     candidateDelays?: number[];
     listDelayMs?: number;
     failFirstList?: boolean;
@@ -188,6 +193,42 @@ function installElementApi(
           redoCommand: null,
           commands: [],
         });
+      }
+
+      if (
+        path === "/api/v1/projects/project-1/relationship-graph" &&
+        method === "GET"
+      ) {
+        return response({
+          edges: (options.bindingExecutions ?? []).map((execution) => ({
+            id: execution.bindingId,
+            bindingType: "READ",
+            status: "READY",
+            target: {
+              nodeType: "element",
+              objectId: execution.targetElementId,
+            },
+          })),
+        });
+      }
+
+      const bindingPreviewMatch = path.match(
+        /^\/api\/v1\/bindings\/([^/]+)\/preview$/,
+      );
+      if (bindingPreviewMatch && method === "POST") {
+        const execution = options.bindingExecutions?.find(
+          ({ bindingId }) => bindingId === bindingPreviewMatch[1],
+        );
+        if (execution) {
+          return response({
+            bindingId: execution.bindingId,
+            projectId: "project-1",
+            targetElementId: execution.targetElementId,
+            environment: "test",
+            planChecksum: "a".repeat(64),
+            result: execution.result,
+          });
+        }
       }
 
       if (path === "/api/v1/pages/page-1/elements" && method === "GET") {
@@ -737,6 +778,153 @@ afterEach(async () => {
 });
 
 describe("ElementCanvas Phase 5 interaction", () => {
+  it("renders Test DB READ results in Table and Histogram elements without frontend fixture data", async () => {
+    const tableEntry = makeEntry("bound-table", "data-table", {
+      x: 0,
+      y: 0,
+    });
+    const histogramEntry = makeEntry("bound-histogram", "histogram", {
+      x: 0,
+      y: 12,
+    });
+    const api = installElementApi({
+      entries: [tableEntry, histogramEntry],
+      bindingExecutions: [
+        {
+          bindingId: "binding-table",
+          targetElementId: tableEntry.element.id,
+          result: {
+            columns: [],
+            rows: [],
+            rowCount: 1,
+            truncated: false,
+            renderState: "DATA",
+            renderData: {
+              columns: ["측정값"],
+              rows: [{ 측정값: 42 }],
+            },
+          },
+        },
+        {
+          bindingId: "binding-histogram",
+          targetElementId: histogramEntry.element.id,
+          result: {
+            columns: [],
+            rows: [],
+            rowCount: 4,
+            truncated: false,
+            renderState: "DATA",
+            renderData: { values: [1, 2, 3, 4] },
+          },
+        },
+      ],
+    });
+    installCanvasGeometry();
+    render(<Harness />);
+
+    expect(await screen.findByText("42")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        screen
+          .getByTestId("placed-element-bound-histogram")
+          .querySelector("figure.statistical-chart"),
+      ).not.toBeNull(),
+    );
+    expect(
+      api.calls.filter(({ path }) => path.endsWith("/preview")),
+    ).toHaveLength(2);
+    expect(
+      screen
+        .getByTestId("placed-element-bound-table")
+        .querySelector('[data-render-state="DATA"]'),
+    ).not.toBeNull();
+    expect(
+      screen
+        .getByTestId("placed-element-bound-histogram")
+        .querySelector('[data-render-state="DATA"]'),
+    ).not.toBeNull();
+  });
+
+  it("refreshes READ results when returning to Canvas and after a Project revision change without changing Element identity", async () => {
+    const tableEntry = makeEntry("revision-bound-table", "data-table");
+    const api = installElementApi({
+      entries: [tableEntry],
+      bindingExecutions: [
+        {
+          bindingId: "revision-binding",
+          targetElementId: tableEntry.element.id,
+          result: {
+            columns: [],
+            rows: [],
+            rowCount: 1,
+            truncated: false,
+            renderState: "DATA",
+            renderData: { columns: ["값"], rows: [{ 값: 7 }] },
+          },
+        },
+      ],
+    });
+    installCanvasGeometry();
+    const view = render(
+      <ElementWorkspaceProvider
+        projectId="project-1"
+        pageId="page-1"
+        projectRevision={10}
+        layoutRevision={4}
+        bindingExecutionActive={false}
+        onProjectRevisionChange={vi.fn()}
+        onLayoutRevisionChange={vi.fn()}
+      >
+        <ElementCanvas />
+      </ElementWorkspaceProvider>,
+    );
+
+    expect(
+      api.calls.filter(({ path }) => path.endsWith("/preview")),
+    ).toHaveLength(0);
+
+    view.rerender(
+      <ElementWorkspaceProvider
+        projectId="project-1"
+        pageId="page-1"
+        projectRevision={10}
+        layoutRevision={4}
+        bindingExecutionActive
+        onProjectRevisionChange={vi.fn()}
+        onLayoutRevisionChange={vi.fn()}
+      >
+        <ElementCanvas />
+      </ElementWorkspaceProvider>,
+    );
+
+    expect(await screen.findByText("7")).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        api.calls.filter(({ path }) => path.endsWith("/preview")),
+      ).toHaveLength(1),
+    );
+
+    view.rerender(
+      <ElementWorkspaceProvider
+        projectId="project-1"
+        pageId="page-1"
+        projectRevision={11}
+        layoutRevision={4}
+        bindingExecutionActive
+        onProjectRevisionChange={vi.fn()}
+        onLayoutRevisionChange={vi.fn()}
+      >
+        <ElementCanvas />
+      </ElementWorkspaceProvider>,
+    );
+
+    await waitFor(() =>
+      expect(
+        api.calls.filter(({ path }) => path.endsWith("/preview")),
+      ).toHaveLength(2),
+    );
+  });
+
   it("measures placement-placeholder and placed-element DOMRect for keyboard preview and commit", async () => {
     const api = installElementApi();
     installCanvasGeometry();

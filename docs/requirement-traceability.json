@@ -320,10 +320,30 @@
       "id": "REQ-018",
       "title": "Real sample-data I/O validation",
       "phase": 11,
-      "status": "NOT STARTED",
-      "implementation": [],
-      "tests": [],
-      "evidence": []
+      "status": "VERIFIED",
+      "implementation": [
+        "docs/adr/0012-safe-read-binding-engine.md",
+        "packages/domain/src/binding-query.ts",
+        "apps/server/src/data-relationship/binding-query-compiler.ts",
+        "apps/server/src/data-relationship/sample-data-service.ts",
+        "apps/server/src/data-relationship/relationship-service.ts",
+        "apps/server/src/routes/data-relationship.ts",
+        "apps/server/src/routes/sample-data.ts",
+        "apps/web/src/features/data-relationship/RelationshipCanvas.tsx",
+        "apps/web/src/features/elements/ElementWorkspace.tsx",
+        "apps/web/src/features/elements/ElementRenderer.tsx"
+      ],
+      "tests": [
+        "apps/server/test/integration/safe-read-binding-engine.test.ts",
+        "apps/web/src/features/data-relationship/RelationshipCanvas.test.tsx",
+        "apps/web/src/features/elements/ElementCanvas.test.tsx",
+        "tests/validation/phase11-validation.test.mjs",
+        "scripts/verify-phase11.mjs"
+      ],
+      "evidence": [
+        "artifacts/phase11/safe-read-binding-engine-validation.json",
+        "artifacts/phase11/browser-safe-read-binding-validation.json"
+      ]
     },
     {
       "id": "REQ-019",

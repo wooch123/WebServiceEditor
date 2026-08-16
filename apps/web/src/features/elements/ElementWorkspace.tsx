@@ -10,6 +10,7 @@ import {
   type DragMoveEvent,
   type DragStartEvent,
 } from "@dnd-kit/core";
+import type { BindingRenderDataDto } from "@webeditor/domain";
 import {
   createContext,
   useCallback,
@@ -43,11 +44,13 @@ import {
   type ElementHistoryDto,
   type ElementLayoutDto,
   type ElementPropertyValue,
+  type ElementRenderState,
   type ElementRegistryDto,
   type ElementType,
   type PlacementCandidateDto,
   type ResizeHandle,
 } from "@/services/elements-api";
+import { dataRelationshipApi } from "@/services/data-relationship-api";
 import type { ApplyLayoutPresetDto } from "@/services/layout-presets-api";
 import { LayoutPresetBrowser } from "@/features/presets/LayoutPresetBrowser";
 import { ElementPalette, PaletteDragOverlay } from "./ElementPalette";
@@ -87,6 +90,11 @@ export interface CompleteCanvasLayoutItem {
   h: number;
 }
 
+interface ElementBindingResult {
+  readonly renderState: ElementRenderState;
+  readonly renderData?: BindingRenderDataDto;
+}
+
 interface ElementWorkspaceContextValue {
   projectId: string;
   pageId: string | null;
@@ -96,6 +104,7 @@ interface ElementWorkspaceContextValue {
   definitions: readonly ElementDefinitionDto[];
   definitionByType: ReadonlyMap<ElementType, ElementDefinitionDto>;
   entries: ElementEntryDto[];
+  bindingResults: ReadonlyMap<string, ElementBindingResult>;
   loading: boolean;
   mutating: boolean;
   candidateLoading: boolean;
@@ -227,6 +236,7 @@ export function ElementWorkspaceProvider({
   pageId,
   projectRevision,
   layoutRevision,
+  bindingExecutionActive = true,
   onProjectRevisionChange,
   onLayoutRevisionChange,
   children,
@@ -235,6 +245,7 @@ export function ElementWorkspaceProvider({
   pageId: string | null;
   projectRevision: number;
   layoutRevision: number;
+  bindingExecutionActive?: boolean;
   onProjectRevisionChange: (revision: number) => void;
   onLayoutRevisionChange: (pageId: string, revision: number) => void;
   children: ReactNode;
@@ -243,6 +254,9 @@ export function ElementWorkspaceProvider({
   const [registryLoading, setRegistryLoading] = useState(true);
   const [registryError, setRegistryError] = useState("");
   const [entries, setEntries] = useState<ElementEntryDto[]>([]);
+  const [bindingResults, setBindingResults] = useState<
+    ReadonlyMap<string, ElementBindingResult>
+  >(new Map());
   const [loading, setLoading] = useState(false);
   const [mutating, setMutating] = useState(false);
   const [candidateLoading, setCandidateLoading] = useState(false);
@@ -289,6 +303,7 @@ export function ElementWorkspaceProvider({
   const registryAbortRef = useRef<AbortController | null>(null);
   const detailAbortRef = useRef<AbortController | null>(null);
   const historyAbortRef = useRef<AbortController | null>(null);
+  const bindingSequenceRef = useRef(0);
   const candidateAbortRef = useRef<AbortController | null>(null);
   const candidateSequenceRef = useRef(0);
   const candidateRef = useRef<PlacementCandidateDto | null>(null);
@@ -522,6 +537,86 @@ export function ElementWorkspaceProvider({
       detailAbortRef.current?.abort();
     };
   }, [load, pageId]);
+
+  const entryIdentity = useMemo(
+    () =>
+      entries
+        .map(({ element }) => element.id)
+        .sort()
+        .join(","),
+    [entries],
+  );
+
+  useEffect(() => {
+    const sequence = ++bindingSequenceRef.current;
+    if (!bindingExecutionActive || !pageId || entryIdentity === "") {
+      setBindingResults(new Map());
+      return;
+    }
+    const elementIds = new Set(entryIdentity.split(","));
+    void dataRelationshipApi
+      .graph(projectId)
+      .then(async (relationshipGraph) => {
+        if (sequence !== bindingSequenceRef.current) return;
+        const bindings = relationshipGraph.edges.filter(
+          (binding) =>
+            binding.bindingType === "READ" &&
+            binding.status === "READY" &&
+            binding.target.nodeType === "element" &&
+            elementIds.has(binding.target.objectId),
+        );
+        setBindingResults(
+          new Map(
+            bindings.map((binding) => [
+              binding.target.objectId,
+              { renderState: "LOADING" as const },
+            ]),
+          ),
+        );
+        const executions = await Promise.all(
+          bindings.map(
+            async (
+              binding,
+            ): Promise<readonly [string, ElementBindingResult]> => {
+              try {
+                const execution = await dataRelationshipApi.executePreview(
+                  binding.id,
+                );
+                return [
+                  execution.targetElementId,
+                  {
+                    renderState: execution.result.renderState,
+                    renderData: execution.result.renderData,
+                  },
+                ] as const;
+              } catch {
+                return [
+                  binding.target.objectId,
+                  { renderState: "ERROR" as const },
+                ] as const;
+              }
+            },
+          ),
+        );
+        if (sequence === bindingSequenceRef.current) {
+          setBindingResults(new Map(executions));
+        }
+      })
+      .catch(() => {
+        if (sequence === bindingSequenceRef.current) {
+          setBindingResults(new Map());
+        }
+      });
+    return () => {
+      bindingSequenceRef.current += 1;
+    };
+  }, [
+    bindingExecutionActive,
+    entryIdentity,
+    pageId,
+    projectId,
+    projectRevision,
+  ]);
 
   const selectedElementId = useMemo(() => {
     if (selectedElementIds.size !== 1) return null;
@@ -1461,6 +1556,7 @@ export function ElementWorkspaceProvider({
       definitions: registry?.definitions ?? [],
       definitionByType,
       entries,
+      bindingResults,
       loading,
       mutating,
       candidateLoading,
@@ -1515,6 +1611,7 @@ export function ElementWorkspaceProvider({
       activeElementType,
       acceptLayoutPresetApplication,
       beginKeyboardPlacement,
+      bindingResults,
       cancelPlacement,
       captureElementPropertyTarget,
       candidate,

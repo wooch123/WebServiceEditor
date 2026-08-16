@@ -260,6 +260,7 @@ const PlacedElement = forwardRef<HTMLDivElement, PlacedElementProps>(
     const selected = workspace.selectedElementIds.has(entry.element.id);
     const definition = workspace.definitionByType.get(entry.element.type);
     const resizing = resizePreview?.elementId === entry.element.id;
+    const bindingResult = workspace.bindingResults.get(entry.element.id);
     const additivePointerRef = useRef(false);
 
     function select(event: PointerEvent<HTMLElement>) {
@@ -389,12 +390,19 @@ const PlacedElement = forwardRef<HTMLDivElement, PlacedElementProps>(
               entry={entry}
               definition={definition}
               compact={resizing}
-              {...(workspace.selectedDetail?.entry.element.id ===
-              entry.element.id
+              {...(bindingResult
                 ? {
-                    renderState: workspace.selectedDetail.renderState.state,
+                    renderState: bindingResult.renderState,
+                    ...(bindingResult.renderData
+                      ? { renderData: bindingResult.renderData }
+                      : {}),
                   }
-                : {})}
+                : workspace.selectedDetail?.entry.element.id ===
+                    entry.element.id
+                  ? {
+                      renderState: workspace.selectedDetail.renderState.state,
+                    }
+                  : {})}
             />
           ) : (
             <Skeleton className="h-full w-full" />

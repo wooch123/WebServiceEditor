@@ -1,5 +1,10 @@
 import type {
+  BindingQueryPreviewDto,
+  BindingRenderShape,
   DataRelationshipGraphDto,
+  ReadAggregateFunction,
+  ReadFilterOperator,
+  ReadQueryMode,
   RelationshipAutoLayoutPreviewDto,
   RelationshipBindingDto,
   RelationshipBindingType,
@@ -93,10 +98,19 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Field, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
 import {
   NativeSelect,
   NativeSelectOption,
 } from "@/components/ui/native-select";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import {
   Tooltip,
   TooltipContent,
@@ -108,6 +122,7 @@ import {
   dataRelationshipApi,
   RelationshipApiError,
 } from "@/services/data-relationship-api";
+import { generateSampleData } from "@/services/data-schema-api";
 
 interface RelationshipCanvasProps {
   readonly projectId: string;
@@ -145,6 +160,82 @@ const bindingLabels: Record<RelationshipBindingType, string> = {
   RELATION: "관계",
 };
 
+const renderShapeLabels: Record<BindingRenderShape, string> = {
+  ROWS: "행",
+  SCALAR: "값",
+  SERIES: "계열",
+  VALUES: "숫자",
+  SCATTER: "좌표",
+  BOXES: "분포",
+  SUMMARY: "요약",
+};
+
+const queryModeLabels: Record<ReadQueryMode, string> = {
+  LIST: "목록",
+  SINGLE: "단일",
+  AGGREGATE: "집계",
+  CHART_SERIES: "차트",
+};
+
+const filterOperatorLabels: Record<ReadFilterOperator, string> = {
+  EQ: "같음",
+  NE: "다름",
+  GT: "초과",
+  GTE: "이상",
+  LT: "미만",
+  LTE: "이하",
+  CONTAINS: "포함",
+  STARTS_WITH: "시작",
+  IS_NULL: "비어 있음",
+  IS_NOT_NULL: "값 있음",
+};
+
+const aggregateLabels: Record<ReadAggregateFunction, string> = {
+  COUNT: "개수",
+  SUM: "합계",
+  AVG: "평균",
+  MIN: "최소",
+  MAX: "최대",
+  MEDIAN: "중앙값",
+  STDDEV: "표준편차",
+  VARIANCE: "분산",
+};
+
+function defaultRenderShape(
+  target: Pick<RelationshipPortDto, "valueType">,
+  node: RelationshipNodeDto | undefined,
+): BindingRenderShape {
+  if (target.valueType === "records") return "ROWS";
+  if (target.valueType === "number") return "SCALAR";
+  if (target.valueType === "chart-series") return "SERIES";
+  if (target.valueType === "xy-points") return "SCATTER";
+  if (target.valueType === "grouped-numbers") return "BOXES";
+  if (node?.subtitle.startsWith("Summary Statistics")) return "SUMMARY";
+  return "VALUES";
+}
+
+function allowedRenderShapes(target: Pick<RelationshipPortDto, "valueType">) {
+  if (target.valueType === "numbers") {
+    return ["VALUES", "SUMMARY"] as const;
+  }
+  return [defaultRenderShape(target, undefined)] as const;
+}
+
+function defaultQueryMode(shape: BindingRenderShape): ReadQueryMode {
+  if (shape === "SCALAR") return "AGGREGATE";
+  if (shape === "SERIES" || shape === "SCATTER") return "CHART_SERIES";
+  return "LIST";
+}
+
+function filterScalar(
+  field: RelationshipPortDto | undefined,
+  value: string,
+): string | number | boolean {
+  if (field?.valueType === "number") return Number(value);
+  if (field?.valueType === "boolean") return value === "true";
+  return value;
+}
+
 function errorText(error: unknown): string {
   if (error instanceof RelationshipApiError) {
     if (error.code.includes("REVISION") || error.status === 409) {
@@ -152,6 +243,7 @@ function errorText(error: unknown): string {
     }
     return error.message;
   }
+  if (error instanceof Error) return error.message;
   return "요청 실패";
 }
 
@@ -485,6 +577,21 @@ function RelationshipCanvasInner({
   );
   const [preview, setPreview] =
     useState<RelationshipConnectionPreviewDto | null>(null);
+  const [queryPreview, setQueryPreview] =
+    useState<BindingQueryPreviewDto | null>(null);
+  const [queryMode, setQueryMode] = useState<ReadQueryMode>("LIST");
+  const [renderShape, setRenderShape] = useState<BindingRenderShape>("ROWS");
+  const [labelFieldId, setLabelFieldId] = useState("");
+  const [valueFieldId, setValueFieldId] = useState("");
+  const [filterFieldId, setFilterFieldId] = useState("");
+  const [filterOperator, setFilterOperator] =
+    useState<ReadFilterOperator>("EQ");
+  const [filterValue, setFilterValue] = useState("");
+  const [sortFieldId, setSortFieldId] = useState("");
+  const [sortDirection, setSortDirection] = useState<"ASC" | "DESC">("ASC");
+  const [aggregateFunction, setAggregateFunction] =
+    useState<ReadAggregateFunction>("COUNT");
+  const [queryLimit, setQueryLimit] = useState(100);
   const [autoPreview, setAutoPreview] =
     useState<RelationshipAutoLayoutPreviewDto | null>(null);
   const [bindingType, setBindingType] =
@@ -559,6 +666,7 @@ function RelationshipCanvasInner({
       if (event.key !== "Escape") return;
       setSourcePort(null);
       setPreview(null);
+      setQueryPreview(null);
       setAutoPreview(null);
     };
     window.addEventListener("keydown", onKeyDown);
@@ -590,7 +698,34 @@ function RelationshipCanvasInner({
           return;
         }
         setPreview(next);
-        setBindingType(next.allowedBindingTypes[0] as RelationshipBindingType);
+        const nextBindingType = next
+          .allowedBindingTypes[0] as RelationshipBindingType;
+        setBindingType(nextBindingType);
+        setQueryPreview(null);
+        if (nextBindingType === "READ") {
+          const targetNode = current.nodes.find(
+            ({ id }) => id === next.target.nodeId,
+          );
+          const fields =
+            current.nodes
+              .find(({ id }) => id === next.source.nodeId)
+              ?.ports.filter(({ direction }) => direction === "output") ?? [];
+          const numericFields = fields.filter(
+            ({ valueType }) => valueType === "number",
+          );
+          const shape = defaultRenderShape(next.target, targetNode);
+          setRenderShape(shape);
+          setQueryMode(defaultQueryMode(shape));
+          setLabelFieldId((fields[0] ?? next.source).objectId);
+          setValueFieldId(
+            (numericFields[0] ?? fields[0] ?? next.source).objectId,
+          );
+          setFilterFieldId("");
+          setFilterValue("");
+          setSortFieldId("");
+          setAggregateFunction("COUNT");
+          setQueryLimit(100);
+        }
       } catch (requestError) {
         setError(errorText(requestError));
         if (
@@ -745,20 +880,138 @@ function RelationshipCanvasInner({
   const selectedBinding =
     graph?.edges.find(({ id }) => id === selectedBindingId) ?? null;
 
+  const sourceFields = useMemo(() => {
+    if (!graph || !preview) return [];
+    return (
+      graph.nodes
+        .find(({ id }) => id === preview.source.nodeId)
+        ?.ports.filter(({ direction }) => direction === "output") ?? []
+    );
+  }, [graph, preview]);
+
+  const numericSourceFields = useMemo(
+    () => sourceFields.filter(({ valueType }) => valueType === "number"),
+    [sourceFields],
+  );
+
+  useEffect(() => {
+    setQueryPreview(null);
+  }, [
+    aggregateFunction,
+    filterFieldId,
+    filterOperator,
+    filterValue,
+    labelFieldId,
+    queryLimit,
+    queryMode,
+    renderShape,
+    sortDirection,
+    sortFieldId,
+    valueFieldId,
+  ]);
+
+  const previewReadQuery = async () => {
+    if (!graph || !preview || bindingType !== "READ" || busy) return;
+    const nullary =
+      filterOperator === "IS_NULL" || filterOperator === "IS_NOT_NULL";
+    setBusy(true);
+    setError(null);
+    try {
+      setQueryPreview(
+        await dataRelationshipApi.previewQuery(projectId, {
+          connectionPreviewId: preview.previewId,
+          spec: {
+            mode: queryMode,
+            selectFieldIds: sourceFields.map(({ objectId }) => objectId),
+            filters:
+              filterFieldId === "" || (!nullary && filterValue === "")
+                ? []
+                : [
+                    {
+                      fieldId: filterFieldId,
+                      operator: filterOperator,
+                      ...(nullary
+                        ? {}
+                        : {
+                            value: filterScalar(
+                              sourceFields.find(
+                                ({ objectId }) => objectId === filterFieldId,
+                              ),
+                              filterValue,
+                            ),
+                          }),
+                    },
+                  ],
+            orderBy:
+              sortFieldId === ""
+                ? []
+                : [{ fieldId: sortFieldId, direction: sortDirection }],
+            aggregate:
+              queryMode === "AGGREGATE"
+                ? {
+                    function: aggregateFunction,
+                    fieldId: valueFieldId || null,
+                  }
+                : null,
+            groupByFieldId: null,
+            limit: queryLimit,
+          },
+          mapping: {
+            shape: renderShape,
+            labelFieldId: renderShape === "ROWS" ? null : labelFieldId || null,
+            valueFieldId: renderShape === "ROWS" ? null : valueFieldId || null,
+            secondaryFieldId: null,
+          },
+          expectedGraphRevision: preview.graphRevision,
+          expectedProjectRevision: preview.projectRevision,
+        }),
+      );
+    } catch (requestError) {
+      setError(errorText(requestError));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const generateSamples = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await generateSampleData(projectId);
+      setQueryPreview(null);
+    } catch (requestError) {
+      setError(errorText(requestError));
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const commit = async () => {
-    if (!graph || !preview || busy) return;
+    if (
+      !graph ||
+      !preview ||
+      busy ||
+      (bindingType === "READ" && queryPreview === null)
+    ) {
+      return;
+    }
     setBusy(true);
     setError(null);
     try {
       const result = await dataRelationshipApi.create(projectId, {
         previewId: preview.previewId,
         bindingType,
+        ...(bindingType === "READ" && queryPreview
+          ? { queryPreviewId: queryPreview.queryPreviewId }
+          : {}),
         expectedGraphRevision: preview.graphRevision,
         expectedProjectRevision: preview.projectRevision,
         idempotencyKey: idempotencyKey("binding-create"),
       });
       publishRevision(result.projectRevision);
       setPreview(null);
+      setQueryPreview(null);
       setSourcePort(null);
       setSelectedBindingId(result.binding.id);
       await load();
@@ -1140,10 +1393,16 @@ function RelationshipCanvasInner({
       <Dialog
         open={preview !== null}
         onOpenChange={(open) => {
-          if (!open && !busy) setPreview(null);
+          if (!open && !busy) {
+            setPreview(null);
+            setQueryPreview(null);
+          }
         }}
       >
-        <DialogContent showCloseButton={!busy}>
+        <DialogContent
+          className="relationship-binding-dialog"
+          showCloseButton={!busy}
+        >
           <DialogHeader>
             <DialogTitle>연결</DialogTitle>
             <DialogDescription>
@@ -1157,9 +1416,10 @@ function RelationshipCanvasInner({
                 id="relationship-binding-type"
                 value={bindingType}
                 disabled={busy}
-                onChange={(event) =>
-                  setBindingType(event.target.value as RelationshipBindingType)
-                }
+                onChange={(event) => {
+                  setBindingType(event.target.value as RelationshipBindingType);
+                  setQueryPreview(null);
+                }}
               >
                 {preview?.allowedBindingTypes.map((type) => (
                   <NativeSelectOption key={type} value={type}>
@@ -1169,16 +1429,321 @@ function RelationshipCanvasInner({
               </NativeSelect>
             </Field>
           </FieldGroup>
+          {preview && bindingType === "READ" && (
+            <>
+              <FieldGroup className="binding-query-fields">
+                <Field>
+                  <FieldLabel htmlFor="binding-query-mode">방식</FieldLabel>
+                  <NativeSelect
+                    id="binding-query-mode"
+                    value={queryMode}
+                    disabled={busy}
+                    onChange={(event) =>
+                      setQueryMode(event.target.value as ReadQueryMode)
+                    }
+                  >
+                    {(
+                      ["LIST", "SINGLE", "AGGREGATE", "CHART_SERIES"] as const
+                    ).map((mode) => (
+                      <NativeSelectOption key={mode} value={mode}>
+                        {queryModeLabels[mode]}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                </Field>
+                <Field>
+                  <FieldLabel htmlFor="binding-render-shape">출력</FieldLabel>
+                  <NativeSelect
+                    id="binding-render-shape"
+                    value={renderShape}
+                    disabled={busy}
+                    onChange={(event) => {
+                      const shape = event.target.value as BindingRenderShape;
+                      setRenderShape(shape);
+                      setQueryMode(defaultQueryMode(shape));
+                    }}
+                  >
+                    {allowedRenderShapes(preview.target).map((shape) => (
+                      <NativeSelectOption key={shape} value={shape}>
+                        {renderShapeLabels[shape]}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                </Field>
+                {renderShape !== "ROWS" && (
+                  <>
+                    <Field>
+                      <FieldLabel htmlFor="binding-value-field">값</FieldLabel>
+                      <NativeSelect
+                        id="binding-value-field"
+                        value={valueFieldId}
+                        disabled={busy}
+                        onChange={(event) =>
+                          setValueFieldId(event.target.value)
+                        }
+                      >
+                        {numericSourceFields.map((field) => (
+                          <NativeSelectOption
+                            key={field.objectId}
+                            value={field.objectId}
+                          >
+                            {field.label}
+                          </NativeSelectOption>
+                        ))}
+                      </NativeSelect>
+                    </Field>
+                    <Field>
+                      <FieldLabel htmlFor="binding-label-field">
+                        기준
+                      </FieldLabel>
+                      <NativeSelect
+                        id="binding-label-field"
+                        value={labelFieldId}
+                        disabled={busy}
+                        onChange={(event) =>
+                          setLabelFieldId(event.target.value)
+                        }
+                      >
+                        {sourceFields.map((field) => (
+                          <NativeSelectOption
+                            key={field.objectId}
+                            value={field.objectId}
+                          >
+                            {field.label}
+                          </NativeSelectOption>
+                        ))}
+                      </NativeSelect>
+                    </Field>
+                  </>
+                )}
+                {queryMode === "AGGREGATE" && (
+                  <Field>
+                    <FieldLabel htmlFor="binding-aggregate">집계</FieldLabel>
+                    <NativeSelect
+                      id="binding-aggregate"
+                      value={aggregateFunction}
+                      disabled={busy}
+                      onChange={(event) =>
+                        setAggregateFunction(
+                          event.target.value as ReadAggregateFunction,
+                        )
+                      }
+                    >
+                      {Object.entries(aggregateLabels).map(([value, label]) => (
+                        <NativeSelectOption key={value} value={value}>
+                          {label}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </Field>
+                )}
+                <Field>
+                  <FieldLabel htmlFor="binding-filter-field">필터</FieldLabel>
+                  <NativeSelect
+                    id="binding-filter-field"
+                    value={filterFieldId}
+                    disabled={busy}
+                    onChange={(event) => setFilterFieldId(event.target.value)}
+                  >
+                    <NativeSelectOption value="">없음</NativeSelectOption>
+                    {sourceFields.map((field) => (
+                      <NativeSelectOption
+                        key={field.objectId}
+                        value={field.objectId}
+                      >
+                        {field.label}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                </Field>
+                {filterFieldId !== "" && (
+                  <>
+                    <Field>
+                      <FieldLabel htmlFor="binding-filter-operator">
+                        조건
+                      </FieldLabel>
+                      <NativeSelect
+                        id="binding-filter-operator"
+                        value={filterOperator}
+                        disabled={busy}
+                        onChange={(event) =>
+                          setFilterOperator(
+                            event.target.value as ReadFilterOperator,
+                          )
+                        }
+                      >
+                        {Object.entries(filterOperatorLabels).map(
+                          ([value, label]) => (
+                            <NativeSelectOption key={value} value={value}>
+                              {label}
+                            </NativeSelectOption>
+                          ),
+                        )}
+                      </NativeSelect>
+                    </Field>
+                    {!["IS_NULL", "IS_NOT_NULL"].includes(filterOperator) && (
+                      <Field>
+                        <FieldLabel htmlFor="binding-filter-value">
+                          조건값
+                        </FieldLabel>
+                        <Input
+                          id="binding-filter-value"
+                          value={filterValue}
+                          disabled={busy}
+                          onChange={(event) =>
+                            setFilterValue(event.target.value)
+                          }
+                        />
+                      </Field>
+                    )}
+                  </>
+                )}
+                <Field>
+                  <FieldLabel htmlFor="binding-sort-field">정렬</FieldLabel>
+                  <NativeSelect
+                    id="binding-sort-field"
+                    value={sortFieldId}
+                    disabled={busy}
+                    onChange={(event) => setSortFieldId(event.target.value)}
+                  >
+                    <NativeSelectOption value="">없음</NativeSelectOption>
+                    {sourceFields.map((field) => (
+                      <NativeSelectOption
+                        key={field.objectId}
+                        value={field.objectId}
+                      >
+                        {field.label}
+                      </NativeSelectOption>
+                    ))}
+                  </NativeSelect>
+                </Field>
+                {sortFieldId !== "" && (
+                  <Field>
+                    <FieldLabel htmlFor="binding-sort-direction">
+                      순서
+                    </FieldLabel>
+                    <NativeSelect
+                      id="binding-sort-direction"
+                      value={sortDirection}
+                      disabled={busy}
+                      onChange={(event) =>
+                        setSortDirection(event.target.value as "ASC" | "DESC")
+                      }
+                    >
+                      <NativeSelectOption value="ASC">
+                        오름차순
+                      </NativeSelectOption>
+                      <NativeSelectOption value="DESC">
+                        내림차순
+                      </NativeSelectOption>
+                    </NativeSelect>
+                  </Field>
+                )}
+                <Field>
+                  <FieldLabel htmlFor="binding-query-limit">행</FieldLabel>
+                  <Input
+                    id="binding-query-limit"
+                    type="number"
+                    min={1}
+                    max={500}
+                    value={queryLimit}
+                    disabled={busy}
+                    onChange={(event) =>
+                      setQueryLimit(
+                        Math.min(
+                          500,
+                          Math.max(1, Number(event.target.value) || 1),
+                        ),
+                      )
+                    }
+                  />
+                </Field>
+              </FieldGroup>
+              <div
+                className="binding-query-actions"
+                role="group"
+                aria-label="조회 도구"
+              >
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy}
+                  onClick={() => void generateSamples()}
+                >
+                  샘플
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  disabled={busy || sourceFields.length === 0}
+                  onClick={() => void previewReadQuery()}
+                >
+                  미리보기
+                </Button>
+              </div>
+              {queryPreview && (
+                <section
+                  className="binding-query-preview"
+                  aria-label="조회 결과"
+                  data-plan-checksum={queryPreview.planChecksum}
+                >
+                  <header>
+                    <strong>{queryPreview.result.rowCount}행</strong>
+                    <Badge variant="secondary">
+                      {queryPreview.result.renderState}
+                    </Badge>
+                  </header>
+                  {queryPreview.result.rows.length > 0 ? (
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          {queryPreview.result.columns.map((column) => (
+                            <TableHead key={column.fieldId}>
+                              {column.label}
+                            </TableHead>
+                          ))}
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {queryPreview.result.rows
+                          .slice(0, 5)
+                          .map((row, index) => (
+                            <TableRow key={index}>
+                              {queryPreview.result.columns.map((column) => (
+                                <TableCell key={column.fieldId}>
+                                  {String(row[column.fieldId] ?? "")}
+                                </TableCell>
+                              ))}
+                            </TableRow>
+                          ))}
+                      </TableBody>
+                    </Table>
+                  ) : (
+                    <span>결과 없음</span>
+                  )}
+                </section>
+              )}
+            </>
+          )}
           <DialogFooter className="relationship-dialog-actions">
             <Button
               type="button"
               variant="outline"
               disabled={busy}
-              onClick={() => setPreview(null)}
+              onClick={() => {
+                setPreview(null);
+                setQueryPreview(null);
+              }}
             >
               취소
             </Button>
-            <Button type="button" disabled={busy} onClick={() => void commit()}>
+            <Button
+              type="button"
+              disabled={
+                busy || (bindingType === "READ" && queryPreview === null)
+              }
+              onClick={() => void commit()}
+            >
               {busy ? (
                 <LoaderCircle data-icon="inline-start" aria-hidden="true" />
               ) : (

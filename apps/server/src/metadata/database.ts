@@ -6,7 +6,7 @@ import { PROJECT_LIFECYCLE_STATUSES } from "@webeditor/domain";
 import Database from "better-sqlite3";
 
 const METADATA_APPLICATION_ID = 0x57454245;
-export const LATEST_METADATA_SCHEMA_VERSION = 9;
+export const LATEST_METADATA_SCHEMA_VERSION = 10;
 
 const lifecycleSqlValues = PROJECT_LIFECYCLE_STATUSES.map(
   (status) => `'${status}'`,
@@ -1176,6 +1176,53 @@ export const RELATIONSHIP_LAYOUT_ROUTING_SCHEMA_CHECKSUM = createHash("sha256")
   .update(relationshipLayoutRoutingSchemaSql)
   .digest("hex");
 
+const safeReadBindingEngineSchemaSql = `
+  CREATE TABLE binding_query_runs (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    binding_id TEXT REFERENCES bindings(id) ON DELETE SET NULL,
+    environment TEXT NOT NULL CHECK (environment IN ('test', 'production')),
+    plan_checksum TEXT NOT NULL CHECK (
+      length(plan_checksum) = 64 AND plan_checksum = lower(plan_checksum) AND
+      plan_checksum NOT GLOB '*[^0-9a-f]*'
+    ),
+    row_count INTEGER NOT NULL CHECK (
+      row_count >= 0 AND typeof(row_count) = 'integer'
+    ),
+    truncated INTEGER NOT NULL CHECK (truncated IN (0, 1)),
+    status TEXT NOT NULL CHECK (status IN ('SUCCEEDED', 'FAILED')),
+    error_code TEXT,
+    created_at TEXT NOT NULL
+  );
+  CREATE INDEX binding_query_runs_project_created_idx
+    ON binding_query_runs(project_id, created_at, id);
+  CREATE INDEX binding_query_runs_binding_created_idx
+    ON binding_query_runs(binding_id, created_at, id);
+
+  CREATE TABLE sample_data_commands (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    command_type TEXT NOT NULL CHECK (command_type IN ('GENERATE', 'RESET')),
+    idempotency_key TEXT NOT NULL,
+    request_hash TEXT NOT NULL CHECK (
+      length(request_hash) = 64 AND request_hash = lower(request_hash) AND
+      request_hash NOT GLOB '*[^0-9a-f]*'
+    ),
+    response_status INTEGER NOT NULL CHECK (
+      response_status BETWEEN 200 AND 499 AND typeof(response_status) = 'integer'
+    ),
+    response_json TEXT NOT NULL CHECK (json_valid(response_json)),
+    created_at TEXT NOT NULL,
+    UNIQUE(project_id, idempotency_key)
+  );
+  CREATE INDEX sample_data_commands_project_created_idx
+    ON sample_data_commands(project_id, created_at, id);
+`;
+
+export const SAFE_READ_BINDING_ENGINE_SCHEMA_CHECKSUM = createHash("sha256")
+  .update(safeReadBindingEngineSchemaSql)
+  .digest("hex");
+
 const metadataMigrations = [
   {
     checksum: INITIAL_METADATA_SCHEMA_CHECKSUM,
@@ -1230,6 +1277,12 @@ const metadataMigrations = [
     name: "relationship-layout-routing",
     sql: relationshipLayoutRoutingSchemaSql,
     version: 9,
+  },
+  {
+    checksum: SAFE_READ_BINDING_ENGINE_SCHEMA_CHECKSUM,
+    name: "safe-read-binding-engine",
+    sql: safeReadBindingEngineSchemaSql,
+    version: 10,
   },
 ] as const;
 

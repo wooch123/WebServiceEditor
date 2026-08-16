@@ -253,6 +253,8 @@ export interface RelationshipConnectionPreviewDto {
 export interface CreateRelationshipBindingRequest {
   readonly previewId: string;
   readonly bindingType: RelationshipBindingType;
+  /** Required for READ. The server consumes the matching Wizard preview. */
+  readonly queryPreviewId?: string;
   readonly expectedGraphRevision: number;
   readonly expectedProjectRevision: number;
   readonly idempotencyKey: string;

@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 import type {
+  BindingQueryPreviewDto,
   DataRelationshipGraphDto,
   DataSchemaDto,
   ElementEntryDto,
@@ -125,7 +126,63 @@ async function seed(app: FastifyInstance) {
   });
   expect(tableResponse.statusCode, tableResponse.body).toBe(201);
   const schema = tableResponse.json() as DataSchemaDto;
+  const planResponse = await app.inject({
+    method: "POST",
+    url: `/api/v1/projects/${project.id}/schema/plan`,
+    payload: {
+      expectedSchemaRevision: schema.schemaRevision,
+      expectedProjectRevision: schema.projectRevision,
+    },
+  });
+  expect(planResponse.statusCode, planResponse.body).toBe(200);
+  const planId = (planResponse.json() as { plan: { id: string } }).plan.id;
+  const applyResponse = await app.inject({
+    method: "POST",
+    url: `/api/v1/projects/${project.id}/schema/apply`,
+    payload: {
+      planId,
+      expectedSchemaRevision: schema.schemaRevision,
+      expectedProjectRevision: schema.projectRevision,
+      confirmDestructive: false,
+      idempotencyKey: `schema-${randomUUID()}`,
+    },
+  });
+  expect(applyResponse.statusCode, applyResponse.body).toBe(200);
   return { project, page: pageBody.page, element: element.entry, schema };
+}
+
+async function readQueryPreview(
+  app: FastifyInstance,
+  seeded: Awaited<ReturnType<typeof seed>>,
+  connection: RelationshipConnectionPreviewDto,
+): Promise<BindingQueryPreviewDto> {
+  const fields = seeded.schema.tables[0]?.fields ?? [];
+  const response = await app.inject({
+    method: "POST",
+    url: `/api/v1/projects/${seeded.project.id}/binding-query-previews`,
+    payload: {
+      connectionPreviewId: connection.previewId,
+      spec: {
+        mode: "LIST",
+        selectFieldIds: fields.map(({ id }) => id),
+        filters: [],
+        orderBy: [],
+        aggregate: null,
+        groupByFieldId: null,
+        limit: 100,
+      },
+      mapping: {
+        shape: "ROWS",
+        labelFieldId: null,
+        valueFieldId: null,
+        secondaryFieldId: null,
+      },
+      expectedGraphRevision: connection.graphRevision,
+      expectedProjectRevision: connection.projectRevision,
+    },
+  });
+  expect(response.statusCode, response.body).toBe(200);
+  return response.json() as BindingQueryPreviewDto;
 }
 
 async function graph(app: FastifyInstance, projectId: string) {
@@ -215,10 +272,13 @@ describe("Phase 9 Data Relationship Canvas", () => {
     });
     expect((await graph(app, seeded.project.id)).edges).toEqual([]);
 
+    const queryPreview = await readQueryPreview(app, seeded, preview);
+
     const key = `binding-${randomUUID()}`;
     const payload = {
       previewId: preview.previewId,
       bindingType: "READ",
+      queryPreviewId: queryPreview.queryPreviewId,
       expectedGraphRevision: preview.graphRevision,
       expectedProjectRevision: preview.projectRevision,
       idempotencyKey: key,
@@ -382,12 +442,14 @@ describe("Phase 9 Data Relationship Canvas", () => {
       },
     });
     const preview = previewResponse.json() as RelationshipConnectionPreviewDto;
+    const queryPreview = await readQueryPreview(app, seeded, preview);
     const createResponse = await app.inject({
       method: "POST",
       url: `/api/v1/projects/${seeded.project.id}/bindings`,
       payload: {
         previewId: preview.previewId,
         bindingType: "READ",
+        queryPreviewId: queryPreview.queryPreviewId,
         expectedGraphRevision: preview.graphRevision,
         expectedProjectRevision: preview.projectRevision,
         idempotencyKey: `soft-delete-binding-${randomUUID()}`,
@@ -449,12 +511,14 @@ describe("Phase 9 Data Relationship Canvas", () => {
       },
     });
     const preview = previewResponse.json() as RelationshipConnectionPreviewDto;
+    const queryPreview = await readQueryPreview(app, seeded, preview);
     const createResponse = await app.inject({
       method: "POST",
       url: `/api/v1/projects/${seeded.project.id}/bindings`,
       payload: {
         previewId: preview.previewId,
         bindingType: "READ",
+        queryPreviewId: queryPreview.queryPreviewId,
         expectedGraphRevision: preview.graphRevision,
         expectedProjectRevision: preview.projectRevision,
         idempotencyKey: `lifecycle-binding-${randomUUID()}`,

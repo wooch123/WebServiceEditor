@@ -11,6 +11,7 @@ import type {
   PatchDataRelationRequest,
   PatchDataTableRequest,
   SchemaMigrationPlanDto,
+  SampleDataMutationDto,
 } from "@webeditor/domain";
 
 export type {
@@ -268,6 +269,36 @@ export function applySchemaPlan(
         expectedProjectRevision: schema.projectRevision,
         confirmDestructive,
         idempotencyKey,
+      }),
+    },
+  );
+}
+
+export function generateSampleData(
+  projectId: string,
+  rowCount = 24,
+  reset = true,
+) {
+  return request<SampleDataMutationDto>(
+    `/api/v1/projects/${encodeURIComponent(projectId)}/sample-data/generate`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        rowCount,
+        reset,
+        idempotencyKey: key(`sample-generate:${projectId}`),
+      }),
+    },
+  );
+}
+
+export function resetSampleData(projectId: string) {
+  return request<SampleDataMutationDto>(
+    `/api/v1/projects/${encodeURIComponent(projectId)}/sample-data/reset`,
+    {
+      method: "POST",
+      body: JSON.stringify({
+        idempotencyKey: key(`sample-reset:${projectId}`),
       }),
     },
   );

@@ -7,6 +7,7 @@ import {
   type SchemaFailurePoint,
 } from "./data-schema/schema-service.js";
 import { RelationshipService } from "./data-relationship/relationship-service.js";
+import { SampleDataService } from "./data-relationship/sample-data-service.js";
 import {
   ElementService,
   type ElementFailureInjector,
@@ -26,6 +27,7 @@ import { registerPageRoutes } from "./routes/pages.js";
 import { registerSystemRoutes } from "./routes/system.js";
 import { registerDataSchemaRoutes } from "./routes/data-schema.js";
 import { registerDataRelationshipRoutes } from "./routes/data-relationship.js";
+import { registerSampleDataRoutes } from "./routes/sample-data.js";
 
 export interface BuildServerOptions {
   readonly logger?: boolean;
@@ -85,8 +87,14 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   });
   const relationshipService = new RelationshipService({
     metadataDatabase,
+    projectStorage: projectService.storage,
     ...(options.clock === undefined ? {} : { clock: options.clock }),
   });
+  const sampleDataService = new SampleDataService(
+    metadataDatabase,
+    projectService.storage,
+    options.clock ?? (() => new Date()),
+  );
 
   app.setErrorHandler(async (error, _request, reply) => {
     if (error instanceof ApiError) {
@@ -148,6 +156,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   void app.register(registerLayoutPresetRoutes, { layoutPresetService });
   void app.register(registerDataSchemaRoutes, { schemaService });
   void app.register(registerDataRelationshipRoutes, { relationshipService });
+  void app.register(registerSampleDataRoutes, { sampleDataService });
 
   return app;
 }

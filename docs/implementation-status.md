@@ -247,6 +247,28 @@ Test plan:
 - Browser QA at 419×800: document width remains 419px and all four layout
   actions remain reachable at equal 395×40 geometry
 
+## Phase 11 evidence
+
+- Static, behavioral, browser, and Phase 0–10 regression audit:
+  `artifacts/phase11/safe-read-binding-engine-validation.json`
+- Metadata migration v10: bounded READ query runs and crash-safe Test sample
+  commands with exact idempotent response replay
+- Server-owned LIST, SINGLE, AGGREGATE, and CHART_SERIES compilation accepts
+  logical IDs only, binds all values, opens runtime SQLite read-only, and caps
+  every result at 500 rows
+- Binding query Preview is bound to Project, endpoint, mapping, revisions, and a
+  15-second single-use candidate; raw SQL and physical identifiers never cross
+  the browser contract
+- Deterministic Test sample generation and reset leave Production SQLite
+  byte-identical; same-row-count regeneration still rewrites corrupted values
+- Canvas reads the actual Test binding result: Data Table renders 24 rows and
+  Histogram renders 20 chart marks without frontend fixture data
+- Browser QA at 1280×720: query and dialog sibling actions retain equal
+  geometry, and the statistical chart fills its Element surface
+- Browser QA at 419×800: document width remains 419px, the Binding wizard is
+  reachable, and both sibling action groups remain equal at 173.5×40px
+- Browser console errors and required request failures: 0
+
 ## Deferred operational hardening
 
 - Sudden power-loss durability for directory rename/delete requires mount-backed

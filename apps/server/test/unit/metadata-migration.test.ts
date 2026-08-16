@@ -84,7 +84,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(9);
+      expect(migrated.assertReady().schemaVersion).toBe(10);
       expect(
         migrated.connection
           .prepare(
@@ -112,6 +112,7 @@ describe("metadata migration", () => {
         { version: 7 },
         { version: 8 },
         { version: 9 },
+        { version: 10 },
       ]);
       expect(
         migrated.connection
@@ -141,6 +142,16 @@ describe("metadata migration", () => {
         { name: "layout_preset_instances" },
         { name: "page_layout_revisions" },
       ]);
+      expect(
+        migrated.connection
+          .prepare(
+            "SELECT name FROM sqlite_master WHERE type = 'table' AND name IN ('binding_query_runs', 'sample_data_commands') ORDER BY name",
+          )
+          .all(),
+      ).toEqual([
+        { name: "binding_query_runs" },
+        { name: "sample_data_commands" },
+      ]);
     } finally {
       migrated.close();
     }
@@ -154,11 +165,11 @@ describe("metadata migration", () => {
     const path = join(directory, "metadata.sqlite");
     const future = new Database(path);
     future.pragma("application_id = 1464156741");
-    future.pragma("user_version = 10");
+    future.pragma("user_version = 11");
     future.close();
 
     expect(() => new MetadataDatabase(path)).toThrow(
-      "Refusing unknown future metadata schema version 10",
+      "Refusing unknown future metadata schema version 11",
     );
   });
 
@@ -201,6 +212,8 @@ describe("metadata migration", () => {
     const version3 = new Database(path);
     version3.pragma("foreign_keys = OFF");
     version3.exec(`
+      DROP TABLE binding_query_runs;
+      DROP TABLE sample_data_commands;
       DROP TABLE relationship_layout_history_operations;
       DROP TABLE relationship_layout_commands;
       DROP TABLE relationship_node_positions;
@@ -236,7 +249,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(9);
+      expect(migrated.assertReady().schemaVersion).toBe(10);
       expect(
         migrated.connection
           .prepare(
@@ -371,6 +384,8 @@ describe("metadata migration", () => {
     const version5 = new Database(path);
     version5.pragma("foreign_keys = OFF");
     version5.exec(`
+      DROP TABLE binding_query_runs;
+      DROP TABLE sample_data_commands;
       DROP TABLE relationship_layout_history_operations;
       DROP TABLE relationship_layout_commands;
       DROP TABLE relationship_node_positions;
@@ -491,7 +506,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(9);
+      expect(migrated.assertReady().schemaVersion).toBe(10);
       expect(
         migrated.connection
           .prepare(
@@ -652,6 +667,8 @@ describe("metadata migration", () => {
     const version4 = new Database(path);
     version4.pragma("foreign_keys = OFF");
     version4.exec(`
+      DROP TABLE binding_query_runs;
+      DROP TABLE sample_data_commands;
       DROP TABLE relationship_layout_history_operations;
       DROP TABLE relationship_layout_commands;
       DROP TABLE relationship_node_positions;

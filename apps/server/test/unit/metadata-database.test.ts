@@ -10,7 +10,7 @@ describe("MetadataDatabase", () => {
       expect(database.assertReady()).toMatchObject({
         foreignKeysEnabled: true,
         integrity: "ok",
-        schemaVersion: 9,
+        schemaVersion: 10,
       });
     } finally {
       database.close();
@@ -83,6 +83,109 @@ describe("MetadataDatabase", () => {
           ...base,
           id: "00000000-0000-4000-8000-000000000007",
         }),
+      ).toThrow();
+    } finally {
+      database.close();
+    }
+  });
+
+  it("constrains Phase 11 query evidence and sample command replay rows", () => {
+    const database = new MetadataDatabase(":memory:");
+    const projectId = "00000000-0000-4000-8000-000000000011";
+    const now = "2026-08-16T00:00:00.000Z";
+    try {
+      database.connection
+        .prepare(
+          `INSERT INTO projects (
+             id, name, slug, lifecycle_status, status, schema_version,
+             revision, lifecycle_revision, favorite, theme_id, created_at,
+             updated_at, original_storage_path, current_storage_path
+           ) VALUES (?, 'READ Project', 'read-project', 'ACTIVE',
+             'DRAFT', 1, 1, 0, 0, 'light-clean-paper', ?, ?, ?, ?)`,
+        )
+        .run(projectId, now, now, `active/${projectId}`, `active/${projectId}`);
+      const insertRun = database.connection.prepare(`
+        INSERT INTO binding_query_runs (
+          id, project_id, binding_id, environment, plan_checksum, row_count,
+          truncated, status, error_code, created_at
+        ) VALUES (?, ?, NULL, ?, ?, ?, ?, ?, NULL, ?)
+      `);
+      expect(() =>
+        insertRun.run(
+          "00000000-0000-4000-8000-000000000012",
+          projectId,
+          "draft",
+          "a".repeat(64),
+          0,
+          0,
+          "SUCCEEDED",
+          now,
+        ),
+      ).toThrow();
+      expect(() =>
+        insertRun.run(
+          "00000000-0000-4000-8000-000000000013",
+          projectId,
+          "test",
+          "not-a-checksum",
+          0,
+          0,
+          "SUCCEEDED",
+          now,
+        ),
+      ).toThrow();
+      expect(() =>
+        insertRun.run(
+          "00000000-0000-4000-8000-000000000014",
+          projectId,
+          "test",
+          "b".repeat(64),
+          -1,
+          0,
+          "SUCCEEDED",
+          now,
+        ),
+      ).toThrow();
+      insertRun.run(
+        "00000000-0000-4000-8000-000000000015",
+        projectId,
+        "test",
+        "c".repeat(64),
+        12,
+        0,
+        "SUCCEEDED",
+        now,
+      );
+
+      const insertCommand = database.connection.prepare(`
+        INSERT INTO sample_data_commands (
+          id, project_id, command_type, idempotency_key, request_hash,
+          response_status, response_json, created_at
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `);
+      expect(() =>
+        insertCommand.run(
+          "00000000-0000-4000-8000-000000000016",
+          projectId,
+          "GENERATE",
+          "sample-key",
+          "d".repeat(64),
+          500,
+          "{}",
+          now,
+        ),
+      ).toThrow();
+      expect(() =>
+        insertCommand.run(
+          "00000000-0000-4000-8000-000000000017",
+          projectId,
+          "GENERATE",
+          "sample-key",
+          "d".repeat(64),
+          200,
+          "not-json",
+          now,
+        ),
       ).toThrow();
     } finally {
       database.close();

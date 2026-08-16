@@ -46,7 +46,7 @@ describe("system routes", () => {
       expect(readyResponse.statusCode).toBe(200);
       expect(readyResponse.json()).toEqual({
         checks: { metadataDatabase: "ready", projectStorage: "ready" },
-        schemaVersion: 9,
+        schemaVersion: 10,
         status: "ready",
       });
     } finally {
@@ -68,6 +68,7 @@ describe("system routes", () => {
       { name: "database-designer-runtime-schema", version: 7 },
       { name: "data-relationship-canvas", version: 8 },
       { name: "relationship-layout-routing", version: 9 },
+      { name: "safe-read-binding-engine", version: 10 },
     ]);
     expect(database.pragma("quick_check", { simple: true })).toBe("ok");
     expect(() =>

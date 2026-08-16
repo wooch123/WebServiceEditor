@@ -3,6 +3,7 @@ import type {
   CreateRelationshipBindingRequest,
   DeleteRelationshipBindingRequest,
   PatchRelationshipBindingRequest,
+  PreviewBindingQueryRequest,
   PreviewRelationshipAutoLayoutRequest,
   PreviewRelationshipConnectionRequest,
   RelationshipHistoryMutationRequest,
@@ -178,6 +179,7 @@ export async function registerDataRelationshipRoutes(
       const body = exactBody(request.body, [
         "previewId",
         "bindingType",
+        "queryPreviewId",
         ...graphRevisions,
         "idempotencyKey",
       ]);
@@ -189,6 +191,42 @@ export async function registerDataRelationshipRoutes(
             body as unknown as CreateRelationshipBindingRequest,
           ),
         );
+    },
+  );
+
+  server.post<{ Params: { projectId: string } }>(
+    "/api/v1/projects/:projectId/binding-query-previews",
+    async (request) => {
+      const body = exactBody(request.body, [
+        "connectionPreviewId",
+        "spec",
+        "mapping",
+        ...graphRevisions,
+      ]);
+      return service.previewBindingQuery(
+        request.params.projectId,
+        body as unknown as PreviewBindingQueryRequest,
+      );
+    },
+  );
+
+  server.post<{ Params: { bindingId: string } }>(
+    "/api/v1/bindings/:bindingId/preview",
+    async (request) => {
+      exactBody(request.body ?? {}, []);
+      return service.executeBindingPreview(request.params.bindingId);
+    },
+  );
+
+  server.post<{ Params: { projectId: string; bindingId: string } }>(
+    "/api/v1/runtime/:projectId/query/:bindingId",
+    async (request) => {
+      const body = exactBody(request.body ?? {}, ["parameters"]);
+      return service.executeRuntimeBinding(
+        request.params.projectId,
+        request.params.bindingId,
+        body.parameters,
+      );
     },
   );
 

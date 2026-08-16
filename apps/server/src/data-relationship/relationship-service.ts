@@ -5,6 +5,8 @@ import {
   RELATIONSHIP_BINDING_STATUSES,
   RELATIONSHIP_BINDING_TYPES,
   type BindingEndpointDto,
+  type BindingExecutionDto,
+  type BindingQueryPreviewDto,
   type CreateRelationshipBindingRequest,
   type DataRelationshipGraphDto,
   type DeleteRelationshipBindingDto,
@@ -13,6 +15,7 @@ import {
   type ApplyRelationshipAutoLayoutRequest,
   type PreviewRelationshipAutoLayoutRequest,
   type PreviewRelationshipConnectionRequest,
+  type PreviewBindingQueryRequest,
   type RelationshipAutoLayoutApplyDto,
   type RelationshipAutoLayoutPreviewDto,
   type RelationshipBindingDto,
@@ -43,6 +46,7 @@ import { ElementRepository } from "../elements/element-repository.js";
 import type { MetadataDatabase } from "../metadata/database.js";
 import { PageRepository } from "../pages/page-repository.js";
 import { ProjectRepository } from "../projects/project-repository.js";
+import type { ProjectStorage } from "../projects/project-storage.js";
 import { SchemaRepository } from "../data-schema/schema-repository.js";
 import {
   RelationshipRepository,
@@ -54,6 +58,10 @@ import {
 } from "./relationship-auto-layout.js";
 import type { RelationshipLayoutCommandRow } from "./relationship-layout-repository.js";
 import { routeRelationshipEdges } from "./relationship-router.js";
+import {
+  BindingQueryCompiler,
+  type CompiledBindingQuery,
+} from "./binding-query-compiler.js";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -73,6 +81,11 @@ interface StoredConnectionPreview extends RelationshipConnectionPreviewDto {
 }
 
 interface StoredAutoLayoutPreview extends RelationshipAutoLayoutPreviewDto {
+  readonly createdAtMs: number;
+}
+
+interface StoredBindingQueryPreview extends BindingQueryPreviewDto {
+  readonly compiled: CompiledBindingQuery;
   readonly createdAtMs: number;
 }
 
@@ -297,6 +310,7 @@ function storedLayoutCommandResult<T>(
 
 export interface RelationshipServiceOptions {
   readonly metadataDatabase: MetadataDatabase;
+  readonly projectStorage: ProjectStorage;
   readonly clock?: () => Date;
 }
 
@@ -306,9 +320,11 @@ export class RelationshipService {
   readonly pageRepository: PageRepository;
   readonly elementRepository: ElementRepository;
   readonly schemaRepository: SchemaRepository;
+  readonly queryCompiler: BindingQueryCompiler;
   readonly #clock: () => Date;
   readonly #previews = new Map<string, StoredConnectionPreview>();
   readonly #autoLayoutPreviews = new Map<string, StoredAutoLayoutPreview>();
+  readonly #queryPreviews = new Map<string, StoredBindingQueryPreview>();
 
   constructor(options: RelationshipServiceOptions) {
     this.repository = new RelationshipRepository(options.metadataDatabase);
@@ -316,6 +332,10 @@ export class RelationshipService {
     this.pageRepository = new PageRepository(options.metadataDatabase);
     this.elementRepository = new ElementRepository(options.metadataDatabase);
     this.schemaRepository = new SchemaRepository(options.metadataDatabase);
+    this.queryCompiler = new BindingQueryCompiler(
+      options.metadataDatabase,
+      options.projectStorage,
+    );
     this.#clock = options.clock ?? (() => new Date());
     for (const project of this.projectRepository.listActive()) {
       this.graph(project.id);
@@ -547,6 +567,101 @@ export class RelationshipService {
     return this.#publicPreview(preview);
   }
 
+  previewBindingQuery(
+    projectId: string,
+    request: PreviewBindingQueryRequest,
+  ): BindingQueryPreviewDto {
+    assertUuid(projectId, "INVALID_PROJECT_ID", "Project ID");
+    assertUuid(
+      request.connectionPreviewId,
+      "INVALID_CONNECTION_PREVIEW_ID",
+      "Connection preview ID",
+    );
+    const connection = this.#connectionPreview(
+      request.connectionPreviewId,
+      projectId,
+    );
+    assertApi(
+      connection.compatible && connection.allowedBindingTypes.includes("READ"),
+      409,
+      "CONNECTION_PREVIEW_INVALID",
+      "Connection preview does not allow READ",
+      { issues: connection.issues },
+    );
+    const context = this.#context(projectId);
+    this.#assertRevisions(context, request);
+    assertApi(
+      connection.graphRevision === context.graphRevision &&
+        connection.projectRevision === context.projectRevision,
+      409,
+      "CONNECTION_PREVIEW_STALE",
+      "Connection preview is stale",
+    );
+    const compiled = this.queryCompiler.compileRequest(
+      projectId,
+      connection.source,
+      connection.target,
+      request,
+    );
+    const result = this.queryCompiler.execute(projectId, "test", compiled);
+    const now = this.#clock();
+    this.#recordQueryRun(
+      projectId,
+      null,
+      "test",
+      compiled.planChecksum,
+      result,
+      now.toISOString(),
+    );
+    const preview: StoredBindingQueryPreview = {
+      queryPreviewId: randomUUID(),
+      connectionPreviewId: connection.previewId,
+      projectId,
+      sourceTableId: compiled.query.tableId,
+      targetElementId: connection.target.objectId,
+      spec: compiled.query.spec,
+      mapping: compiled.mapping.render,
+      result,
+      planChecksum: compiled.planChecksum,
+      graphRevision: context.graphRevision,
+      projectRevision: context.projectRevision,
+      expiresAt: new Date(now.getTime() + 15_000).toISOString(),
+      compiled,
+      createdAtMs: now.getTime(),
+    };
+    this.#queryPreviews.set(preview.queryPreviewId, preview);
+    while (this.#queryPreviews.size > 128) {
+      const oldest = this.#queryPreviews.keys().next().value as
+        string | undefined;
+      if (oldest === undefined) break;
+      this.#queryPreviews.delete(oldest);
+    }
+    return this.#publicQueryPreview(preview);
+  }
+
+  executeBindingPreview(bindingId: string): BindingExecutionDto {
+    return this.#executeBinding(bindingId, "test");
+  }
+
+  executeRuntimeBinding(
+    projectId: string,
+    bindingId: string,
+    parameters: unknown,
+  ): BindingExecutionDto {
+    assertUuid(projectId, "INVALID_PROJECT_ID", "Project ID");
+    const parameterSource =
+      parameters === undefined
+        ? {}
+        : safeConfiguration(parameters, "Runtime parameters");
+    assertApi(
+      Object.keys(parameterSource).length === 0,
+      400,
+      "UNSUPPORTED_BINDING_PARAMETER",
+      "This READ Binding does not declare Runtime parameters",
+    );
+    return this.#executeBinding(bindingId, "production", projectId);
+  }
+
   create(
     projectId: string,
     request: CreateRelationshipBindingRequest,
@@ -564,6 +679,16 @@ export class RelationshipService {
     if (replay !== undefined) {
       return storedCommandResult<RelationshipBindingMutationDto>(replay, hash);
     }
+    const queryPreview =
+      type === "READ"
+        ? this.#consumeQueryPreview(request.queryPreviewId, projectId)
+        : null;
+    assertApi(
+      type === "READ" || request.queryPreviewId === undefined,
+      400,
+      "QUERY_PREVIEW_NOT_ALLOWED",
+      "Query preview is only valid for READ",
+    );
     const preview = this.#consumePreview(request.previewId, projectId);
     assertApi(
       preview.compatible && preview.allowedBindingTypes.includes(type),
@@ -581,6 +706,17 @@ export class RelationshipService {
       "CONNECTION_PREVIEW_STALE",
       "Connection preview is stale",
     );
+    if (queryPreview !== null) {
+      assertApi(
+        queryPreview.connectionPreviewId === preview.previewId &&
+          queryPreview.graphRevision === context.graphRevision &&
+          queryPreview.projectRevision === context.projectRevision &&
+          queryPreview.targetElementId === preview.target.objectId,
+        409,
+        "BINDING_QUERY_PREVIEW_STALE",
+        "Binding query preview does not match this connection",
+      );
+    }
     const now = this.#now();
     const bindingId = randomUUID();
     const commandId = randomUUID();
@@ -602,14 +738,18 @@ export class RelationshipService {
         bindingType: type,
         source: preview.source,
         target: preview.target,
-        query: {
+        query: (queryPreview?.compiled.query as unknown as Readonly<
+          Record<string, unknown>
+        >) ?? {
           source: {
             nodeType: preview.source.nodeType,
             objectId: preview.source.objectId,
             portRole: preview.source.portRole,
           },
         },
-        mapping: {
+        mapping: (queryPreview?.compiled.mapping as unknown as Readonly<
+          Record<string, unknown>
+        >) ?? {
           target: {
             nodeType: preview.target.nodeType,
             objectId: preview.target.objectId,
@@ -1822,6 +1962,157 @@ export class RelationshipService {
       `${label} is invalid`,
     );
     return value;
+  }
+
+  #executeBinding(
+    bindingId: string,
+    environment: "test" | "production",
+    expectedProjectId?: string,
+  ): BindingExecutionDto {
+    assertUuid(bindingId, "INVALID_BINDING_ID", "Binding ID");
+    const row = this.repository.activeBinding(bindingId);
+    assertApi(
+      row !== undefined && row.binding_type === "READ",
+      404,
+      "BINDING_NOT_FOUND",
+      "Executable READ Binding was not found",
+    );
+    assertApi(
+      expectedProjectId === undefined || row.project_id === expectedProjectId,
+      404,
+      "BINDING_NOT_FOUND",
+      "Binding was not found",
+    );
+    assertApi(
+      row.status === "READY",
+      409,
+      "BINDING_DISABLED",
+      "Binding is disabled",
+    );
+    this.#context(row.project_id);
+    const binding = this.repository.toDto(row);
+    const compiled = this.queryCompiler.compileStored(
+      binding.projectId,
+      binding.source,
+      binding.target,
+      binding.query,
+      binding.mapping,
+    );
+    const result = this.queryCompiler.execute(
+      binding.projectId,
+      environment,
+      compiled,
+    );
+    this.#recordQueryRun(
+      binding.projectId,
+      bindingId,
+      environment,
+      compiled.planChecksum,
+      result,
+      this.#now(),
+    );
+    return {
+      bindingId,
+      projectId: binding.projectId,
+      targetElementId: binding.target.objectId,
+      environment,
+      planChecksum: compiled.planChecksum,
+      result,
+    };
+  }
+
+  #recordQueryRun(
+    projectId: string,
+    bindingId: string | null,
+    environment: "test" | "production",
+    planChecksum: string,
+    result: BindingExecutionDto["result"],
+    now: string,
+  ): void {
+    this.repository.connection
+      .prepare(
+        `INSERT INTO binding_query_runs (
+           id, project_id, binding_id, environment, plan_checksum, row_count,
+           truncated, status, created_at
+         ) VALUES (?, ?, ?, ?, ?, ?, ?, 'SUCCEEDED', ?)`,
+      )
+      .run(
+        randomUUID(),
+        projectId,
+        bindingId,
+        environment,
+        planChecksum,
+        result.rowCount,
+        result.truncated ? 1 : 0,
+        now,
+      );
+  }
+
+  #connectionPreview(
+    previewId: string,
+    projectId: string,
+  ): StoredConnectionPreview {
+    const now = this.#clock().getTime();
+    this.#purgeExpired(now);
+    const preview = this.#previews.get(previewId);
+    assertApi(
+      preview !== undefined,
+      409,
+      "CONNECTION_PREVIEW_NOT_FOUND",
+      "Connection preview was not found or expired",
+    );
+    assertApi(
+      preview.projectId === projectId,
+      409,
+      "CONNECTION_PREVIEW_PROJECT_MISMATCH",
+      "Connection preview belongs to another Project",
+    );
+    return preview;
+  }
+
+  #consumeQueryPreview(
+    previewId: unknown,
+    projectId: string,
+  ): StoredBindingQueryPreview {
+    assertUuid(
+      previewId,
+      "INVALID_BINDING_QUERY_PREVIEW_ID",
+      "Binding query preview ID",
+    );
+    const now = this.#clock().getTime();
+    this.#purgeExpiredQueryPreviews(now);
+    const preview = this.#queryPreviews.get(previewId);
+    assertApi(
+      preview !== undefined,
+      409,
+      "BINDING_QUERY_PREVIEW_NOT_FOUND",
+      "Binding query preview was not found or expired",
+    );
+    assertApi(
+      preview.projectId === projectId,
+      409,
+      "BINDING_QUERY_PREVIEW_PROJECT_MISMATCH",
+      "Binding query preview belongs to another Project",
+    );
+    this.#queryPreviews.delete(previewId);
+    return preview;
+  }
+
+  #purgeExpiredQueryPreviews(now: number): void {
+    for (const [id, preview] of this.#queryPreviews) {
+      if (preview.createdAtMs + 15_000 <= now) this.#queryPreviews.delete(id);
+    }
+  }
+
+  #publicQueryPreview(
+    preview: StoredBindingQueryPreview,
+  ): BindingQueryPreviewDto {
+    const {
+      createdAtMs: _createdAtMs,
+      compiled: _compiled,
+      ...publicPreview
+    } = preview;
+    return publicPreview;
   }
 
   #consumePreview(

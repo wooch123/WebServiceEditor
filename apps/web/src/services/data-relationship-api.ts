@@ -1,10 +1,13 @@
 import type {
   ApplyRelationshipAutoLayoutRequest,
+  BindingExecutionDto,
+  BindingQueryPreviewDto,
   CreateRelationshipBindingRequest,
   DataRelationshipGraphDto,
   DeleteRelationshipBindingDto,
   DeleteRelationshipBindingRequest,
   PreviewRelationshipAutoLayoutRequest,
+  PreviewBindingQueryRequest,
   PreviewRelationshipConnectionRequest,
   RelationshipAutoLayoutApplyDto,
   RelationshipAutoLayoutPreviewDto,
@@ -167,6 +170,23 @@ export const dataRelationshipApi = {
     return request(`/api/v1/projects/${projectId}/bindings`, {
       method: "POST",
       body: JSON.stringify(payload),
+    });
+  },
+
+  previewQuery(
+    projectId: string,
+    payload: PreviewBindingQueryRequest,
+  ): Promise<BindingQueryPreviewDto> {
+    return request(`/api/v1/projects/${projectId}/binding-query-previews`, {
+      method: "POST",
+      body: JSON.stringify(payload),
+    });
+  },
+
+  executePreview(bindingId: string): Promise<BindingExecutionDto> {
+    return request(`/api/v1/bindings/${bindingId}/preview`, {
+      method: "POST",
+      body: JSON.stringify({}),
     });
   },
 

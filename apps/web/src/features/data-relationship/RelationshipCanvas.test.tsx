@@ -23,6 +23,7 @@ const fieldId = "00000000-0000-4000-8000-000000000905";
 const bindingId = "00000000-0000-4000-8000-000000000906";
 const commandId = "00000000-0000-4000-8000-000000000907";
 const previewId = "00000000-0000-4000-8000-000000000908";
+const queryPreviewId = "00000000-0000-4000-8000-000000000909";
 
 function port(
   nodeId: string,
@@ -390,6 +391,50 @@ describe("RelationshipCanvas", () => {
             expiresAt: "2026-08-16T00:00:15.000Z",
           });
         }
+        if (url.endsWith("/binding-query-previews")) {
+          return response({
+            queryPreviewId,
+            connectionPreviewId: previewId,
+            projectId,
+            sourceTableId: tableId,
+            targetElementId: elementId,
+            spec: {
+              mode: "LIST",
+              selectFieldIds: [fieldId],
+              filters: [],
+              orderBy: [],
+              aggregate: null,
+              groupByFieldId: null,
+              limit: 100,
+            },
+            mapping: {
+              shape: "ROWS",
+              labelFieldId: null,
+              valueFieldId: null,
+              secondaryFieldId: null,
+            },
+            result: {
+              columns: [{ fieldId, label: "ID", valueType: "INTEGER" }],
+              rows: [{ [fieldId]: 1 }],
+              rowCount: 1,
+              truncated: false,
+              renderState: "DATA",
+              renderData: { columns: ["ID"], rows: [{ ID: 1 }] },
+            },
+            planChecksum: "a".repeat(64),
+            graphRevision: 0,
+            projectRevision: 4,
+            expiresAt: "2026-08-16T00:00:15.000Z",
+          });
+        }
+        if (url.endsWith("/sample-data/generate")) {
+          return response({
+            projectId,
+            tableCount: 1,
+            rowCount: 24,
+            databaseChecksum: "b".repeat(64),
+          });
+        }
         if (url.endsWith("/bindings") && method === "POST") {
           current = graph([binding()]);
           return response(
@@ -420,6 +465,16 @@ describe("RelationshipCanvas", () => {
     expect(within(dialog).getByText(/→/)).toHaveTextContent(
       `${binding().source.portRole} → ${binding().target.portRole}`,
     );
+    const queryActions = within(dialog).getByRole("group", {
+      name: "조회 도구",
+    });
+    const siblingActions = within(queryActions).getAllByRole("button");
+    expect(siblingActions).toHaveLength(2);
+    expect(siblingActions[0]?.className).toBe(siblingActions[1]?.className);
+    expect(within(dialog).getByRole("button", { name: "연결" })).toBeDisabled();
+    await user.click(within(dialog).getByRole("button", { name: "샘플" }));
+    await user.click(within(dialog).getByRole("button", { name: "미리보기" }));
+    expect(await within(dialog).findByText("1행")).toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "연결" }));
     expect(
       await screen.findByRole("button", { name: "조회 Binding" }),
@@ -432,6 +487,12 @@ describe("RelationshipCanvas", () => {
     const createCall = calls.find(
       ({ url, method }) => url.endsWith("/bindings") && method === "POST",
     );
+    const sampleCall = calls.find(({ url }) =>
+      url.endsWith("/sample-data/generate"),
+    );
+    const queryCall = calls.find(({ url }) =>
+      url.endsWith("/binding-query-previews"),
+    );
     expect(previewCall?.body).toMatchObject({
       sourcePortId: binding().source.portId,
       targetPortId: binding().target.portId,
@@ -439,8 +500,26 @@ describe("RelationshipCanvas", () => {
     expect(createCall?.body).toMatchObject({
       previewId,
       bindingType: "READ",
+      queryPreviewId,
     });
     expect(createCall?.body).not.toHaveProperty("sourcePortId");
+    expect(createCall?.body).not.toHaveProperty("sql");
+    expect(sampleCall?.body).toMatchObject({ rowCount: 24, reset: true });
+    expect(queryCall?.body).toMatchObject({
+      spec: {
+        mode: "LIST",
+        selectFieldIds: [fieldId],
+        filters: [],
+        orderBy: [],
+        aggregate: null,
+        limit: 100,
+      },
+      mapping: {
+        shape: "ROWS",
+        valueFieldId: null,
+      },
+    });
+    expect(queryCall?.body).not.toHaveProperty("sql");
     expect(document.querySelectorAll(".relationship-edge")).toHaveLength(1);
     expect(document.querySelector(".relationship-edge")).toHaveAttribute(
       "data-binding-id",

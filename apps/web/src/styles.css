@@ -3575,12 +3575,15 @@ svg {
 }
 
 .element-render-surface {
+  display: flex;
   overflow: auto;
   border-radius: 0 0 var(--control-radius) var(--control-radius);
 }
 
 .element-renderer {
   position: relative;
+  width: 100%;
+  height: 100%;
 }
 
 .element-renderer[data-render-mode="compact"] {
@@ -4808,6 +4811,62 @@ svg {
   gap: 0.5rem;
 }
 
+.relationship-binding-dialog {
+  width: min(calc(100% - 2rem), 56rem);
+  max-width: 56rem;
+  max-height: min(90vh, 52rem);
+  overflow-y: auto;
+}
+
+.binding-query-fields {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0.75rem;
+}
+
+.binding-query-fields [data-slot="field"] {
+  min-width: 0;
+}
+
+.binding-query-fields [data-slot="native-select"],
+.binding-query-fields [data-slot="input"] {
+  width: 100%;
+  min-height: var(--control-height);
+  border-radius: var(--control-radius);
+}
+
+.binding-query-actions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.5rem;
+}
+
+.binding-query-actions > * {
+  width: 100%;
+  min-height: var(--control-height);
+  border-radius: var(--control-radius);
+}
+
+.binding-query-preview {
+  display: flex;
+  max-height: 15rem;
+  min-height: 4rem;
+  flex-direction: column;
+  gap: 0.5rem;
+  overflow: auto;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 0.75rem;
+  background: var(--card);
+}
+
+.binding-query-preview > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
 @media (max-width: 900px) {
   .relationship-workspace {
     min-height: 42rem;
@@ -4826,6 +4885,10 @@ svg {
   .relationship-layout-actions {
     width: 100%;
     justify-self: stretch;
+  }
+
+  .binding-query-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .relationship-viewport {
@@ -4858,6 +4921,10 @@ svg {
 
   .relationship-selection > * {
     width: 100%;
+  }
+
+  .binding-query-fields {
+    grid-template-columns: 1fr;
   }
 }
 
