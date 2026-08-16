@@ -497,10 +497,11 @@ export function PageManager({
             size="sm"
             type="button"
             disabled={busy || loading}
+            aria-label="미리보기"
             onClick={() => void openDraftPreview()}
           >
             <Eye data-icon="inline-start" />
-            미리보기
+            보기
           </Button>
           <Button
             variant="outline"
@@ -521,7 +522,7 @@ export function PageManager({
                 aria-label="페이지 추가"
               >
                 <FilePlus2 data-icon="inline-start" />
-                페이지
+                추가
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent

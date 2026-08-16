@@ -746,10 +746,16 @@ describe("PageManager behavior", () => {
     expect(actionGroup).toContainElement(add);
     expect(actionGroup).toContainElement(preview);
     expect(stylesCss).toMatch(
-      /\.page-manager-actions\s*\{[^}]*width:\s*100%;[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/s,
+      /\.page-manager-actions\s*\{[^}]*display:\s*flex;[^}]*width:\s*100%;[^}]*align-items:\s*center;/s,
     );
     expect(stylesCss).toMatch(
-      /\.page-manager-actions\s*>\s*\[data-slot="dropdown-menu-trigger"\]\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/s,
+      /\.page-manager-heading\s+\.page-manager-actions\s*\{[^}]*flex-direction:\s*row;/s,
+    );
+    expect(stylesCss).toMatch(
+      /\.page-manager-actions\s*>\s*\*\s*\{[^}]*min-width:\s*0;[^}]*flex:\s*1\s+1\s+0;/s,
+    );
+    expect(stylesCss).toMatch(
+      /\.page-manager-actions\s*>\s*\[data-slot="button"\],[\s\S]*\.page-manager-actions\s*>\s*\[data-slot="dropdown-menu-trigger"\]\s*\{[^}]*width:\s*auto;[^}]*min-width:\s*0;/s,
     );
     const actionWidth = 4.5 * 16;
     const actionHeight = 2.5 * 16;

@@ -780,6 +780,12 @@ describe("WebEditor persistent project home", () => {
       /\.page-manager-row\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;[^}]*grid-template-columns:\s*auto auto minmax\(0,\s*1fr\) minmax\(0,\s*auto\) auto;/s,
     );
     expect(stylesCss).toMatch(
+      /\.page-manager-row\s*\{[^}]*min-height:\s*max\(3\.15rem,\s*calc\(2\.6em \+ 0\.75rem\)\);/s,
+    );
+    expect(stylesCss).toMatch(
+      /\.page-row-name\s*\{[^}]*align-self:\s*stretch;[^}]*overflow:\s*hidden;/s,
+    );
+    expect(stylesCss).toMatch(
       /\.page-row-name strong,[\s\S]*\.page-row-name small\s*\{[^}]*max-width:\s*100%;[^}]*text-overflow:\s*ellipsis;[^}]*white-space:\s*nowrap;/s,
     );
   });
