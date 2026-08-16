@@ -23,6 +23,15 @@ export const ELEMENT_TYPES = [
   "scatter-plot",
   "box-plot",
   "summary-statistics",
+  "heading",
+  "divider",
+  "image",
+  "badge",
+  "icon",
+  "link",
+  "spacer",
+  "tabs",
+  "accordion",
 ] as const;
 export const STATISTICAL_ELEMENT_TYPES = [
   "line-chart",
@@ -646,6 +655,270 @@ const statisticalChartLayout = {
   maxW: 24,
   maxH: 60,
 } as const;
+
+function textProperty(
+  id: string,
+  tab: ElementPropertyTabId,
+  label: string,
+  control: "text" | "textarea" | "icon" = "text",
+  required = true,
+): ElementPropertyField {
+  return {
+    id,
+    tab,
+    label,
+    control,
+    valueType: "string",
+    target: "props",
+    required,
+    readOnly: false,
+    maxLength: control === "textarea" ? 10_000 : 2_048,
+  };
+}
+
+function selectProperty(
+  id: string,
+  tab: ElementPropertyTabId,
+  label: string,
+  options: readonly ElementPropertyOption[],
+): ElementPropertyField {
+  return {
+    id,
+    tab,
+    label,
+    control: "select",
+    valueType: "enum",
+    target: "props",
+    required: true,
+    readOnly: false,
+    options,
+  };
+}
+
+interface AdditionalBasicElementSpec {
+  readonly type: Extract<
+    ElementType,
+    | "heading"
+    | "divider"
+    | "image"
+    | "badge"
+    | "icon"
+    | "link"
+    | "spacer"
+    | "tabs"
+    | "accordion"
+  >;
+  readonly label: string;
+  readonly description: string;
+  readonly iconName: string;
+  readonly defaultName: string;
+  readonly defaultProps: Readonly<Record<string, unknown>>;
+  readonly layout: ElementSizeRule;
+  readonly fields: readonly ElementPropertyField[];
+  readonly events: readonly ElementEventDefinition[];
+}
+
+const additionalBasicElementSpecs = [
+  {
+    type: "heading",
+    label: "Heading",
+    description: "Semantic section heading.",
+    iconName: "Heading",
+    defaultName: "Heading",
+    defaultProps: { text: "Heading", level: "2" },
+    layout: { defaultW: 10, defaultH: 5, minW: 3, minH: 3, maxW: 24, maxH: 12 },
+    fields: [
+      textProperty("general.text", "general", "Text", "textarea"),
+      selectProperty("general.level", "general", "Level", [
+        { value: "1", label: "H1" },
+        { value: "2", label: "H2" },
+        { value: "3", label: "H3" },
+        { value: "4", label: "H4" },
+        { value: "5", label: "H5" },
+        { value: "6", label: "H6" },
+      ]),
+    ],
+    events: [],
+  },
+  {
+    type: "divider",
+    label: "Divider",
+    description: "Horizontal or vertical content separator.",
+    iconName: "Minus",
+    defaultName: "Divider",
+    defaultProps: { orientation: "horizontal" },
+    layout: { defaultW: 12, defaultH: 3, minW: 2, minH: 2, maxW: 24, maxH: 24 },
+    fields: [
+      selectProperty("general.orientation", "general", "Orientation", [
+        { value: "horizontal", label: "Horizontal" },
+        { value: "vertical", label: "Vertical" },
+      ]),
+    ],
+    events: [],
+  },
+  {
+    type: "image",
+    label: "Image",
+    description: "Accessible image from an HTTPS or data URL.",
+    iconName: "Image",
+    defaultName: "Image",
+    defaultProps: { src: "", alt: "Image", objectFit: "cover" },
+    layout: { defaultW: 8, defaultH: 12, minW: 3, minH: 4, maxW: 24, maxH: 60 },
+    fields: [
+      textProperty("general.src", "general", "Source", "text", false),
+      textProperty("general.alt", "general", "Alternative Text"),
+      selectProperty("style.objectFit", "style", "Fit", [
+        { value: "cover", label: "Cover" },
+        { value: "contain", label: "Contain" },
+        { value: "fill", label: "Fill" },
+      ]),
+    ],
+    events: [{ id: "onClick", label: "Click" }],
+  },
+  {
+    type: "badge",
+    label: "Badge",
+    description: "Compact semantic status label.",
+    iconName: "Badge",
+    defaultName: "Badge",
+    defaultProps: { label: "Badge", variant: "secondary" },
+    layout: { defaultW: 4, defaultH: 4, minW: 2, minH: 3, maxW: 12, maxH: 8 },
+    fields: [
+      textProperty("general.label", "general", "Label"),
+      selectProperty("style.variant", "style", "Variant", [
+        { value: "default", label: "Default" },
+        { value: "secondary", label: "Secondary" },
+        { value: "destructive", label: "Destructive" },
+        { value: "outline", label: "Outline" },
+      ]),
+    ],
+    events: [],
+  },
+  {
+    type: "icon",
+    label: "Icon",
+    description: "Lucide icon with an accessible label.",
+    iconName: "Info",
+    defaultName: "Icon",
+    defaultProps: { iconName: "Info", label: "Information" },
+    layout: { defaultW: 3, defaultH: 5, minW: 2, minH: 3, maxW: 10, maxH: 12 },
+    fields: [
+      textProperty("general.iconName", "general", "Icon", "icon"),
+      textProperty("general.label", "general", "Accessible Label"),
+    ],
+    events: [{ id: "onClick", label: "Click" }],
+  },
+  {
+    type: "link",
+    label: "Link",
+    description: "Accessible internal or HTTPS link.",
+    iconName: "Link",
+    defaultName: "Link",
+    defaultProps: { label: "Link", href: "/", newTab: false },
+    layout: { defaultW: 5, defaultH: 4, minW: 2, minH: 3, maxW: 16, maxH: 8 },
+    fields: [
+      textProperty("general.label", "general", "Label"),
+      textProperty("interaction.href", "interaction", "Destination"),
+      {
+        id: "interaction.newTab",
+        tab: "interaction",
+        label: "Open in New Tab",
+        control: "switch",
+        valueType: "boolean",
+        target: "props",
+        required: true,
+        readOnly: false,
+      },
+    ],
+    events: [{ id: "onClick", label: "Click" }],
+  },
+  {
+    type: "spacer",
+    label: "Spacer",
+    description: "Intentional empty layout space.",
+    iconName: "Space",
+    defaultName: "Spacer",
+    defaultProps: {},
+    layout: { defaultW: 6, defaultH: 4, minW: 1, minH: 1, maxW: 24, maxH: 40 },
+    fields: [],
+    events: [],
+  },
+  {
+    type: "tabs",
+    label: "Tabs",
+    description: "Keyboard-accessible tabbed sections.",
+    iconName: "PanelsTopLeft",
+    defaultName: "Tabs",
+    defaultProps: { items: "Overview,Details", defaultTab: "Overview" },
+    layout: {
+      defaultW: 12,
+      defaultH: 12,
+      minW: 6,
+      minH: 8,
+      maxW: 24,
+      maxH: 40,
+    },
+    fields: [
+      textProperty("data.items", "data", "Tabs"),
+      textProperty("general.defaultTab", "general", "Default Tab"),
+    ],
+    events: [{ id: "onTabChange", label: "Tab Change" }],
+  },
+  {
+    type: "accordion",
+    label: "Accordion",
+    description: "Keyboard-accessible collapsible sections.",
+    iconName: "ListCollapse",
+    defaultName: "Accordion",
+    defaultProps: { items: "Section 1,Section 2", defaultItem: "Section 1" },
+    layout: {
+      defaultW: 12,
+      defaultH: 14,
+      minW: 6,
+      minH: 8,
+      maxW: 24,
+      maxH: 50,
+    },
+    fields: [
+      textProperty("data.items", "data", "Sections"),
+      textProperty("general.defaultItem", "general", "Default Section"),
+    ],
+    events: [{ id: "onSectionChange", label: "Section Change" }],
+  },
+] as const satisfies readonly AdditionalBasicElementSpec[];
+
+function additionalBasicDefinition(
+  spec: AdditionalBasicElementSpec,
+): ElementDefinition {
+  return {
+    type: spec.type,
+    typeVersion: ELEMENT_TYPE_VERSION,
+    label: spec.label,
+    description: spec.description,
+    category: "basic",
+    iconName: spec.iconName,
+    rendererKey: spec.type,
+    editorRendererKey: spec.type,
+    runtimeRendererKey: spec.type,
+    validatorKey: spec.type,
+    defaultName: spec.defaultName,
+    defaultProps: {
+      internalName: spec.type.replaceAll("-", "_"),
+      disabled: false,
+      tooltip: "",
+      accessibilityLabel: spec.defaultName,
+      ...spec.defaultProps,
+    },
+    defaultStyle: commonDefaultStyle,
+    defaultEvents: [],
+    layout: spec.layout,
+    propertySchema: { fields: [...commonPropertyFields, ...spec.fields] },
+    bindingPorts: [],
+    events: spec.events,
+    supportedRenderStates: ["DATA"],
+    migrations: [],
+  };
+}
 
 export const ELEMENT_DEFINITIONS = [
   {
@@ -1562,6 +1835,7 @@ export const ELEMENT_DEFINITIONS = [
     supportedRenderStates: ELEMENT_RENDER_STATES,
     migrations: [],
   },
+  ...additionalBasicElementSpecs.map(additionalBasicDefinition),
 ] as const satisfies readonly ElementDefinition[];
 
 export interface ElementDto {

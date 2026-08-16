@@ -3921,6 +3921,97 @@ svg {
   align-items: flex-start;
 }
 
+.canvas-heading-element,
+.canvas-badge-element,
+.canvas-icon-element,
+.canvas-link-element,
+.canvas-image-empty,
+.runtime-image-empty {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  align-items: center;
+  justify-content: center;
+  padding: 0.55rem;
+}
+
+.canvas-heading-element > :where(h1, h2, h3, h4, h5, h6) {
+  width: 100%;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.canvas-divider-element,
+.runtime-divider {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  padding: 0.45rem;
+}
+
+.canvas-divider-element[data-orientation="vertical"],
+.runtime-divider[data-orientation="vertical"] {
+  align-items: stretch;
+}
+
+.canvas-image-element,
+.runtime-image {
+  display: block;
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+}
+
+.canvas-image-empty,
+.runtime-image-empty {
+  flex-direction: column;
+  gap: 0.35rem;
+  color: var(--muted-foreground);
+  background: var(--muted);
+}
+
+.canvas-image-empty svg,
+.runtime-image-empty svg,
+.canvas-icon-element > svg,
+.runtime-icon > svg {
+  width: 1.5rem;
+  height: 1.5rem;
+}
+
+.canvas-spacer-element {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  align-items: center;
+  justify-content: center;
+  border: 1px dashed var(--border);
+  color: var(--muted-foreground);
+  font-size: 0.68rem;
+}
+
+.runtime-spacer {
+  width: 100%;
+  height: 100%;
+}
+
+.canvas-tabs-element,
+.canvas-accordion-element {
+  width: 100%;
+  height: 100%;
+  min-height: 0;
+  padding: 0.35rem;
+  overflow: auto;
+}
+
+.canvas-tabs-element [data-slot="tabs-list"] {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
 .canvas-container-element,
 .canvas-kpi-element {
   height: 100%;

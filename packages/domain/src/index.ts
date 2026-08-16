@@ -239,6 +239,7 @@ export {
   type UpdateRelationshipViewportRequest,
 } from "./data-relationship.js";
 export {
+  BINDING_TYPES,
   BINDING_MUTATION_OPERATIONS,
   BINDING_MUTATION_SCHEMA_VERSION,
   BINDING_QUERY_SCHEMA_VERSION,
@@ -261,6 +262,7 @@ export {
   type BindingScatterPointDto,
   type BindingSeriesPointDto,
   type BindingSummaryPointDto,
+  type BindingType,
   type ConfigureBindingMutationRequestDto,
   type ExecuteBindingQueryRequest,
   type GenerateSampleDataRequest,

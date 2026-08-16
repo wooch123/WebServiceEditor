@@ -50,6 +50,16 @@ Current verified slice:
 - The exact 12 Page Type inventory now creates, lists, restarts, exports,
   imports, clones, deletes, and restores through the authoritative assignment
   table while preserving the legacy Page row constraint.
+- The exact 11 Binding Type inventory is represented in the validation report
+  with executable READ, CRUD, Parameter, and Navigation evidence; `read-one`
+  now has a real single-row preview assertion.
+- The Element Registry now contains 21 of the canonical 55 types. Heading,
+  Divider, Image, Badge, Icon, Link, Spacer, Tabs, and Accordion have real,
+  separate Editor and Published Runtime renderers, generated Property schemas,
+  Registry persistence, and keyboard-accessible shadcn primitives.
+- Workspace verification after this expansion passes 13 domain unit, 42 server
+  unit, 83 server integration, 155 web component, and 122 validation tests,
+  plus format, lint, typecheck, and production build gates.
 
 ## Phase ledger
 

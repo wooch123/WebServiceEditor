@@ -348,6 +348,35 @@ describe("Phase 11 safe READ Binding Engine", () => {
     expect(query.result.renderData.rows?.[0]).toMatchObject({ 값: 12.5 });
     expect(query.planChecksum).toMatch(/^[0-9a-f]{64}$/u);
 
+    const readOneResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${seeded.project.id}/binding-query-previews`,
+      payload: {
+        connectionPreviewId: connection.previewId,
+        spec: {
+          mode: "SINGLE",
+          selectFieldIds: allFields.map(({ id }) => id),
+          filters: [{ fieldId: valueField?.id, operator: "GTE", value: 3.75 }],
+          orderBy: [{ fieldId: valueField?.id, direction: "DESC" }],
+          aggregate: null,
+          groupByFieldId: null,
+          limit: 500,
+        },
+        mapping: {
+          shape: "ROWS",
+          labelFieldId: null,
+          valueFieldId: null,
+          secondaryFieldId: null,
+        },
+        expectedGraphRevision: connection.graphRevision,
+        expectedProjectRevision: connection.projectRevision,
+      },
+    });
+    expect(readOneResponse.statusCode, readOneResponse.body).toBe(200);
+    const readOne = readOneResponse.json() as BindingQueryPreviewDto;
+    expect(readOne.result.rowCount).toBe(1);
+    expect(readOne.result.rows[0]?.[valueField?.id ?? ""]).toBe(12.5);
+
     const createResponse = await app.inject({
       method: "POST",
       url: `/api/v1/projects/${seeded.project.id}/bindings`,

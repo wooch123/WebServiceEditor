@@ -688,7 +688,9 @@ describe("Phase 6 property inspector", () => {
     const user = userEvent.setup();
     render(<Harness />);
 
-    expect(await screen.findAllByTestId(/^palette-item-/)).toHaveLength(12);
+    expect(await screen.findAllByTestId(/^palette-item-/)).toHaveLength(
+      ELEMENT_DEFINITIONS.length,
+    );
     await user.click(
       await screen.findByRole("button", { name: "no-port 선택" }),
     );

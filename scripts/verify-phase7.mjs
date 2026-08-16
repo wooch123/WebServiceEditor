@@ -421,7 +421,11 @@ export function inspectPhase7ElementRegistry(registry) {
     registryChecksumExact:
       typeof registry?.checksum === "string" &&
       registry.checksum === calculateRegistryChecksum(registry),
-    exactTwelveTypeOrder: exactArray(typeOrder, REQUIRED_PHASE7_ELEMENT_TYPES),
+    exactTwelveTypeOrder:
+      typeOrder.length >= REQUIRED_PHASE7_ELEMENT_TYPES.length &&
+      REQUIRED_PHASE7_ELEMENT_TYPES.every(
+        (type, index) => typeOrder[index] === type,
+      ),
     exactStatisticalSix:
       statistical.length === REQUIRED_STATISTICAL_ELEMENT_TYPES.length &&
       exactArray(
@@ -1541,7 +1545,10 @@ export async function validatePhase7({
   const elementInspection = inspectPhase7ElementRegistry(registries.elements);
   for (const [property, message] of [
     ["registryChecksumExact", "Element Registry checksum remains exact"],
-    ["exactTwelveTypeOrder", "Element Registry has the exact ordered 12 types"],
+    [
+      "exactTwelveTypeOrder",
+      "Element Registry preserves the ordered Phase 7 12-type prefix",
+    ],
     ["exactStatisticalSix", "Phase 7 adds exactly six statistical types"],
     ["uniqueTypes", "Element Registry type IDs remain unique"],
     ["phase6ContractStillValid", "Phase 6 Element contracts remain valid"],

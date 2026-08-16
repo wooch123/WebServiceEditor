@@ -2156,7 +2156,7 @@ describe("ElementCanvas Phase 5 interaction", () => {
     expect(mutationCalls(api.calls)).toHaveLength(0);
   });
 
-  it("measures all twelve palette items and canvas zoom-grid sibling control geometry with getBoundingClientRect", async () => {
+  it("measures every registered palette item and canvas zoom-grid sibling control geometry with getBoundingClientRect", async () => {
     installElementApi();
     installCanvasGeometry();
     const user = userEvent.setup();
@@ -2185,7 +2185,7 @@ describe("ElementCanvas Phase 5 interaction", () => {
     const paletteItems = ELEMENT_DEFINITIONS.map((definition) =>
       screen.getByTestId(`palette-item-${definition.type}`),
     );
-    expect(paletteItems).toHaveLength(12);
+    expect(paletteItems).toHaveLength(ELEMENT_DEFINITIONS.length);
     expect(new Set(paletteItems.map((item) => item.dataset.size))).toEqual(
       new Set(["default"]),
     );

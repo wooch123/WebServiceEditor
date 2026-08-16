@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type { ValidationRunDto } from "@webeditor/domain";
+import { BINDING_TYPES, type ValidationRunDto } from "@webeditor/domain";
 import Database from "better-sqlite3";
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
@@ -78,6 +78,20 @@ describe("Phase 16 validation inventory and report", () => {
           item.itemId === "POST /api/v1/projects/:projectId/validate",
       ),
     ).toBe(true);
+    const bindingInventory = run.inventory.filter(
+      (item) => item.category === "BINDING",
+    );
+    expect(bindingInventory.map((item) => item.itemId).sort()).toEqual(
+      [...BINDING_TYPES].sort(),
+    );
+    for (const item of bindingInventory) {
+      const expectedTest = ["create", "update", "delete"].includes(item.itemId)
+        ? "apps/server/test/integration/crud-binding-runtime.test.ts"
+        : ["parameter", "navigation"].includes(item.itemId)
+          ? "apps/server/test/integration/project-variable-navigation.test.ts"
+          : "apps/server/test/integration/safe-read-binding-engine.test.ts";
+      expect(item.requiredTests).toEqual([expectedTest]);
+    }
 
     const replay = await app.inject({
       method: "POST",

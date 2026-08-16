@@ -157,7 +157,7 @@ describe("Phase 6 Element Registry, properties, history, and Runtime", () => {
     });
     expect(registryResponse.statusCode, registryResponse.body).toBe(200);
     const registry = registryResponse.json() as ElementRegistryDto;
-    expect(registry.definitions.map(({ type }) => type)).toEqual([
+    expect(registry.definitions.map(({ type }) => type).slice(0, 12)).toEqual([
       "text",
       "button",
       "container",
@@ -170,6 +170,17 @@ describe("Phase 6 Element Registry, properties, history, and Runtime", () => {
       "scatter-plot",
       "box-plot",
       "summary-statistics",
+    ]);
+    expect(registry.definitions.map(({ type }) => type).slice(12)).toEqual([
+      "heading",
+      "divider",
+      "image",
+      "badge",
+      "icon",
+      "link",
+      "spacer",
+      "tabs",
+      "accordion",
     ]);
     expect(registry.tabs.map(({ id }) => id)).toEqual([
       "general",

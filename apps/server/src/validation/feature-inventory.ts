@@ -1,4 +1,5 @@
 import {
+  BINDING_TYPES,
   DATA_FIELD_TYPES,
   ELEMENT_COMMAND_TYPES,
   ELEMENT_DEFINITIONS,
@@ -6,7 +7,6 @@ import {
   PAGE_TYPES,
   PROJECT_LIFECYCLE_STATUSES,
   REQUIREMENT_IDS,
-  RELATIONSHIP_BINDING_TYPES,
   VALIDATION_RULE_IDS,
   type ValidationInventoryCategory,
   type ValidationInventoryItemDto,
@@ -28,7 +28,15 @@ const tests = {
   ],
   theme: ["apps/server/test/integration/theme-revision-runtime.test.ts"],
   action: ["apps/server/test/integration/element-properties-history.test.ts"],
-  binding: ["apps/server/test/integration/data-relationship-canvas.test.ts"],
+  bindingRead: [
+    "apps/server/test/integration/safe-read-binding-engine.test.ts",
+  ],
+  bindingMutation: [
+    "apps/server/test/integration/crud-binding-runtime.test.ts",
+  ],
+  bindingNavigation: [
+    "apps/server/test/integration/project-variable-navigation.test.ts",
+  ],
   field: ["apps/server/test/integration/database-designer.test.ts"],
   page: ["apps/server/test/integration/page-management.test.ts"],
   icon: ["apps/server/test/unit/icon-catalog.test.ts"],
@@ -37,6 +45,16 @@ const tests = {
   requirement: ["tests/validation/phase0-validation.test.mjs"],
   validationRule: ["apps/server/test/integration/validation-report.test.ts"],
 } as const;
+
+function bindingTests(bindingType: (typeof BINDING_TYPES)[number]) {
+  if (["create", "update", "delete"].includes(bindingType)) {
+    return tests.bindingMutation;
+  }
+  if (["parameter", "navigation"].includes(bindingType)) {
+    return tests.bindingNavigation;
+  }
+  return tests.bindingRead;
+}
 
 function sources(apiRoutes: readonly string[]): readonly InventorySource[] {
   return [
@@ -82,12 +100,12 @@ function sources(apiRoutes: readonly string[]): readonly InventorySource[] {
       requiredStates: ["APPLIED", "REPLAY"],
       requiredTests: tests.action,
     })),
-    ...RELATIONSHIP_BINDING_TYPES.map((binding) => ({
+    ...BINDING_TYPES.map((binding) => ({
       category: "BINDING" as const,
       itemId: binding,
       displayName: binding,
       requiredStates: ["READY", "DISABLED"],
-      requiredTests: tests.binding,
+      requiredTests: bindingTests(binding),
     })),
     ...DATA_FIELD_TYPES.map((fieldType) => ({
       category: "FIELD_TYPE" as const,

@@ -1,8 +1,14 @@
-import { Database } from "lucide-react";
+import { Database, Image as ImageIcon } from "lucide-react";
 import type { ComponentType } from "react";
 import type { BindingRenderDataDto, BindingScalar } from "@webeditor/domain";
 
 import { Badge } from "@/components/ui/badge";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -19,7 +25,9 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -29,6 +37,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { elementPresentation } from "@/features/elements/element-presentation";
+import {
+  DynamicLucideIcon,
+  iconNameToDynamicName,
+} from "@/features/pages/DynamicLucideIcon";
 import {
   StatisticalVisualization,
   type StatisticalElementType,
@@ -103,6 +115,180 @@ function RuntimeButton({ entry, pending, onAction }: RuntimeRendererProps) {
         ? "처리 중"
         : stringValue(entry.element.props, "label", entry.element.name)}
     </Button>
+  );
+}
+
+function itemLabels(entry: ElementEntryDto, fallback: readonly string[]) {
+  const value = entry.element.props.items;
+  if (typeof value !== "string") return fallback;
+  const labels = value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .filter((item, index, values) => values.indexOf(item) === index)
+    .slice(0, 12);
+  return labels.length > 0 ? labels : fallback;
+}
+
+function safeImageSource(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const source = value.trim();
+  return /^(?:https:\/\/|data:image\/(?:png|jpeg|webp|gif);base64,)/iu.test(
+    source,
+  )
+    ? source
+    : null;
+}
+
+function safeLink(value: unknown): string {
+  if (typeof value !== "string") return "/";
+  const href = value.trim();
+  return /^(?:\/[^/]|\/$|#|https:\/\/)/u.test(href) ? href : "/";
+}
+
+function RuntimeHeading({ entry }: RuntimeRendererProps) {
+  const levelValue = Number(entry.element.props.level);
+  const level =
+    Number.isInteger(levelValue) && levelValue >= 1 && levelValue <= 6
+      ? levelValue
+      : 2;
+  const Tag = `h${level}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+  return (
+    <Tag>{stringValue(entry.element.props, "text", entry.element.name)}</Tag>
+  );
+}
+
+function RuntimeDivider({ entry }: RuntimeRendererProps) {
+  const orientation =
+    entry.element.props.orientation === "vertical" ? "vertical" : "horizontal";
+  return (
+    <div className="runtime-divider" data-orientation={orientation}>
+      <Separator orientation={orientation} aria-label={entry.element.name} />
+    </div>
+  );
+}
+
+function RuntimeImage({ entry }: RuntimeRendererProps) {
+  const source = safeImageSource(entry.element.props.src);
+  const alternative = stringValue(
+    entry.element.props,
+    "alt",
+    entry.element.name,
+  );
+  return source ? (
+    <img
+      className="runtime-image"
+      src={source}
+      alt={alternative}
+      style={{
+        objectFit:
+          entry.element.props.objectFit === "contain" ||
+          entry.element.props.objectFit === "fill"
+            ? entry.element.props.objectFit
+            : "cover",
+      }}
+    />
+  ) : (
+    <Empty className="runtime-image-empty" role="img" aria-label={alternative}>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <ImageIcon />
+        </EmptyMedia>
+        <EmptyTitle>이미지</EmptyTitle>
+      </EmptyHeader>
+    </Empty>
+  );
+}
+
+function RuntimeBadge({ entry }: RuntimeRendererProps) {
+  const candidate = entry.element.props.variant;
+  const variant =
+    candidate === "default" ||
+    candidate === "destructive" ||
+    candidate === "outline"
+      ? candidate
+      : "secondary";
+  return (
+    <Badge variant={variant}>
+      {stringValue(entry.element.props, "label", entry.element.name)}
+    </Badge>
+  );
+}
+
+function RuntimeIcon({ entry }: RuntimeRendererProps) {
+  const iconName = stringValue(entry.element.props, "iconName", "Info");
+  return (
+    <span
+      className="runtime-icon"
+      role="img"
+      aria-label={stringValue(entry.element.props, "label", entry.element.name)}
+    >
+      <DynamicLucideIcon
+        iconName={iconName}
+        dynamicName={iconNameToDynamicName(iconName)}
+      />
+    </span>
+  );
+}
+
+function RuntimeLink({ entry }: RuntimeRendererProps) {
+  return (
+    <a
+      className="runtime-link"
+      href={safeLink(entry.element.props.href)}
+      target={entry.element.props.newTab === true ? "_blank" : undefined}
+      rel={
+        entry.element.props.newTab === true ? "noopener noreferrer" : undefined
+      }
+    >
+      {stringValue(entry.element.props, "label", entry.element.name)}
+    </a>
+  );
+}
+
+function RuntimeSpacer({ entry }: RuntimeRendererProps) {
+  return <div className="runtime-spacer" aria-label={entry.element.name} />;
+}
+
+function RuntimeTabs({ entry }: RuntimeRendererProps) {
+  const labels = itemLabels(entry, ["Overview", "Details"]);
+  const first = labels[0] ?? "Overview";
+  const configured = stringValue(entry.element.props, "defaultTab", first);
+  return (
+    <Tabs defaultValue={labels.includes(configured) ? configured : first}>
+      <TabsList>
+        {labels.map((label) => (
+          <TabsTrigger key={label} value={label}>
+            {label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+      {labels.map((label) => (
+        <TabsContent key={label} value={label}>
+          {label}
+        </TabsContent>
+      ))}
+    </Tabs>
+  );
+}
+
+function RuntimeAccordion({ entry }: RuntimeRendererProps) {
+  const labels = itemLabels(entry, ["Section 1", "Section 2"]);
+  const first = labels[0] ?? "Section 1";
+  const configured = stringValue(entry.element.props, "defaultItem", first);
+  return (
+    <Accordion
+      type="single"
+      collapsible
+      defaultValue={labels.includes(configured) ? configured : first}
+    >
+      {labels.map((label) => (
+        <AccordionItem key={label} value={label}>
+          <AccordionTrigger>{label}</AccordionTrigger>
+          <AccordionContent>{label}</AccordionContent>
+        </AccordionItem>
+      ))}
+    </Accordion>
   );
 }
 
@@ -318,6 +504,15 @@ export const runtimeRendererByKey: Readonly<
   "scatter-plot": RuntimeStatistical,
   "box-plot": RuntimeStatistical,
   "summary-statistics": RuntimeStatistical,
+  heading: RuntimeHeading,
+  divider: RuntimeDivider,
+  image: RuntimeImage,
+  badge: RuntimeBadge,
+  icon: RuntimeIcon,
+  link: RuntimeLink,
+  spacer: RuntimeSpacer,
+  tabs: RuntimeTabs,
+  accordion: RuntimeAccordion,
 };
 
 export function assertRuntimeRendererDefinitions(

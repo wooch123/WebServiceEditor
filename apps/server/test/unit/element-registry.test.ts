@@ -13,7 +13,7 @@ import {
 } from "../../src/elements/element-registry.js";
 
 describe("element registry and grid geometry", () => {
-  it("extends the deterministic Phase 6 prefix with six statistical types", () => {
+  it("preserves the Phase 6/7 prefix and appends registered basic types", () => {
     const types = elementRegistry().definitions.map(({ type }) => type);
     expect(types.slice(0, 6)).toEqual([
       "text",
@@ -23,7 +23,7 @@ describe("element registry and grid geometry", () => {
       "number-input",
       "data-table",
     ]);
-    expect(types).toEqual([
+    expect(types.slice(0, 12)).toEqual([
       "text",
       "button",
       "container",
@@ -36,6 +36,17 @@ describe("element registry and grid geometry", () => {
       "scatter-plot",
       "box-plot",
       "summary-statistics",
+    ]);
+    expect(types.slice(12)).toEqual([
+      "heading",
+      "divider",
+      "image",
+      "badge",
+      "icon",
+      "link",
+      "spacer",
+      "tabs",
+      "accordion",
     ]);
     expect(elementRegistry().checksum).toMatch(/^[0-9a-f]{64}$/);
     expect(elementDefinition("text").defaultProps).toMatchObject({
@@ -53,7 +64,7 @@ describe("element registry and grid geometry", () => {
     });
     expect(elementDefinition("number-input").category).toBe("input");
     expect(elementDefinition("data-table").category).toBe("data");
-    for (const type of types.slice(6)) {
+    for (const type of types.slice(6, 12)) {
       const definition = elementDefinition(type as never);
       expect(definition.category).toBe("statistics");
       expect(definition.supportedRenderStates).toEqual([
@@ -68,6 +79,11 @@ describe("element registry and grid geometry", () => {
             port.required && port.direction === "input" && port.side === "left",
         ),
       ).toBe(true);
+    }
+    for (const type of types.slice(12)) {
+      const definition = elementDefinition(type as never);
+      expect(definition.category).toBe("basic");
+      expect(definition.supportedRenderStates).toEqual(["DATA"]);
     }
     expect(() => elementDefinition("chart")).toThrow("Element type is invalid");
   });

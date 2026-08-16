@@ -123,6 +123,97 @@ describe("Phase 6 editor and immutable runtime renderers", () => {
   });
 
   it.each([
+    "heading",
+    "divider",
+    "image",
+    "badge",
+    "icon",
+    "link",
+    "spacer",
+    "tabs",
+    "accordion",
+  ] as const)(
+    "renders the %s definition in separate Editor and Runtime trees",
+    (type) => {
+      const definition = definitionFor(type);
+      const entry = makeEntry(type);
+      const editor = render(
+        <ElementRenderer
+          entry={entry}
+          definition={definition}
+          compact={false}
+        />,
+      );
+      expect(
+        editor.container.querySelector(`[data-element-type="${type}"]`),
+      ).toHaveAttribute("data-renderer-key", type);
+      editor.unmount();
+
+      const runtime = render(
+        <RuntimeElementRenderer entry={entry} definition={definition} />,
+      );
+      expect(
+        runtime.container.querySelector(
+          `.runtime-element[data-element-type="${type}"]`,
+        ),
+      ).toHaveAttribute("data-renderer-key", type);
+    },
+  );
+
+  it("projects semantic heading, tabs, accordion, image, and link controls", () => {
+    const heading = makeEntry("heading", {
+      props: { text: "Analysis", level: "3" },
+    });
+    const tabs = makeEntry("tabs", {
+      props: { items: "Overview,Details", defaultTab: "Overview" },
+    });
+    const accordion = makeEntry("accordion", {
+      props: { items: "Summary,Notes", defaultItem: "Summary" },
+    });
+    const image = makeEntry("image", { props: { src: "", alt: "Preview" } });
+    const link = makeEntry("link", {
+      props: { label: "Report", href: "/report" },
+    });
+    render(
+      <>
+        <RuntimeElementRenderer
+          entry={heading}
+          definition={definitionFor("heading")}
+        />
+        <RuntimeElementRenderer
+          entry={tabs}
+          definition={definitionFor("tabs")}
+        />
+        <RuntimeElementRenderer
+          entry={accordion}
+          definition={definitionFor("accordion")}
+        />
+        <RuntimeElementRenderer
+          entry={image}
+          definition={definitionFor("image")}
+        />
+        <RuntimeElementRenderer
+          entry={link}
+          definition={definitionFor("link")}
+        />
+      </>,
+    );
+    expect(
+      screen.getByRole("heading", { name: "Analysis", level: 3 }),
+    ).toBeInTheDocument();
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "Overview",
+      "Details",
+    ]);
+    expect(screen.getByRole("button", { name: "Summary" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "Preview" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Report" })).toHaveAttribute(
+      "href",
+      "/report",
+    );
+  });
+
+  it.each([
     {
       type: "kpi-card" as const,
       dataProps: { label: "Revenue", value: "42" },

@@ -35,7 +35,7 @@ describe("element canvas contract", () => {
 
   it("keeps the Phase 7 registry deterministic, real, and size-bounded", () => {
     expect(ELEMENT_DEFINITIONS.map(({ type }) => type)).toEqual(ELEMENT_TYPES);
-    expect(ELEMENT_DEFINITIONS).toHaveLength(12);
+    expect(ELEMENT_DEFINITIONS.length).toBeGreaterThanOrEqual(12);
     expect(ELEMENT_TYPES.slice(0, 6)).toEqual([
       "text",
       "button",
@@ -44,7 +44,7 @@ describe("element canvas contract", () => {
       "number-input",
       "data-table",
     ]);
-    expect(ELEMENT_TYPES.slice(6)).toEqual([
+    expect(ELEMENT_TYPES.slice(6, 12)).toEqual([
       "line-chart",
       "bar-chart",
       "histogram",
@@ -101,7 +101,7 @@ describe("element canvas contract", () => {
       ELEMENT_DEFINITIONS.find(({ type }) => type === "data-table")
         ?.supportedRenderStates,
     ).toEqual(ELEMENT_RENDER_STATES);
-    for (const definition of ELEMENT_DEFINITIONS.slice(6)) {
+    for (const definition of ELEMENT_DEFINITIONS.slice(6, 12)) {
       expect(definition.category).toBe("statistics");
       expect(definition.supportedRenderStates).toEqual(ELEMENT_RENDER_STATES);
       expect(
@@ -144,5 +144,20 @@ describe("element canvas contract", () => {
       showMin: true,
       showMax: true,
     });
+    expect(ELEMENT_TYPES.slice(12)).toEqual([
+      "heading",
+      "divider",
+      "image",
+      "badge",
+      "icon",
+      "link",
+      "spacer",
+      "tabs",
+      "accordion",
+    ]);
+    for (const definition of ELEMENT_DEFINITIONS.slice(12)) {
+      expect(definition.category).toBe("basic");
+      expect(definition.supportedRenderStates).toEqual(["DATA"]);
+    }
   });
 });

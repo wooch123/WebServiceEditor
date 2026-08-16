@@ -1,5 +1,19 @@
 export const BINDING_QUERY_SCHEMA_VERSION = 1 as const;
 
+export const BINDING_TYPES = [
+  "read",
+  "read-one",
+  "list",
+  "create",
+  "update",
+  "delete",
+  "filter",
+  "sort",
+  "aggregate",
+  "parameter",
+  "navigation",
+] as const;
+
 export const READ_QUERY_MODES = [
   "LIST",
   "SINGLE",
@@ -39,6 +53,7 @@ export const BINDING_RENDER_SHAPES = [
   "SUMMARY",
 ] as const;
 
+export type BindingType = (typeof BINDING_TYPES)[number];
 export type ReadQueryMode = (typeof READ_QUERY_MODES)[number];
 export type ReadFilterOperator = (typeof READ_FILTER_OPERATORS)[number];
 export type ReadSortDirection = (typeof READ_SORT_DIRECTIONS)[number];

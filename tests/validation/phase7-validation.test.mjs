@@ -763,6 +763,30 @@ describe("Phase 7 validation contract", () => {
     ])
       assert.equal(inspected[property], true, property);
 
+    const extendedDefinitions = [
+      ...baseline.definitions,
+      {
+        ...baseline.definitions[0],
+        type: "heading",
+        rendererKey: "heading",
+        editorRendererKey: "heading",
+        runtimeRendererKey: "heading",
+        validatorKey: "heading",
+      },
+    ];
+    assert.equal(
+      inspectPhase7ElementRegistry({
+        ...baseline,
+        definitions: extendedDefinitions,
+        checksum: calculateRegistryChecksum({
+          ...baseline,
+          definitions: extendedDefinitions,
+        }),
+      }).exactTwelveTypeOrder,
+      true,
+      "later phases may append element types without weakening the Phase 7 prefix",
+    );
+
     const mutate = (index, change) => {
       const definitions = baseline.definitions.map((definition, position) =>
         position === index ? change(definition) : definition,

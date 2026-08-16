@@ -1,7 +1,19 @@
-import { CircleAlert, Database, EyeOff, LockKeyhole } from "lucide-react";
+import {
+  CircleAlert,
+  Database,
+  EyeOff,
+  Image as ImageIcon,
+  LockKeyhole,
+} from "lucide-react";
 import type { ComponentType } from "react";
 
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -19,7 +31,9 @@ import {
   EmptyTitle,
 } from "@/components/ui/empty";
 import { Input } from "@/components/ui/input";
+import { Separator } from "@/components/ui/separator";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Table,
   TableBody,
@@ -35,6 +49,10 @@ import type {
   ElementType,
 } from "@/services/elements-api";
 import { elementPresentation } from "./element-presentation";
+import {
+  DynamicLucideIcon,
+  iconNameToDynamicName,
+} from "@/features/pages/DynamicLucideIcon";
 import {
   StatisticalVisualization,
   type StatisticalElementType,
@@ -102,6 +120,205 @@ function ButtonRenderer({ entry }: CanvasRendererProps) {
         {stringValue(entry.element.props, "label", entry.element.name)}
       </Button>
     </div>
+  );
+}
+
+function itemLabels(entry: ElementEntryDto, fallback: readonly string[]) {
+  const value = entry.element.props.items;
+  if (typeof value !== "string") return fallback;
+  const labels = value
+    .split(",")
+    .map((item) => item.trim())
+    .filter(Boolean)
+    .filter((item, index, values) => values.indexOf(item) === index)
+    .slice(0, 12);
+  return labels.length > 0 ? labels : fallback;
+}
+
+function safeImageSource(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const source = value.trim();
+  return /^(?:https:\/\/|data:image\/(?:png|jpeg|webp|gif);base64,)/iu.test(
+    source,
+  )
+    ? source
+    : null;
+}
+
+function safeLink(value: unknown): string {
+  if (typeof value !== "string") return "/";
+  const href = value.trim();
+  return /^(?:\/[^/]|\/$|#|https:\/\/)/u.test(href) ? href : "/";
+}
+
+function HeadingRenderer({ entry }: CanvasRendererProps) {
+  const levelValue = Number(entry.element.props.level);
+  const level =
+    Number.isInteger(levelValue) && levelValue >= 1 && levelValue <= 6
+      ? levelValue
+      : 2;
+  const Tag = `h${level}` as "h1" | "h2" | "h3" | "h4" | "h5" | "h6";
+  return (
+    <div className="canvas-heading-element">
+      <Tag>{stringValue(entry.element.props, "text", entry.element.name)}</Tag>
+    </div>
+  );
+}
+
+function DividerRenderer({ entry }: CanvasRendererProps) {
+  const orientation =
+    entry.element.props.orientation === "vertical" ? "vertical" : "horizontal";
+  return (
+    <div
+      className="canvas-divider-element"
+      data-orientation={orientation}
+      aria-label={entry.element.name}
+    >
+      <Separator orientation={orientation} />
+    </div>
+  );
+}
+
+function ImageRenderer({ entry }: CanvasRendererProps) {
+  const source = safeImageSource(entry.element.props.src);
+  const alternative = stringValue(
+    entry.element.props,
+    "alt",
+    entry.element.name,
+  );
+  return source ? (
+    <img
+      className="canvas-image-element"
+      src={source}
+      alt={alternative}
+      style={{
+        objectFit:
+          entry.element.props.objectFit === "contain" ||
+          entry.element.props.objectFit === "fill"
+            ? entry.element.props.objectFit
+            : "cover",
+      }}
+    />
+  ) : (
+    <Empty className="canvas-image-empty" role="img" aria-label={alternative}>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <ImageIcon />
+        </EmptyMedia>
+        <EmptyTitle>이미지</EmptyTitle>
+      </EmptyHeader>
+    </Empty>
+  );
+}
+
+function BadgeRenderer({ entry }: CanvasRendererProps) {
+  const candidate = entry.element.props.variant;
+  const variant =
+    candidate === "default" ||
+    candidate === "destructive" ||
+    candidate === "outline"
+      ? candidate
+      : "secondary";
+  return (
+    <div className="canvas-badge-element">
+      <Badge variant={variant}>
+        {stringValue(entry.element.props, "label", entry.element.name)}
+      </Badge>
+    </div>
+  );
+}
+
+function IconRenderer({ entry }: CanvasRendererProps) {
+  const iconName = stringValue(entry.element.props, "iconName", "Info");
+  return (
+    <div
+      className="canvas-icon-element"
+      role="img"
+      aria-label={stringValue(entry.element.props, "label", entry.element.name)}
+    >
+      <DynamicLucideIcon
+        iconName={iconName}
+        dynamicName={iconNameToDynamicName(iconName)}
+      />
+    </div>
+  );
+}
+
+function LinkRenderer({ entry }: CanvasRendererProps) {
+  return (
+    <div className="canvas-link-element">
+      <a
+        className="element-interactive"
+        href={safeLink(entry.element.props.href)}
+        target={entry.element.props.newTab === true ? "_blank" : undefined}
+        rel={
+          entry.element.props.newTab === true
+            ? "noopener noreferrer"
+            : undefined
+        }
+        onClick={(event) => event.preventDefault()}
+      >
+        {stringValue(entry.element.props, "label", entry.element.name)}
+      </a>
+    </div>
+  );
+}
+
+function SpacerRenderer({ entry }: CanvasRendererProps) {
+  return (
+    <div className="canvas-spacer-element" aria-label={entry.element.name}>
+      <span>여백</span>
+    </div>
+  );
+}
+
+function TabsRenderer({ entry, compact }: CanvasRendererProps) {
+  const labels = itemLabels(entry, ["Overview", "Details"]);
+  const configured = stringValue(entry.element.props, "defaultTab", labels[0]!);
+  const defaultValue = labels.includes(configured) ? configured : labels[0]!;
+  return (
+    <Tabs className="canvas-tabs-element" defaultValue={defaultValue}>
+      <TabsList>
+        {labels.map((label) => (
+          <TabsTrigger
+            className="element-interactive"
+            key={label}
+            value={label}
+          >
+            {label}
+          </TabsTrigger>
+        ))}
+      </TabsList>
+      {!compact &&
+        labels.map((label) => (
+          <TabsContent key={label} value={label}>
+            {label}
+          </TabsContent>
+        ))}
+    </Tabs>
+  );
+}
+
+function AccordionRenderer({ entry, compact }: CanvasRendererProps) {
+  const labels = itemLabels(entry, ["Section 1", "Section 2"]);
+  const first = labels[0] ?? "Section 1";
+  const configured = stringValue(entry.element.props, "defaultItem", first);
+  return (
+    <Accordion
+      className="canvas-accordion-element"
+      type="single"
+      collapsible
+      defaultValue={labels.includes(configured) ? configured : first}
+    >
+      {labels.map((label) => (
+        <AccordionItem key={label} value={label}>
+          <AccordionTrigger className="element-interactive">
+            {label}
+          </AccordionTrigger>
+          {!compact && <AccordionContent>{label}</AccordionContent>}
+        </AccordionItem>
+      ))}
+    </Accordion>
   );
 }
 
@@ -334,6 +551,15 @@ export const editorRendererByKey: Readonly<
   "scatter-plot": StatisticalRenderer,
   "box-plot": StatisticalRenderer,
   "summary-statistics": StatisticalRenderer,
+  heading: HeadingRenderer,
+  divider: DividerRenderer,
+  image: ImageRenderer,
+  badge: BadgeRenderer,
+  icon: IconRenderer,
+  link: LinkRenderer,
+  spacer: SpacerRenderer,
+  tabs: TabsRenderer,
+  accordion: AccordionRenderer,
 };
 
 export function assertEditorRendererDefinitions(

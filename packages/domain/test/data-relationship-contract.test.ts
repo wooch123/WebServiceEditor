@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  BINDING_TYPES,
   DATA_RELATIONSHIP_SCHEMA_VERSION,
   RELATIONSHIP_BINDING_STATUSES,
   RELATIONSHIP_BINDING_TYPES,
@@ -27,6 +28,22 @@ describe("Data Relationship contract", () => {
       "APPLIED",
       "UNDONE",
       "DISCARDED",
+    ]);
+  });
+
+  it("keeps the exhaustive functional Binding inventory exact", () => {
+    expect(BINDING_TYPES).toEqual([
+      "read",
+      "read-one",
+      "list",
+      "create",
+      "update",
+      "delete",
+      "filter",
+      "sort",
+      "aggregate",
+      "parameter",
+      "navigation",
     ]);
   });
 });
