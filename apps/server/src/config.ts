@@ -88,9 +88,9 @@ export function resolveAuthenticationConfig(
       "WEBEDITOR_ADMIN_USERNAME must contain 3 to 64 safe characters",
     );
   }
-  if (required && (adminPassword === undefined || adminPassword.length < 12)) {
+  if (required && (adminPassword === undefined || adminPassword.length < 8)) {
     throw new Error(
-      "WEBEDITOR_ADMIN_PASSWORD must contain at least 12 characters when authentication is required",
+      "WEBEDITOR_ADMIN_PASSWORD must contain at least 8 characters when authentication is required",
     );
   }
   if (
