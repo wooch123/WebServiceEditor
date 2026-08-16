@@ -1087,6 +1087,15 @@ export const ELEMENT_DEFINITIONS = [
         required: true,
         maxConnections: 1,
       },
+      {
+        id: "selection",
+        label: "Selection",
+        direction: "output",
+        side: "right",
+        valueType: "record",
+        required: false,
+        maxConnections: null,
+      },
     ],
     events: [
       { id: "onRowClick", label: "Row Click" },

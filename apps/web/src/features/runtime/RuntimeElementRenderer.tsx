@@ -51,6 +51,13 @@ interface RuntimeRendererProps {
   pending?: boolean;
   onValueChange?: (elementId: string, value: BindingScalar) => void;
   onAction?: (elementId: string) => void;
+  queryRows?: readonly Readonly<Record<string, BindingScalar>>[];
+  selectedRowIndex?: number;
+  onRowSelect?: (
+    elementId: string,
+    row: Readonly<Record<string, BindingScalar>>,
+    rowIndex: number,
+  ) => void;
 }
 
 function stringValue(
@@ -200,6 +207,9 @@ function RuntimeDataTable({
   entry,
   renderState,
   renderData,
+  queryRows = [],
+  selectedRowIndex,
+  onRowSelect,
 }: RuntimeRendererProps) {
   if (renderState === "LOADING") return <Skeleton className="h-full w-full" />;
   const columns =
@@ -224,7 +234,28 @@ function RuntimeDataTable({
         </TableHeader>
         <TableBody>
           {rows.map((row, rowIndex) => (
-            <TableRow key={rowIndex}>
+            <TableRow
+              key={rowIndex}
+              tabIndex={onRowSelect ? 0 : undefined}
+              aria-selected={
+                onRowSelect ? selectedRowIndex === rowIndex : undefined
+              }
+              data-state={
+                selectedRowIndex === rowIndex ? "selected" : undefined
+              }
+              onClick={() => {
+                const queryRow = queryRows[rowIndex];
+                if (queryRow)
+                  onRowSelect?.(entry.element.id, queryRow, rowIndex);
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                const queryRow = queryRows[rowIndex];
+                if (!queryRow) return;
+                event.preventDefault();
+                onRowSelect?.(entry.element.id, queryRow, rowIndex);
+              }}
+            >
               {columns.map((column) => (
                 <TableCell key={column}>{String(row[column] ?? "")}</TableCell>
               ))}
@@ -309,6 +340,9 @@ export function RuntimeElementRenderer({
   pending,
   onValueChange,
   onAction,
+  queryRows,
+  selectedRowIndex,
+  onRowSelect,
 }: RuntimeRendererProps) {
   const presentation = elementPresentation(entry);
   if (presentation.hidden) return null;
@@ -345,6 +379,9 @@ export function RuntimeElementRenderer({
         {...(pending === undefined ? {} : { pending })}
         {...(onValueChange ? { onValueChange } : {})}
         {...(onAction ? { onAction } : {})}
+        {...(queryRows ? { queryRows } : {})}
+        {...(selectedRowIndex === undefined ? {} : { selectedRowIndex })}
+        {...(onRowSelect ? { onRowSelect } : {})}
       />
     </section>
   );

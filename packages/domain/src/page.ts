@@ -95,6 +95,7 @@ export interface RuntimeNavigationDto {
   readonly versionId: string;
   readonly publishedAt: string;
   readonly pages: readonly PublishedNavigationPageDto[];
+  readonly variables?: readonly import("./project-variable.js").ProjectVariableDto[];
 }
 
 export interface PublishPlanDto {

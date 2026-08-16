@@ -140,7 +140,7 @@ export function inspectPhase11Contract(sources) {
       ["ROWS", "SCALAR", "SERIES", "VALUES", "SCATTER", "BOXES", "SUMMARY"],
     ),
     schemaVersionTen:
-      /LATEST_METADATA_SCHEMA_VERSION\s*=\s*(?:10|[1-9]\d{2,})/u.test(
+      /LATEST_METADATA_SCHEMA_VERSION\s*=\s*(?:1\d|[2-9]\d|[1-9]\d{2,})/u.test(
         sources.migration,
       ) &&
       /name:\s*["']safe-read-binding-engine["'][\s\S]{0,180}version:\s*10/u.test(

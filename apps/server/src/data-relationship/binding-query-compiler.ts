@@ -776,6 +776,7 @@ export class BindingQueryCompiler {
     queryValue: unknown,
     mappingValue: unknown,
     snapshotSchema?: DataSchemaExportDto,
+    runtimeFilters: readonly ReadFilterDto[] = [],
   ): CompiledBindingQuery {
     const query = exactObject(
       queryValue,
@@ -813,11 +814,27 @@ export class BindingQueryCompiler {
       "BINDING_MAPPING_TARGET_MISMATCH",
       "Stored mapping target does not match the Binding endpoint",
     );
+    const storedSpec = exactObject(
+      query.spec,
+      [
+        "mode",
+        "selectFieldIds",
+        "filters",
+        "orderBy",
+        "aggregate",
+        "groupByFieldId",
+        "limit",
+      ],
+      "Stored query spec",
+    );
+    const storedFilters = Array.isArray(storedSpec.filters)
+      ? storedSpec.filters
+      : [];
     return this.compile(
       projectId,
       source,
       target,
-      query.spec,
+      { ...storedSpec, filters: [...storedFilters, ...runtimeFilters] },
       mapping.render,
       snapshotSchema,
     );

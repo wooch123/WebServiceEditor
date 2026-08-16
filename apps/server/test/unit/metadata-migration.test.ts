@@ -84,7 +84,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(10);
+      expect(migrated.assertReady().schemaVersion).toBe(11);
       expect(
         migrated.connection
           .prepare(
@@ -113,6 +113,7 @@ describe("metadata migration", () => {
         { version: 8 },
         { version: 9 },
         { version: 10 },
+        { version: 11 },
       ]);
       expect(
         migrated.connection
@@ -165,11 +166,11 @@ describe("metadata migration", () => {
     const path = join(directory, "metadata.sqlite");
     const future = new Database(path);
     future.pragma("application_id = 1464156741");
-    future.pragma("user_version = 11");
+    future.pragma("user_version = 12");
     future.close();
 
     expect(() => new MetadataDatabase(path)).toThrow(
-      "Refusing unknown future metadata schema version 11",
+      "Refusing unknown future metadata schema version 12",
     );
   });
 
@@ -214,6 +215,8 @@ describe("metadata migration", () => {
     version3.exec(`
       DROP TABLE binding_query_runs;
       DROP TABLE sample_data_commands;
+      DROP TABLE project_variable_commands;
+      DROP TABLE project_variables;
       DROP TABLE relationship_layout_history_operations;
       DROP TABLE relationship_layout_commands;
       DROP TABLE relationship_node_positions;
@@ -249,7 +252,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(10);
+      expect(migrated.assertReady().schemaVersion).toBe(11);
       expect(
         migrated.connection
           .prepare(
@@ -386,6 +389,8 @@ describe("metadata migration", () => {
     version5.exec(`
       DROP TABLE binding_query_runs;
       DROP TABLE sample_data_commands;
+      DROP TABLE project_variable_commands;
+      DROP TABLE project_variables;
       DROP TABLE relationship_layout_history_operations;
       DROP TABLE relationship_layout_commands;
       DROP TABLE relationship_node_positions;
@@ -506,7 +511,7 @@ describe("metadata migration", () => {
 
     const migrated = new MetadataDatabase(path);
     try {
-      expect(migrated.assertReady().schemaVersion).toBe(10);
+      expect(migrated.assertReady().schemaVersion).toBe(11);
       expect(
         migrated.connection
           .prepare(
@@ -669,6 +674,8 @@ describe("metadata migration", () => {
     version4.exec(`
       DROP TABLE binding_query_runs;
       DROP TABLE sample_data_commands;
+      DROP TABLE project_variable_commands;
+      DROP TABLE project_variables;
       DROP TABLE relationship_layout_history_operations;
       DROP TABLE relationship_layout_commands;
       DROP TABLE relationship_node_positions;

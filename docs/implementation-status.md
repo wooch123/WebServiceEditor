@@ -320,6 +320,35 @@ Test plan:
 - Browser QA at 419×800: document width remains 419px, Form and Data Table stay
   reachable, sibling geometry remains equal, and console errors are 0
 
+## Phase 14 evidence
+
+- Static, behavioral, browser, and Phase 0–13 regression audit:
+  `artifacts/phase14/project-variable-navigation-validation.json`
+- Isolated browser evidence:
+  `artifacts/phase14/browser-project-variable-navigation-validation.json`
+- Project Variable Registry with typed scalar values, revision checks,
+  idempotent CRUD, unique active keys, and URL protection for sensitive values
+- Data Table row selection uses raw logical Field-ID rows and drives one
+  server-validated FILTER + NAVIGATE action chain
+- Runtime READ accepts only the Variable declared for that exact Binding and
+  compiles its equality filter through the existing prepared-statement path
+- URL query and session-history transports support Page navigation,
+  Back/Forward, reload, and direct deep links without browser SQL or physical
+  identifiers
+- Server integration covers selected value → target Page → one-row filtered
+  Chart; component coverage includes row click, typed URL state, history, and
+  direct deep-link restoration
+- Browser QA at 1280×720: five relationship-toolbar controls share a 40px
+  height and equal width; Variable dialog actions are both 172×40px
+- Browser QA at 419×800: document width remains 419px, navigation and the
+  filtered Chart remain reachable; console errors and failed requests are 0
+
+## Phase 18 operational checkpoint
+
+- Per user direction, Phase 18 includes an actual-domain deployment checkpoint
+  so the user can open the service and verify behavior together. Credentials,
+  tunnel tokens, and private keys remain outside the repository.
+
 ## Deferred operational hardening
 
 - Sudden power-loss durability for directory rename/delete requires mount-backed
@@ -334,5 +363,6 @@ Test plan:
 
 ## Known external blockers
 
-Phase 22 requires access to the target Windows PC, Cloudflare account/tunnel
-credentials, and DNS authority. These are not needed for earlier phases.
+The Phase 18 actual-domain checkpoint requires access to the target Windows PC,
+Cloudflare account/tunnel credentials, and DNS authority. Phase 22 retains the
+final release-hardening and recovery audit after that shared operational check.

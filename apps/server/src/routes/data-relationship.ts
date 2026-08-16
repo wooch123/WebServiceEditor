@@ -183,6 +183,7 @@ export async function registerDataRelationshipRoutes(
         "bindingType",
         "queryPreviewId",
         "mutation",
+        "dependency",
         ...graphRevisions,
         "idempotencyKey",
       ]);

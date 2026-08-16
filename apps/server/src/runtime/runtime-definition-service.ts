@@ -15,7 +15,10 @@ import {
   type RuntimeBindingMutationDto,
   type RuntimeBindingMutationRequestDto,
   type BindingMutationOperation,
+  type BindingScalar,
+  type ReadFilterDto,
   type RuntimeNavigationDto,
+  type RuntimeActionChainDto,
 } from "@webeditor/domain";
 
 import { BindingQueryCompiler } from "../data-relationship/binding-query-compiler.js";
@@ -36,6 +39,11 @@ import {
 } from "../pages/page-repository.js";
 import { ProjectRepository } from "../projects/project-repository.js";
 import type { ProjectStorage } from "../projects/project-storage.js";
+import { ProjectVariableRepository } from "./project-variable-service.js";
+import {
+  runtimeFilterDependency,
+  runtimeNavigationDependency,
+} from "../data-relationship/binding-dependency-compiler.js";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -94,6 +102,7 @@ export class RuntimeDefinitionService {
   readonly projectRepository: ProjectRepository;
   readonly queryCompiler: BindingQueryCompiler;
   readonly mutationCompiler: BindingMutationCompiler;
+  readonly variableRepository: ProjectVariableRepository;
   readonly #previews = new Map<string, StoredDraftPreview>();
 
   constructor(
@@ -108,6 +117,7 @@ export class RuntimeDefinitionService {
     this.projectRepository = new ProjectRepository(metadataDatabase);
     this.queryCompiler = new BindingQueryCompiler(metadataDatabase, storage);
     this.mutationCompiler = new BindingMutationCompiler(storage);
+    this.variableRepository = new ProjectVariableRepository(metadataDatabase);
   }
 
   buildSnapshot(
@@ -115,6 +125,9 @@ export class RuntimeDefinitionService {
     sourceProjectRevision: number,
   ): ProjectDefinitionSnapshotDto {
     const project = this.#activeProject(projectId);
+    const bindings = this.relationshipRepository
+      .listActive(projectId)
+      .map((binding) => this.relationshipRepository.toDto(binding));
     return {
       definitionSchemaVersion: PROJECT_DEFINITION_SCHEMA_VERSION,
       projectId,
@@ -126,10 +139,10 @@ export class RuntimeDefinitionService {
         .map((page) => this.pageRepository.toPublishedPage(page)),
       elements: this.elementRepository.listActiveForProject(projectId),
       layoutRevisions: this.elementRepository.layoutRevisionSnapshot(projectId),
-      bindings: this.relationshipRepository
-        .listActive(projectId)
-        .map((binding) => this.relationshipRepository.toDto(binding)),
+      bindings,
       dataSchema: this.schemaRepository.exportDefinition(projectId),
+      variables: this.variableRepository.listActive(projectId),
+      actionChains: this.#actionChains(bindings),
     };
   }
 
@@ -185,6 +198,7 @@ export class RuntimeDefinitionService {
       previewId: preview.previewId,
       expiresAt: preview.expiresAt,
       pages: preview.snapshot.pages,
+      variables: preview.snapshot.variables ?? [],
     };
   }
 
@@ -208,6 +222,7 @@ export class RuntimeDefinitionService {
       page,
       elements: this.#pageElements(preview.snapshot, pageId),
       bindings: this.#pageBindings(preview.snapshot, pageId),
+      actionChains: preview.snapshot.actionChains ?? [],
     };
   }
 
@@ -232,6 +247,7 @@ export class RuntimeDefinitionService {
       definitionChecksum,
       registryChecksum: snapshot.registryChecksum,
       pages: snapshot.pages,
+      variables: snapshot.variables ?? [],
     };
   }
 
@@ -262,6 +278,7 @@ export class RuntimeDefinitionService {
       page,
       elements: this.#pageElements(snapshot, pageId),
       bindings: this.#pageBindings(snapshot, pageId),
+      actionChains: snapshot.actionChains ?? [],
     };
   }
 
@@ -392,16 +409,6 @@ export class RuntimeDefinitionService {
     request: ExecuteBindingQueryRequest,
   ): RuntimeBindingResultDto {
     const bindingId = uuid(bindingIdValue, "INVALID_BINDING_ID", "Binding ID");
-    const parameters = request.parameters ?? {};
-    assertApi(
-      typeof parameters === "object" &&
-        parameters !== null &&
-        !Array.isArray(parameters) &&
-        Object.keys(parameters).length === 0,
-      400,
-      "UNSUPPORTED_BINDING_PARAMETER",
-      "This READ Binding does not declare Runtime parameters",
-    );
     const binding = snapshot.bindings.find((entry) => entry.id === bindingId);
     assertApi(
       binding?.bindingType === "READ",
@@ -415,6 +422,57 @@ export class RuntimeDefinitionService {
       "BINDING_DISABLED",
       "Binding is disabled in this Runtime snapshot",
     );
+    const parameters = request.parameters ?? {};
+    assertApi(
+      typeof parameters === "object" &&
+        parameters !== null &&
+        !Array.isArray(parameters),
+      400,
+      "INVALID_BINDING_PARAMETER",
+      "Runtime parameters must be an object",
+    );
+    const variables = snapshot.variables ?? [];
+    const dependencies = (snapshot.actionChains ?? [])
+      .map(({ filter }) => filter)
+      .filter(({ targetReadBindingId }) => targetReadBindingId === bindingId);
+    const allowedVariableIds = new Set(
+      dependencies.map(({ variableId }) => variableId),
+    );
+    const unknownParameters = Object.keys(parameters).filter(
+      (key) => !allowedVariableIds.has(key),
+    );
+    assertApi(
+      unknownParameters.length === 0,
+      400,
+      "UNSUPPORTED_BINDING_PARAMETER",
+      "READ Binding received an undeclared Variable",
+      { variableIds: unknownParameters },
+    );
+    const runtimeFilters: ReadFilterDto[] = dependencies.map((dependency) => {
+      const variable = variables.find(({ id }) => id === dependency.variableId);
+      assertApi(
+        variable !== undefined,
+        500,
+        "SNAPSHOT_VARIABLE_NOT_FOUND",
+        "Action chain Variable is missing from the snapshot",
+      );
+      const value = Object.hasOwn(parameters, variable.id)
+        ? parameters[variable.id]
+        : variable.defaultValue;
+      this.#assertVariableValue(variable.valueType, value);
+      assertApi(
+        value !== null,
+        422,
+        "RUNTIME_VARIABLE_REQUIRED",
+        `${variable.name} is required`,
+        { variableId: variable.id },
+      );
+      return {
+        fieldId: dependency.targetFieldId,
+        operator: dependency.operator,
+        value: value as BindingScalar,
+      };
+    });
     const compiled = this.queryCompiler.compileStored(
       snapshot.projectId,
       binding.source,
@@ -422,6 +480,7 @@ export class RuntimeDefinitionService {
       binding.query,
       binding.mapping,
       snapshot.dataSchema,
+      runtimeFilters,
     );
     const expectedAppliedRevision =
       environment === "test"
@@ -517,6 +576,8 @@ export class RuntimeDefinitionService {
       layoutRevisions: value.layoutRevisions ?? [],
       bindings: [],
       dataSchema: this.schemaRepository.exportDefinition(version.project_id),
+      variables: [],
+      actionChains: [],
     };
   }
 
@@ -619,6 +680,69 @@ export class RuntimeDefinitionService {
           elementIds.has(binding.target.objectId)) ||
         (binding.source.nodeType === "element" &&
           elementIds.has(binding.source.objectId)),
+    );
+  }
+
+  #actionChains(
+    bindings: readonly import("@webeditor/domain").RelationshipBindingDto[],
+  ): RuntimeActionChainDto[] {
+    const filters = bindings.flatMap((binding) => {
+      const dependency = runtimeFilterDependency(binding);
+      return dependency === null || binding.status !== "READY"
+        ? []
+        : [dependency];
+    });
+    const navigations = bindings.flatMap((binding) => {
+      const dependency = runtimeNavigationDependency(binding);
+      return dependency === null || binding.status !== "READY"
+        ? []
+        : [dependency];
+    });
+    return filters.flatMap((filter) => {
+      const navigation = navigations.find(
+        (candidate) =>
+          candidate.sourceElementId === filter.sourceElementId &&
+          candidate.variableId === filter.variableId &&
+          candidate.sourceFieldId === filter.sourceFieldId,
+      );
+      return navigation === undefined
+        ? []
+        : [
+            {
+              sourceElementId: filter.sourceElementId,
+              variableId: filter.variableId,
+              sourceFieldId: filter.sourceFieldId,
+              filter,
+              navigation,
+            },
+          ];
+    });
+  }
+
+  #assertVariableValue(
+    type: import("@webeditor/domain").ProjectVariableType,
+    value: unknown,
+  ): void {
+    const valid =
+      value === null ||
+      (type === "number" &&
+        typeof value === "number" &&
+        Number.isFinite(value)) ||
+      (type === "boolean" && typeof value === "boolean") ||
+      (type === "string" &&
+        typeof value === "string" &&
+        value.length <= 2_000) ||
+      (type === "date" &&
+        typeof value === "string" &&
+        /^\d{4}-\d{2}-\d{2}$/u.test(value)) ||
+      (type === "datetime" &&
+        typeof value === "string" &&
+        Number.isFinite(Date.parse(value)));
+    assertApi(
+      valid,
+      422,
+      "RUNTIME_VARIABLE_TYPE_MISMATCH",
+      "Runtime Variable has an invalid type",
     );
   }
 

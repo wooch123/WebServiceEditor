@@ -20,6 +20,7 @@ import type {
   BindingRenderDataDto,
   BindingScalar,
   RelationshipBindingDto,
+  ProjectVariableDto,
 } from "@webeditor/domain";
 
 import { ThemePicker } from "@/ThemePicker";
@@ -93,12 +94,90 @@ function runtimePath(basePath: string, route: string) {
   return `${basePath}/${encodedRoute}`;
 }
 
+function serializeVariable(value: BindingScalar): string {
+  if (value === null) return "";
+  return String(value);
+}
+
+function runtimeVariableState(value: unknown): Record<string, BindingScalar> {
+  if (typeof value !== "object" || value === null || Array.isArray(value)) {
+    return {};
+  }
+  const candidate = (value as { webeditorVariables?: unknown })
+    .webeditorVariables;
+  if (
+    typeof candidate !== "object" ||
+    candidate === null ||
+    Array.isArray(candidate)
+  ) {
+    return {};
+  }
+  return Object.fromEntries(
+    Object.entries(candidate).filter(
+      (entry): entry is [string, BindingScalar] => {
+        const current = entry[1];
+        return (
+          current === null ||
+          typeof current === "string" ||
+          typeof current === "boolean" ||
+          (typeof current === "number" && Number.isFinite(current))
+        );
+      },
+    ),
+  );
+}
+
+function parseUrlVariable(
+  variable: ProjectVariableDto,
+  raw: string,
+): BindingScalar | undefined {
+  if (variable.valueType === "number") {
+    const value = Number(raw);
+    return Number.isFinite(value) ? value : undefined;
+  }
+  if (variable.valueType === "boolean") {
+    if (raw === "true") return true;
+    if (raw === "false") return false;
+    return undefined;
+  }
+  if (variable.valueType === "date" && !/^\d{4}-\d{2}-\d{2}$/u.test(raw)) {
+    return undefined;
+  }
+  if (variable.valueType === "datetime" && !Number.isFinite(Date.parse(raw))) {
+    return undefined;
+  }
+  return raw;
+}
+
+function runtimeVariableParameters(
+  variables: readonly ProjectVariableDto[],
+  searchValue: string,
+  stateValue: unknown,
+): Readonly<Record<string, BindingScalar>> {
+  const search = new URLSearchParams(searchValue);
+  const state = runtimeVariableState(stateValue);
+  return Object.fromEntries(
+    variables.flatMap((variable): [string, BindingScalar][] => {
+      if (variable.transport === "SESSION_STATE") {
+        return Object.hasOwn(state, variable.id)
+          ? [[variable.id, state[variable.id] ?? null]]
+          : [];
+      }
+      const raw = search.get(`v.${variable.key}`);
+      if (raw === null) return [];
+      const parsed = parseUrlVariable(variable, raw);
+      return parsed === undefined ? [] : [[variable.id, parsed]];
+    }),
+  );
+}
+
 type RuntimeNavigationPayload =
   RuntimeNavigationDto | DraftRuntimeNavigationDto;
 
 interface RuntimeElementData {
   readonly renderState: "EMPTY" | "LOADING" | "ERROR" | "DATA";
   readonly renderData?: BindingRenderDataDto;
+  readonly queryRows?: readonly Readonly<Record<string, BindingScalar>>[];
 }
 
 interface NavigationProps {
@@ -275,6 +354,8 @@ function RuntimeShell({
   mutationMessage,
   onValueChange,
   onAction,
+  selectedRows,
+  onRowSelect,
   onNavigate,
 }: {
   navigation: RuntimeNavigationPayload;
@@ -291,6 +372,12 @@ function RuntimeShell({
   mutationMessage: string;
   onValueChange: (elementId: string, value: BindingScalar) => void;
   onAction: (elementId: string) => void;
+  selectedRows: Readonly<Record<string, number>>;
+  onRowSelect: (
+    elementId: string,
+    row: Readonly<Record<string, BindingScalar>>,
+    rowIndex: number,
+  ) => void;
   onNavigate: (page: RuntimePageDto) => void;
 }) {
   const isMobile = useIsMobile();
@@ -445,6 +532,16 @@ function RuntimeShell({
                           pending={pendingElementId !== null}
                           onValueChange={onValueChange}
                           onAction={onAction}
+                          {...(data?.queryRows
+                            ? { queryRows: data.queryRows }
+                            : {})}
+                          {...(selectedRows[entry.element.id] === undefined
+                            ? {}
+                            : {
+                                selectedRowIndex:
+                                  selectedRows[entry.element.id],
+                              })}
+                          onRowSelect={onRowSelect}
                         />
                       </div>
                     );
@@ -501,6 +598,9 @@ function RuntimeApplication({
   const [pendingElementId, setPendingElementId] = useState<string | null>(null);
   const [mutationMessage, setMutationMessage] = useState("");
   const [readRefreshRevision, setReadRefreshRevision] = useState(0);
+  const [selectedRows, setSelectedRows] = useState<
+    Readonly<Record<string, number>>
+  >({});
   const retryKeys = useMemo(() => new Map<string, string>(), [runtimePage]);
 
   useEffect(() => {
@@ -604,6 +704,7 @@ function RuntimeApplication({
         setFieldErrors({});
         setPendingElementId(null);
         setMutationMessage("");
+        setSelectedRows({});
       })
       .catch((reason: unknown) => {
         if (!controller.signal.aborted) {
@@ -619,7 +720,12 @@ function RuntimeApplication({
   }, [activePage, navigation, preview, sourceId]);
 
   useEffect(() => {
-    if (!runtimePage) {
+    if (
+      !runtimePage ||
+      !navigation ||
+      !activePage ||
+      runtimePage.page.id !== activePage.id
+    ) {
       setRuntimeElementData(new Map());
       return;
     }
@@ -634,12 +740,33 @@ function RuntimeApplication({
     setRuntimeElementData(loading);
     if (bindings.length === 0) return;
     const controller = new AbortController();
+    const variableParameters = runtimeVariableParameters(
+      navigation.variables ?? [],
+      location.search,
+      location.state,
+    );
     for (const binding of bindings) {
+      const allowedVariableIds = new Set(
+        (runtimePage.actionChains ?? [])
+          .filter(({ filter }) => filter.targetReadBindingId === binding.id)
+          .map(({ variableId }) => variableId),
+      );
+      const bindingParameters = Object.fromEntries(
+        Object.entries(variableParameters).filter(([variableId]) =>
+          allowedVariableIds.has(variableId),
+        ),
+      );
       const execution = preview
-        ? executeDraftRuntimeBinding(sourceId, binding.id, controller.signal)
+        ? executeDraftRuntimeBinding(
+            sourceId,
+            binding.id,
+            bindingParameters,
+            controller.signal,
+          )
         : executePublishedRuntimeBinding(
             sourceId,
             binding.id,
+            bindingParameters,
             controller.signal,
           );
       void execution
@@ -656,6 +783,7 @@ function RuntimeApplication({
             next.set(payload.targetElementId, {
               renderState: payload.result.renderState,
               renderData: payload.result.renderData,
+              queryRows: payload.result.rows,
             });
             return next;
           });
@@ -670,7 +798,53 @@ function RuntimeApplication({
         });
     }
     return () => controller.abort();
-  }, [preview, readRefreshRevision, runtimePage, sourceId]);
+  }, [
+    activePage,
+    location.search,
+    location.state,
+    navigation?.variables,
+    preview,
+    readRefreshRevision,
+    runtimePage,
+    sourceId,
+  ]);
+
+  const onRowSelect = (
+    elementId: string,
+    row: Readonly<Record<string, BindingScalar>>,
+    rowIndex: number,
+  ) => {
+    if (!runtimePage || !navigation) return;
+    setSelectedRows((current) => ({ ...current, [elementId]: rowIndex }));
+    const chain = (runtimePage.actionChains ?? []).find(
+      ({ sourceElementId }) => sourceElementId === elementId,
+    );
+    if (!chain) return;
+    const variable = (navigation.variables ?? []).find(
+      ({ id }) => id === chain.variableId,
+    );
+    const target = navigation.pages.find(
+      ({ id }) => id === chain.navigation.targetPageId,
+    );
+    const value = row[chain.sourceFieldId];
+    if (!variable || !target || value === undefined || value === null) {
+      setMutationMessage("선택값 없음");
+      return;
+    }
+    const nextPath = runtimePath(basePath, target.route);
+    if (chain.navigation.transport === "URL_QUERY" && !variable.sensitive) {
+      const search = new URLSearchParams();
+      search.set(`v.${variable.key}`, serializeVariable(value));
+      navigate(`${nextPath}?${search.toString()}`);
+      return;
+    }
+    const currentState = runtimeVariableState(location.state);
+    navigate(nextPath, {
+      state: {
+        webeditorVariables: { ...currentState, [variable.id]: value },
+      },
+    });
+  };
 
   const onValueChange = (elementId: string, value: BindingScalar) => {
     setFormValues((current) => ({ ...current, [elementId]: value }));
@@ -823,9 +997,12 @@ function RuntimeApplication({
       mutationMessage={mutationMessage}
       onValueChange={onValueChange}
       onAction={(elementId) => void onAction(elementId)}
+      selectedRows={selectedRows}
+      onRowSelect={onRowSelect}
       onNavigate={(page) => {
         const next = runtimePath(basePath, page.route);
-        if (next !== location.pathname) navigate(next);
+        if (next !== location.pathname)
+          navigate(`${next}${location.search}`, { state: location.state });
       }}
     />
   );

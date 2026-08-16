@@ -872,4 +872,279 @@ describe("PublishedRuntime", () => {
     });
     expect(screen.queryByText("필수 값")).not.toBeInTheDocument();
   });
+
+  it("selects a Data Table row, navigates with a typed URL Variable, filters the target Chart, and restores browser history", async () => {
+    const sourcePage: RuntimePageDto = {
+      id: "page-source",
+      name: "목록",
+      route: "/lots",
+      sortOrder: 0,
+      iconName: "File",
+      iconCatalogVersion: "1.31.0",
+      navigationVisible: true,
+      navigationGroup: null,
+    };
+    const targetPage: RuntimePageDto = {
+      ...sourcePage,
+      id: "page-target",
+      name: "분석",
+      route: "/analysis",
+      sortOrder: 1,
+    };
+    const table = publishedEntry("table-element", "data-table", {
+      props: { title: "Lot 목록" },
+    });
+    const chart = publishedEntry("chart-element", "histogram", {
+      props: { title: "Lot 분포" },
+    });
+    const variable = {
+      id: "00000000-0000-4000-8000-000000000014",
+      projectId: "runtime-project",
+      key: "selected_lot",
+      name: "선택 Lot",
+      valueType: "number",
+      scope: "session",
+      transport: "URL_QUERY",
+      sensitive: false,
+      defaultValue: null,
+      revision: 1,
+      createdAt: "2026-08-16T00:00:00Z",
+      updatedAt: "2026-08-16T00:00:00Z",
+    } as const;
+    const actionChain = {
+      sourceElementId: "table-element",
+      variableId: variable.id,
+      sourceFieldId: "field-lot",
+      filter: {
+        bindingId: "filter-binding",
+        kind: "FILTER",
+        variableId: variable.id,
+        sourceElementId: "table-element",
+        sourceFieldId: "field-lot",
+        targetElementId: "chart-element",
+        targetReadBindingId: "chart-read",
+        targetFieldId: "field-lot",
+        operator: "EQ",
+      },
+      navigation: {
+        bindingId: "navigate-binding",
+        kind: "NAVIGATE",
+        variableId: variable.id,
+        sourceElementId: "table-element",
+        sourceFieldId: "field-lot",
+        targetPageId: "page-target",
+        transport: "URL_QUERY",
+      },
+    } as const;
+    const queryBodies: Array<{
+      path: string;
+      parameters: Readonly<Record<string, unknown>>;
+    }> = [];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const path = new URL(String(input), "http://local").pathname;
+        if (path === "/api/v1/elements/registry") {
+          return Response.json(registryPayload());
+        }
+        if (path === "/api/v1/runtime/runtime-project/navigation") {
+          return Response.json({
+            projectId: "runtime-project",
+            versionId: "version-14",
+            snapshotId: "version-14",
+            sourceProjectRevision: 14,
+            themeId: "light-clean-paper",
+            definitionChecksum: "a".repeat(64),
+            registryChecksum: "b".repeat(64),
+            createdAt: "2026-08-16T00:00:00Z",
+            publishedAt: "2026-08-16T00:00:00Z",
+            pages: [sourcePage, targetPage],
+            variables: [variable],
+          });
+        }
+        if (path === "/api/v1/runtime/runtime-project/pages/page-source") {
+          return Response.json({
+            projectId: "runtime-project",
+            versionId: "version-14",
+            snapshotId: "version-14",
+            sourceProjectRevision: 14,
+            themeId: "light-clean-paper",
+            definitionChecksum: "a".repeat(64),
+            registryChecksum: "b".repeat(64),
+            createdAt: "2026-08-16T00:00:00Z",
+            publishedAt: "2026-08-16T00:00:00Z",
+            page: sourcePage,
+            elements: [table],
+            bindings: [
+              {
+                id: "table-read",
+                bindingType: "READ",
+                status: "READY",
+                target: { objectId: "table-element" },
+              },
+            ],
+            actionChains: [actionChain],
+          });
+        }
+        if (path === "/api/v1/runtime/runtime-project/pages/page-target") {
+          return Response.json({
+            projectId: "runtime-project",
+            versionId: "version-14",
+            snapshotId: "version-14",
+            sourceProjectRevision: 14,
+            themeId: "light-clean-paper",
+            definitionChecksum: "a".repeat(64),
+            registryChecksum: "b".repeat(64),
+            createdAt: "2026-08-16T00:00:00Z",
+            publishedAt: "2026-08-16T00:00:00Z",
+            page: targetPage,
+            elements: [chart],
+            bindings: [
+              {
+                id: "chart-read",
+                bindingType: "READ",
+                status: "READY",
+                target: { objectId: "chart-element" },
+              },
+            ],
+            actionChains: [actionChain],
+          });
+        }
+        if (
+          path === "/api/v1/runtime/runtime-project/query/table-read" ||
+          path === "/api/v1/runtime/runtime-project/query/chart-read"
+        ) {
+          const body = JSON.parse(String(init?.body)) as {
+            parameters: Readonly<Record<string, unknown>>;
+          };
+          queryBodies.push({ path, parameters: body.parameters });
+          if (path.endsWith("table-read")) {
+            return Response.json({
+              bindingId: "table-read",
+              projectId: "runtime-project",
+              targetElementId: "table-element",
+              environment: "production",
+              planChecksum: "c".repeat(64),
+              snapshotId: "version-14",
+              definitionChecksum: "a".repeat(64),
+              result: {
+                columns: [],
+                rows: [
+                  { "field-lot": 1, "field-value": 10 },
+                  { "field-lot": 2, "field-value": 20 },
+                ],
+                rowCount: 2,
+                truncated: false,
+                renderState: "DATA",
+                renderData: {
+                  columns: ["Lot", "값"],
+                  rows: [
+                    { Lot: 1, 값: 10 },
+                    { Lot: 2, 값: 20 },
+                  ],
+                },
+              },
+            });
+          }
+          return Response.json({
+            bindingId: "chart-read",
+            projectId: "runtime-project",
+            targetElementId: "chart-element",
+            environment: "production",
+            planChecksum: "d".repeat(64),
+            snapshotId: "version-14",
+            definitionChecksum: "a".repeat(64),
+            result: {
+              columns: [],
+              rows: [{ "field-value": 20 }],
+              rowCount: 1,
+              truncated: false,
+              renderState: "DATA",
+              renderData: { values: [20] },
+            },
+          });
+        }
+        if (path === "/api/v1/ui/icons/File") {
+          return Response.json({
+            item: {
+              name: "File",
+              dynamicName: "file",
+              categories: ["files"],
+              keywords: [],
+            },
+          });
+        }
+        return Response.json(
+          { error: { code: "UNHANDLED", message: path } },
+          { status: 500 },
+        );
+      }),
+    );
+    window.history.replaceState({}, "", "/runtime/runtime-project/lots");
+    const user = userEvent.setup();
+    const view = render(<App />);
+    expect(
+      await screen.findByRole("heading", { name: "목록" }),
+    ).toBeInTheDocument();
+    const rows = await screen.findAllByRole("row");
+    await user.click(rows[2]!);
+    await waitFor(() =>
+      expect(window.location.pathname).toBe(
+        "/runtime/runtime-project/analysis",
+      ),
+    );
+    expect(window.location.search).toBe("?v.selected_lot=2");
+    expect(
+      await screen.findByRole("heading", { name: "분석" }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        queryBodies.find(({ path }) => path.endsWith("chart-read")),
+      ).toEqual({
+        path: "/api/v1/runtime/runtime-project/query/chart-read",
+        parameters: { [variable.id]: 2 },
+      }),
+    );
+    expect(
+      queryBodies.find(({ path }) => path.endsWith("table-read"))?.parameters,
+    ).toEqual({});
+
+    window.history.back();
+    await waitFor(() =>
+      expect(window.location.pathname).toBe("/runtime/runtime-project/lots"),
+    );
+    expect(
+      await screen.findByRole("heading", { name: "목록" }),
+    ).toBeInTheDocument();
+    expect(
+      queryBodies
+        .filter(({ path }) => path.endsWith("chart-read"))
+        .every(({ parameters }) => parameters[variable.id] === 2),
+    ).toBe(true);
+    window.history.forward();
+    await waitFor(() =>
+      expect(window.location.pathname).toBe(
+        "/runtime/runtime-project/analysis",
+      ),
+    );
+
+    view.unmount();
+    window.history.replaceState(
+      {},
+      "",
+      "/runtime/runtime-project/analysis?v.selected_lot=2",
+    );
+    render(<App />);
+    expect(
+      await screen.findByRole("heading", { name: "분석" }),
+    ).toBeInTheDocument();
+    await waitFor(() =>
+      expect(
+        queryBodies.filter(({ path }) => path.endsWith("chart-read")).at(-1),
+      ).toEqual({
+        path: "/api/v1/runtime/runtime-project/query/chart-read",
+        parameters: { [variable.id]: 2 },
+      }),
+    );
+  });
 });

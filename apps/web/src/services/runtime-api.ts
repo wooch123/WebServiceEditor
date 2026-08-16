@@ -94,11 +94,12 @@ export function getDraftRuntimePage(
 
 function executeBinding(
   path: string,
+  parameters: Readonly<Record<string, BindingScalar>> = {},
   signal?: AbortSignal,
 ): Promise<RuntimeBindingResultDto> {
   return request<RuntimeBindingResultDto>(path, {
     method: "POST",
-    body: JSON.stringify({ parameters: {} }),
+    body: JSON.stringify({ parameters }),
     ...(signal ? { signal } : {}),
   });
 }
@@ -106,10 +107,12 @@ function executeBinding(
 export function executePublishedRuntimeBinding(
   projectId: string,
   bindingId: string,
+  parameters: Readonly<Record<string, BindingScalar>> = {},
   signal?: AbortSignal,
 ) {
   return executeBinding(
     `/api/v1/runtime/${encodeURIComponent(projectId)}/query/${encodeURIComponent(bindingId)}`,
+    parameters,
     signal,
   );
 }
@@ -117,10 +120,12 @@ export function executePublishedRuntimeBinding(
 export function executeDraftRuntimeBinding(
   previewId: string,
   bindingId: string,
+  parameters: Readonly<Record<string, BindingScalar>> = {},
   signal?: AbortSignal,
 ) {
   return executeBinding(
     `/api/v1/draft-previews/${encodeURIComponent(previewId)}/query/${encodeURIComponent(bindingId)}`,
+    parameters,
     signal,
   );
 }

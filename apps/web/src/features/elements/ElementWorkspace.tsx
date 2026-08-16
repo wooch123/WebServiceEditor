@@ -843,9 +843,12 @@ export function ElementWorkspaceProvider({
       setKeyboardPlacement(true);
       await requestCandidate(elementType, pointer);
       requestAnimationFrame(() => {
-        document
-          .querySelector<HTMLElement>("[data-testid=placement-placeholder]")
-          ?.focus();
+        const placeholder = document.querySelector<HTMLElement>(
+          "[data-testid=placement-placeholder]",
+        );
+        if (placeholder && !placeholder.contains(document.activeElement)) {
+          placeholder.focus();
+        }
       });
     },
     [requestCandidate, zoom],
@@ -935,9 +938,12 @@ export function ElementWorkspaceProvider({
         correctedCanvasY,
       });
       requestAnimationFrame(() => {
-        document
-          .querySelector<HTMLElement>("[data-testid=placement-placeholder]")
-          ?.focus();
+        const placeholder = document.querySelector<HTMLElement>(
+          "[data-testid=placement-placeholder]",
+        );
+        if (placeholder && !placeholder.contains(document.activeElement)) {
+          placeholder.focus();
+        }
       });
     },
     [requestCandidate, zoom],

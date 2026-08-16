@@ -1244,6 +1244,8 @@ describe("Phase 6 Element Registry, properties, history, and Runtime", () => {
     version4.exec(`
       DROP TABLE binding_query_runs;
       DROP TABLE sample_data_commands;
+      DROP TABLE project_variable_commands;
+      DROP TABLE project_variables;
       DROP TABLE relationship_layout_history_operations;
       DROP TABLE relationship_layout_commands;
       DROP TABLE relationship_node_positions;

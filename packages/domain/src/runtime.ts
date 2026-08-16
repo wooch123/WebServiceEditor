@@ -3,6 +3,10 @@ import type { DataSchemaExportDto } from "./data-schema.js";
 import type { RelationshipBindingDto } from "./data-relationship.js";
 import type { ElementEntryDto } from "./element.js";
 import type { PublishedNavigationPageDto } from "./page.js";
+import type {
+  ProjectVariableDto,
+  RuntimeActionChainDto,
+} from "./project-variable.js";
 
 export const PROJECT_DEFINITION_SCHEMA_VERSION = 1 as const;
 export const DRAFT_PREVIEW_TTL_MILLISECONDS = 5 * 60 * 1000;
@@ -19,6 +23,8 @@ export interface ProjectDefinitionSnapshotDto {
   readonly layoutRevisions: readonly unknown[];
   readonly bindings: readonly RelationshipBindingDto[];
   readonly dataSchema: DataSchemaExportDto;
+  readonly variables?: readonly ProjectVariableDto[];
+  readonly actionChains?: readonly RuntimeActionChainDto[];
 }
 
 export interface RuntimeSnapshotMetadataDto {
@@ -41,6 +47,7 @@ export interface DraftRuntimeNavigationDto extends RuntimeSnapshotMetadataDto {
   readonly previewId: string;
   readonly expiresAt: string;
   readonly pages: readonly PublishedNavigationPageDto[];
+  readonly variables: readonly ProjectVariableDto[];
 }
 
 export interface DraftRuntimePageDto extends RuntimeSnapshotMetadataDto {
@@ -49,6 +56,7 @@ export interface DraftRuntimePageDto extends RuntimeSnapshotMetadataDto {
   readonly page: PublishedNavigationPageDto;
   readonly elements: readonly ElementEntryDto[];
   readonly bindings: readonly RelationshipBindingDto[];
+  readonly actionChains: readonly RuntimeActionChainDto[];
 }
 
 export interface PublishedRuntimeDefinitionPageDto extends RuntimeSnapshotMetadataDto {
@@ -57,6 +65,7 @@ export interface PublishedRuntimeDefinitionPageDto extends RuntimeSnapshotMetada
   readonly page: PublishedNavigationPageDto;
   readonly elements: readonly ElementEntryDto[];
   readonly bindings: readonly RelationshipBindingDto[];
+  readonly actionChains: readonly RuntimeActionChainDto[];
 }
 
 export interface RuntimeBindingResultDto extends BindingExecutionDto {

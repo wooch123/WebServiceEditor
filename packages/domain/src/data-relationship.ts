@@ -257,6 +257,8 @@ export interface CreateRelationshipBindingRequest {
   readonly queryPreviewId?: string;
   /** Required for CREATE, UPDATE, and DELETE. */
   readonly mutation?: import("./binding-query.js").ConfigureBindingMutationRequestDto;
+  /** Required for FILTER and NAVIGATE. */
+  readonly dependency?: import("./project-variable.js").ConfigureBindingDependencyRequestDto;
   readonly expectedGraphRevision: number;
   readonly expectedProjectRevision: number;
   readonly idempotencyKey: string;

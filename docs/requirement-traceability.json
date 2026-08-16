@@ -324,13 +324,18 @@
       "implementation": [
         "docs/adr/0012-safe-read-binding-engine.md",
         "docs/adr/0014-transactional-crud-binding-runtime.md",
+        "docs/adr/0015-project-variable-navigation.md",
         "packages/domain/src/binding-query.ts",
+        "packages/domain/src/project-variable.ts",
+        "apps/server/src/data-relationship/binding-dependency-compiler.ts",
         "apps/server/src/data-relationship/binding-mutation-compiler.ts",
         "apps/server/src/data-relationship/binding-query-compiler.ts",
         "apps/server/src/data-relationship/sample-data-service.ts",
         "apps/server/src/data-relationship/relationship-service.ts",
         "apps/server/src/routes/data-relationship.ts",
         "apps/server/src/routes/sample-data.ts",
+        "apps/server/src/routes/project-variables.ts",
+        "apps/server/src/runtime/project-variable-service.ts",
         "apps/web/src/features/data-relationship/RelationshipCanvas.tsx",
         "apps/web/src/features/elements/ElementWorkspace.tsx",
         "apps/web/src/features/elements/ElementRenderer.tsx",
@@ -341,25 +346,30 @@
       "tests": [
         "apps/server/test/integration/safe-read-binding-engine.test.ts",
         "apps/server/test/integration/crud-binding-runtime.test.ts",
+        "apps/server/test/integration/project-variable-navigation.test.ts",
         "apps/web/src/features/data-relationship/RelationshipCanvas.test.tsx",
         "apps/web/src/features/elements/ElementCanvas.test.tsx",
         "apps/web/src/features/runtime/PublishedRuntime.test.tsx",
         "tests/validation/phase11-validation.test.mjs",
         "tests/validation/phase13-validation.test.mjs",
+        "tests/validation/phase14-validation.test.mjs",
         "scripts/verify-phase11.mjs",
-        "scripts/verify-phase13.mjs"
+        "scripts/verify-phase13.mjs",
+        "scripts/verify-phase14.mjs"
       ],
       "evidence": [
         "artifacts/phase11/safe-read-binding-engine-validation.json",
         "artifacts/phase11/browser-safe-read-binding-validation.json",
         "artifacts/phase13/crud-binding-runtime-validation.json",
-        "artifacts/phase13/browser-crud-binding-validation.json"
+        "artifacts/phase13/browser-crud-binding-validation.json",
+        "artifacts/phase14/project-variable-navigation-validation.json",
+        "artifacts/phase14/browser-project-variable-navigation-validation.json"
       ]
     },
     {
       "id": "REQ-019",
       "title": "Local PC HTTPS deployment",
-      "phase": 22,
+      "phase": 18,
       "status": "NOT STARTED",
       "implementation": [],
       "tests": [],
@@ -371,6 +381,11 @@
       "phase": 4,
       "status": "VERIFIED",
       "implementation": [
+        "docs/adr/0015-project-variable-navigation.md",
+        "packages/domain/src/project-variable.ts",
+        "apps/server/src/data-relationship/binding-dependency-compiler.ts",
+        "apps/server/src/runtime/project-variable-service.ts",
+        "apps/server/src/runtime/runtime-definition-service.ts",
         "apps/server/src/pages/page-service.ts",
         "apps/server/src/routes/pages.ts",
         "apps/web/src/features/runtime/PublishedRuntime.tsx",
@@ -378,10 +393,17 @@
       ],
       "tests": [
         "apps/server/test/integration/page-management.test.ts",
+        "apps/server/test/integration/project-variable-navigation.test.ts",
         "apps/web/src/features/runtime/PublishedRuntime.test.tsx",
-        "scripts/verify-phase4.mjs"
+        "scripts/verify-phase4.mjs",
+        "tests/validation/phase14-validation.test.mjs",
+        "scripts/verify-phase14.mjs"
       ],
-      "evidence": ["artifacts/phase4/page-runtime-validation.json"]
+      "evidence": [
+        "artifacts/phase4/page-runtime-validation.json",
+        "artifacts/phase14/project-variable-navigation-validation.json",
+        "artifacts/phase14/browser-project-variable-navigation-validation.json"
+      ]
     },
     {
       "id": "REQ-021",

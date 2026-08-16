@@ -1,3 +1,5 @@
+import type { ProjectVariableDto } from "@webeditor/domain";
+
 export const LUCIDE_CATALOG_VERSION = "1.31.0" as const;
 
 export interface PageDto {
@@ -61,6 +63,7 @@ export interface RuntimeNavigationDto {
   registryChecksum?: string;
   createdAt?: string;
   pages: RuntimePageDto[];
+  variables?: ProjectVariableDto[];
 }
 
 export interface DraftPreviewDto {

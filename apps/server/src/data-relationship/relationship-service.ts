@@ -54,6 +54,7 @@ import { ProjectRepository } from "../projects/project-repository.js";
 import type { ProjectStorage } from "../projects/project-storage.js";
 import type { RuntimeDefinitionService } from "../runtime/runtime-definition-service.js";
 import { SchemaRepository } from "../data-schema/schema-repository.js";
+import { ProjectVariableRepository } from "../runtime/project-variable-service.js";
 import {
   RelationshipRepository,
   type BindingCommandRow,
@@ -69,6 +70,7 @@ import {
   type CompiledBindingQuery,
 } from "./binding-query-compiler.js";
 import { BindingMutationCompiler } from "./binding-mutation-compiler.js";
+import { BindingDependencyCompiler } from "./binding-dependency-compiler.js";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -330,6 +332,8 @@ export class RelationshipService {
   readonly schemaRepository: SchemaRepository;
   readonly queryCompiler: BindingQueryCompiler;
   readonly mutationCompiler: BindingMutationCompiler;
+  readonly dependencyCompiler: BindingDependencyCompiler;
+  readonly variableRepository: ProjectVariableRepository;
   readonly runtimeDefinitionService: RuntimeDefinitionService;
   readonly #clock: () => Date;
   readonly #previews = new Map<string, StoredConnectionPreview>();
@@ -347,6 +351,10 @@ export class RelationshipService {
       options.projectStorage,
     );
     this.mutationCompiler = new BindingMutationCompiler(options.projectStorage);
+    this.dependencyCompiler = new BindingDependencyCompiler();
+    this.variableRepository = new ProjectVariableRepository(
+      options.metadataDatabase,
+    );
     this.runtimeDefinitionService = options.runtimeDefinitionService;
     this.#clock = options.clock ?? (() => new Date());
     for (const project of this.projectRepository.listActive()) {
@@ -514,7 +522,7 @@ export class RelationshipService {
     );
     if (intersected.length === 0) issues.push("BINDING_TYPE_INCOMPATIBLE");
     const requiresValueCompatibility = intersected.some((type) =>
-      ["READ", "FILTER", "RELATION"].includes(type),
+      ["READ", "RELATION"].includes(type),
     );
     if (
       requiresValueCompatibility &&
@@ -534,8 +542,11 @@ export class RelationshipService {
     }
     if (
       targetPort.maxConnections !== null &&
-      active.filter((binding) => binding.target.portId === target.portId)
-        .length >= targetPort.maxConnections
+      active
+        .filter((binding) => binding.target.portId === target.portId)
+        .filter((binding) => binding.bindingType !== "FILTER").length >=
+        targetPort.maxConnections &&
+      !intersected.includes("FILTER")
     ) {
       issues.push("TARGET_CONNECTION_LIMIT");
     }
@@ -754,6 +765,17 @@ export class RelationshipService {
         ? `${type} requires a mutation mapping`
         : "Mutation mapping is valid only for CREATE, UPDATE, and DELETE",
     );
+    const dependencyType = type === "FILTER" || type === "NAVIGATE";
+    assertApi(
+      dependencyType === (request.dependency !== undefined),
+      400,
+      dependencyType
+        ? "BINDING_DEPENDENCY_CONFIGURATION_REQUIRED"
+        : "BINDING_DEPENDENCY_CONFIGURATION_NOT_ALLOWED",
+      dependencyType
+        ? `${type} requires a Variable dependency`
+        : "Dependency configuration is valid only for FILTER and NAVIGATE",
+    );
     const preview = this.#consumePreview(request.previewId, projectId);
     assertApi(
       preview.compatible && preview.allowedBindingTypes.includes(type),
@@ -793,6 +815,22 @@ export class RelationshipService {
           this.elementRepository.listActiveForProject(projectId),
         )
       : null;
+    const dependency = dependencyType
+      ? this.dependencyCompiler.compileDefinition({
+          projectId,
+          bindingType: type,
+          sourceElementId: preview.source.objectId,
+          targetObjectId: preview.target.objectId,
+          dependency: request.dependency,
+          variables: this.variableRepository.listActive(projectId),
+          bindings: this.repository
+            .listActive(projectId)
+            .map((binding) => this.repository.toDto(binding)),
+          elements: this.elementRepository.listActiveForProject(projectId),
+          schema: this.schemaRepository.exportDefinition(projectId),
+          pages: this.pageRepository.listActive(projectId),
+        })
+      : null;
     const now = this.#now();
     const bindingId = randomUUID();
     const commandId = randomUUID();
@@ -817,7 +855,8 @@ export class RelationshipService {
         query: (queryPreview?.compiled.query as unknown as Readonly<
           Record<string, unknown>
         >) ??
-          (mutation?.query as unknown as Readonly<Record<string, unknown>>) ?? {
+          (mutation?.query as unknown as Readonly<Record<string, unknown>>) ??
+          dependency?.query ?? {
             source: {
               nodeType: preview.source.nodeType,
               objectId: preview.source.objectId,
@@ -827,9 +866,8 @@ export class RelationshipService {
         mapping: (queryPreview?.compiled.mapping as unknown as Readonly<
           Record<string, unknown>
         >) ??
-          (mutation?.mapping as unknown as Readonly<
-            Record<string, unknown>
-          >) ?? {
+          (mutation?.mapping as unknown as Readonly<Record<string, unknown>>) ??
+          dependency?.mapping ?? {
             target: {
               nodeType: preview.target.nodeType,
               objectId: preview.target.objectId,

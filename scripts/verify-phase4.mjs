@@ -428,7 +428,7 @@ export function inspectPageProtocol(files) {
   const runtime = forwardContextsFor(
     files,
     /\bruntimeNavigation\s*\(|\bgetRuntimeNavigation\s*\(|\breadPublishedNavigation\s*\(|\blatestPublished\s*\(|\bpublishedNavigation\s*\(/iu,
-    9000,
+    24000,
   );
   const publish = contextsFor(
     files,

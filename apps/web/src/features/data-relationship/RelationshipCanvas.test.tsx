@@ -355,10 +355,226 @@ describe("RelationshipCanvas", () => {
       ".relationship-toolbar-actions",
     ) as HTMLElement;
     const controls = within(toolbar).getAllByRole("button");
-    expect(controls).toHaveLength(4);
+    expect(controls).toHaveLength(5);
     expect(
       controls.every((control) => control.className === controls[0]?.className),
     ).toBe(true);
+  });
+
+  it("creates a typed Variable and sends only its canonical Data Table selection Navigation dependency", async () => {
+    const targetPageId = "00000000-0000-4000-8000-000000000911";
+    const variableId = "00000000-0000-4000-8000-000000000912";
+    const selectionPort = {
+      ...port(
+        `element:${elementId}`,
+        elementId,
+        "selection",
+        "Selection",
+        "output",
+        ["FILTER", "NAVIGATE"],
+        2,
+      ),
+      valueType: "record" as const,
+    };
+    const sourceNode = {
+      ...elementNode,
+      ports: [...elementNode.ports, selectionPort],
+    };
+    const targetPage = {
+      ...pageNode,
+      id: `page:${targetPageId}`,
+      objectId: targetPageId,
+      label: "상세",
+      subtitle: "/detail",
+      ports: [
+        port(
+          `page:${targetPageId}`,
+          targetPageId,
+          "navigation",
+          "Navigation",
+          "input",
+          ["NAVIGATE"],
+          0,
+        ),
+      ],
+    };
+    const sourceRead = {
+      ...binding(),
+      query: { tableId, spec: { selectFieldIds: [fieldId] } },
+    };
+    let current: DataRelationshipGraphDto = {
+      ...graph([sourceRead]),
+      nodes: [pageNode, targetPage, sourceNode, tableNode],
+      projectRevision: 4,
+    };
+    let variableCreated = false;
+    const calls: Array<{ url: string; method: string; body: unknown }> = [];
+    const variable = {
+      id: variableId,
+      projectId,
+      key: "selected_value",
+      name: "선택값",
+      valueType: "number",
+      scope: "session",
+      transport: "URL_QUERY",
+      sensitive: false,
+      defaultValue: null,
+      revision: 1,
+      createdAt: "2026-08-16T00:00:00.000Z",
+      updatedAt: "2026-08-16T00:00:00.000Z",
+    } as const;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        const url = String(input);
+        const method = init?.method ?? "GET";
+        const body = init?.body ? JSON.parse(String(init.body)) : undefined;
+        calls.push({ url, method, body });
+        if (url.endsWith("/relationship-graph")) return response(current);
+        if (url.endsWith("/relationship-layout-history"))
+          return response(layoutHistory(current));
+        if (url.endsWith("/binding-history")) return response(history(current));
+        if (url.endsWith("/variables") && method === "GET") {
+          return response({
+            schemaVersion: 1,
+            projectId,
+            projectRevision: current.projectRevision,
+            variables: variableCreated ? [variable] : [],
+          });
+        }
+        if (url.endsWith("/variables") && method === "POST") {
+          variableCreated = true;
+          current = { ...current, projectRevision: 5 };
+          return response(
+            { variable, projectRevision: 5, commandId: "variable-command" },
+            201,
+          );
+        }
+        if (url.endsWith("/schema")) {
+          return response({
+            schemaVersion: 1,
+            projectId,
+            schemaRevision: 1,
+            projectRevision: current.projectRevision,
+            tables: [
+              {
+                id: tableId,
+                fields: [{ id: fieldId, displayName: "ID", type: "INTEGER" }],
+              },
+            ],
+          });
+        }
+        if (url.endsWith("/connections/preview")) {
+          return response({
+            previewId,
+            projectId,
+            source: {
+              nodeType: "element",
+              nodeId: sourceNode.id,
+              objectId: elementId,
+              portId: selectionPort.id,
+              portRole: "selection",
+              direction: "output",
+              side: "right",
+              valueType: "record",
+            },
+            target: {
+              nodeType: "page",
+              nodeId: targetPage.id,
+              objectId: targetPageId,
+              portId: targetPage.ports[0]?.id,
+              portRole: "navigation",
+              direction: "input",
+              side: "left",
+              valueType: "page",
+            },
+            compatible: true,
+            allowedBindingTypes: ["NAVIGATE"],
+            issues: [],
+            graphRevision: 1,
+            projectRevision: 5,
+            expiresAt: "2026-08-16T00:00:15.000Z",
+          });
+        }
+        if (url.endsWith("/bindings") && method === "POST") {
+          return response(
+            {
+              binding: { ...sourceRead, id: "navigation-binding" },
+              graphRevision: 2,
+              projectRevision: 6,
+              commandId,
+            },
+            201,
+          );
+        }
+        return response({ error: { code: "NOT_FOUND", message: "없음" } }, 404);
+      }),
+    );
+    const user = userEvent.setup();
+    render(
+      <RelationshipCanvas
+        projectId={projectId}
+        projectRevision={4}
+        onProjectRevisionChange={vi.fn()}
+      />,
+    );
+    await screen.findByText("측정값");
+    const toolbar = document.querySelector(
+      ".relationship-toolbar-actions",
+    ) as HTMLElement;
+    await user.click(within(toolbar).getByRole("button", { name: "변수" }));
+    const variableDialog = screen.getByRole("dialog", { name: "변수" });
+    await user.clear(within(variableDialog).getByLabelText("이름"));
+    await user.type(within(variableDialog).getByLabelText("이름"), "선택값");
+    await user.click(
+      within(variableDialog).getByRole("button", { name: "추가" }),
+    );
+    await waitFor(() => expect(variableCreated).toBe(true));
+
+    await user.click(screen.getByRole("button", { name: "Selection 출력" }));
+    await user.click(
+      screen.getAllByRole("button", { name: "Navigation 입력" })[1]!,
+    );
+    const bindingDialog = await screen.findByRole("dialog", { name: "연결" });
+    await waitFor(() => {
+      expect(within(bindingDialog).getByLabelText("변수")).toHaveValue(
+        variableId,
+      );
+      expect(within(bindingDialog).getByLabelText("선택 필드")).toHaveValue(
+        fieldId,
+      );
+    });
+    expect(within(bindingDialog).getByDisplayValue("상세")).toHaveAttribute(
+      "readonly",
+    );
+    await user.click(
+      within(bindingDialog).getByRole("button", { name: "연결" }),
+    );
+    const variableCall = calls.find(
+      ({ url, method }) => url.endsWith("/variables") && method === "POST",
+    );
+    expect(variableCall?.body).toMatchObject({
+      key: "selected_value",
+      name: "선택값",
+      valueType: "number",
+      transport: "URL_QUERY",
+    });
+    const bindingCall = calls.find(
+      ({ url, method }) => url.endsWith("/bindings") && method === "POST",
+    );
+    expect(bindingCall?.body).toMatchObject({
+      previewId,
+      bindingType: "NAVIGATE",
+      dependency: {
+        kind: "NAVIGATE",
+        variableId,
+        sourceFieldId: fieldId,
+        targetPageId,
+        transport: "URL_QUERY",
+      },
+    });
+    expect(bindingCall?.body).not.toHaveProperty("value");
+    expect(bindingCall?.body).not.toHaveProperty("route");
   });
 
   it("creates a visual Edge only from the exact server preview and keeps its Binding record 1:1", async () => {

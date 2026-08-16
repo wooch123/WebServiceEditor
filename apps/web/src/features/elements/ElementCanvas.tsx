@@ -213,6 +213,11 @@ function CandidatePlaceholder({ canvasWidth }: { canvasWidth: number }) {
             type="button"
             size="sm"
             disabled={!candidate.valid || workspace.mutating}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.stopPropagation();
+              }
+            }}
             onClick={() => void workspace.commitPlacement()}
           >
             배치
@@ -221,6 +226,11 @@ function CandidatePlaceholder({ canvasWidth }: { canvasWidth: number }) {
             type="button"
             size="sm"
             variant="outline"
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.stopPropagation();
+              }
+            }}
             onClick={workspace.cancelPlacement}
           >
             취소

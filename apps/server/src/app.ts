@@ -9,6 +9,7 @@ import {
 import { RelationshipService } from "./data-relationship/relationship-service.js";
 import { SampleDataService } from "./data-relationship/sample-data-service.js";
 import { RuntimeDefinitionService } from "./runtime/runtime-definition-service.js";
+import { ProjectVariableService } from "./runtime/project-variable-service.js";
 import {
   ElementService,
   type ElementFailureInjector,
@@ -29,6 +30,7 @@ import { registerSystemRoutes } from "./routes/system.js";
 import { registerDataSchemaRoutes } from "./routes/data-schema.js";
 import { registerDataRelationshipRoutes } from "./routes/data-relationship.js";
 import { registerSampleDataRoutes } from "./routes/sample-data.js";
+import { registerProjectVariableRoutes } from "./routes/project-variables.js";
 
 export interface BuildServerOptions {
   readonly logger?: boolean;
@@ -63,6 +65,10 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   const runtimeDefinitionService = new RuntimeDefinitionService(
     metadataDatabase,
     projectService.storage,
+    options.clock ?? (() => new Date()),
+  );
+  const projectVariableService = new ProjectVariableService(
+    metadataDatabase,
     options.clock ?? (() => new Date()),
   );
   const pageService = new PageService({
@@ -165,6 +171,7 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   void app.register(registerDataSchemaRoutes, { schemaService });
   void app.register(registerDataRelationshipRoutes, { relationshipService });
   void app.register(registerSampleDataRoutes, { sampleDataService });
+  void app.register(registerProjectVariableRoutes, { projectVariableService });
 
   return app;
 }

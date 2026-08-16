@@ -2,6 +2,7 @@ import type {
   BindingQueryPreviewDto,
   BindingRenderShape,
   ConfigureBindingMutationRequestDto,
+  ConfigureBindingDependencyRequestDto,
   DataRelationshipGraphDto,
   DataSchemaDto,
   ReadAggregateFunction,
@@ -18,6 +19,10 @@ import type {
   RelationshipNodePositionDto,
   RelationshipPortDto,
   RelationshipRoutePointDto,
+  ProjectVariableDto,
+  ProjectVariableScope,
+  ProjectVariableTransport,
+  ProjectVariableType,
 } from "@webeditor/domain";
 import {
   applyNodeChanges,
@@ -43,6 +48,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import {
   ArrowRight,
+  Braces,
   Link2,
   LoaderCircle,
   Maximize2,
@@ -125,6 +131,7 @@ import {
   RelationshipApiError,
 } from "@/services/data-relationship-api";
 import { generateSampleData, getDataSchema } from "@/services/data-schema-api";
+import { projectVariablesApi } from "@/services/project-variables-api";
 
 interface RelationshipCanvasProps {
   readonly projectId: string;
@@ -197,6 +204,18 @@ const writeBindingTypes = new Set<RelationshipBindingType>([
   "UPDATE",
   "DELETE",
 ]);
+const dependencyBindingTypes = new Set<RelationshipBindingType>([
+  "FILTER",
+  "NAVIGATE",
+]);
+
+function variableTypeForField(type: string): ProjectVariableType {
+  if (type === "INTEGER" || type === "REAL") return "number";
+  if (type === "BOOLEAN") return "boolean";
+  if (type === "DATE") return "date";
+  if (type === "DATETIME") return "datetime";
+  return "string";
+}
 
 function nodePageLabel(node: RelationshipNodeDto | undefined) {
   if (!node || node.type !== "element") return "";
@@ -614,6 +633,21 @@ function RelationshipCanvasInner({
   const [writeFieldMappings, setWriteFieldMappings] = useState<
     Readonly<Record<string, string>>
   >({});
+  const [variables, setVariables] = useState<readonly ProjectVariableDto[]>([]);
+  const [variableDialogOpen, setVariableDialogOpen] = useState(false);
+  const [variableKey, setVariableKey] = useState("selected_value");
+  const [variableName, setVariableName] = useState("선택값");
+  const [variableType, setVariableType] =
+    useState<ProjectVariableType>("number");
+  const [variableScope, setVariableScope] =
+    useState<ProjectVariableScope>("session");
+  const [variableTransport, setVariableTransport] =
+    useState<ProjectVariableTransport>("URL_QUERY");
+  const [dependencyVariableId, setDependencyVariableId] = useState("");
+  const [dependencySourceFieldId, setDependencySourceFieldId] = useState("");
+  const [dependencyTargetReadBindingId, setDependencyTargetReadBindingId] =
+    useState("");
+  const [dependencyTargetFieldId, setDependencyTargetFieldId] = useState("");
   const [selectedBindingId, setSelectedBindingId] = useState<string | null>(
     null,
   );
@@ -655,14 +689,17 @@ function RelationshipCanvasInner({
     setLoading(true);
     setError(null);
     try {
-      const [nextGraph, nextHistory, nextLayoutHistory] = await Promise.all([
-        dataRelationshipApi.graph(projectId),
-        dataRelationshipApi.history(projectId),
-        dataRelationshipApi.layoutHistory(projectId),
-      ]);
+      const [nextGraph, nextHistory, nextLayoutHistory, nextVariables] =
+        await Promise.all([
+          dataRelationshipApi.graph(projectId),
+          dataRelationshipApi.history(projectId),
+          dataRelationshipApi.layoutHistory(projectId),
+          projectVariablesApi.list(projectId).catch(() => null),
+        ]);
       setGraph(nextGraph);
       setHistory(nextHistory);
       setLayoutHistory(nextLayoutHistory);
+      setVariables(nextVariables?.variables ?? []);
       setViewport(nextGraph.viewport);
       publishRevision(nextGraph.projectRevision);
       setSelectedBindingId((current) =>
@@ -718,6 +755,10 @@ function RelationshipCanvasInner({
         setPreview(next);
         const nextBindingType = next
           .allowedBindingTypes[0] as RelationshipBindingType;
+        setDependencyVariableId("");
+        setDependencySourceFieldId("");
+        setDependencyTargetReadBindingId("");
+        setDependencyTargetFieldId("");
         setBindingType(nextBindingType);
         setQueryPreview(null);
         if (nextBindingType === "READ") {
@@ -964,7 +1005,11 @@ function RelationshipCanvasInner({
   }, [bindingType, mutationTable]);
 
   useEffect(() => {
-    if (!preview || !writeBindingTypes.has(bindingType)) {
+    if (
+      !preview ||
+      (!writeBindingTypes.has(bindingType) &&
+        !dependencyBindingTypes.has(bindingType))
+    ) {
       setWriteFieldMappings({});
       return;
     }
@@ -980,6 +1025,153 @@ function RelationshipCanvasInner({
       cancelled = true;
     };
   }, [bindingType, preview, projectId]);
+
+  const sourceSelectionRead = useMemo(() => {
+    if (!graph || !preview || !dependencyBindingTypes.has(bindingType)) {
+      return null;
+    }
+    return (
+      graph.edges.find(
+        (binding) =>
+          binding.bindingType === "READ" &&
+          binding.status === "READY" &&
+          binding.target.objectId === preview.source.objectId,
+      ) ?? null
+    );
+  }, [bindingType, graph, preview]);
+
+  const dependencySourceFields = useMemo(() => {
+    if (!dataSchema || !sourceSelectionRead) return [];
+    const tableId =
+      typeof sourceSelectionRead.query.tableId === "string"
+        ? sourceSelectionRead.query.tableId
+        : "";
+    const spec = sourceSelectionRead.query.spec as
+      Readonly<Record<string, unknown>> | undefined;
+    const selected =
+      spec !== undefined && Array.isArray(spec.selectFieldIds)
+        ? new Set(spec.selectFieldIds)
+        : new Set<unknown>();
+    return (
+      dataSchema.tables
+        .find((table) => table.id === tableId)
+        ?.fields.filter((field) => selected.has(field.id)) ?? []
+    );
+  }, [dataSchema, sourceSelectionRead]);
+
+  const dependencyTargetReads = useMemo(() => {
+    if (!graph || !preview || bindingType !== "FILTER") return [];
+    return graph.edges.filter(
+      (binding) =>
+        binding.bindingType === "READ" &&
+        binding.status === "READY" &&
+        binding.target.objectId === preview.target.objectId,
+    );
+  }, [bindingType, graph, preview]);
+
+  const dependencyTargetFields = useMemo(() => {
+    if (!dataSchema) return [];
+    const targetRead = dependencyTargetReads.find(
+      ({ id }) => id === dependencyTargetReadBindingId,
+    );
+    const tableId =
+      typeof targetRead?.query.tableId === "string"
+        ? targetRead.query.tableId
+        : "";
+    return (
+      dataSchema.tables.find((table) => table.id === tableId)?.fields ?? []
+    );
+  }, [dataSchema, dependencyTargetReadBindingId, dependencyTargetReads]);
+
+  useEffect(() => {
+    if (!preview || !dependencyBindingTypes.has(bindingType)) return;
+    const sourceField = dependencySourceFields[0];
+    const matchingVariable = variables.find(
+      (variable) =>
+        sourceField !== undefined &&
+        variable.valueType === variableTypeForField(sourceField.type),
+    );
+    setDependencyVariableId((current) => current || matchingVariable?.id || "");
+    setDependencySourceFieldId((current) => current || sourceField?.id || "");
+    const targetRead = dependencyTargetReads[0];
+    setDependencyTargetReadBindingId(
+      (current) => current || targetRead?.id || "",
+    );
+  }, [
+    bindingType,
+    dependencySourceFields,
+    dependencyTargetReads,
+    preview,
+    variables,
+  ]);
+
+  useEffect(() => {
+    const selectedVariable = variables.find(
+      ({ id }) => id === dependencyVariableId,
+    );
+    const matching = dependencyTargetFields.find(
+      (field) =>
+        selectedVariable !== undefined &&
+        variableTypeForField(field.type) === selectedVariable.valueType,
+    );
+    setDependencyTargetFieldId((current) => current || matching?.id || "");
+  }, [dependencyTargetFields, dependencyVariableId, variables]);
+
+  const dependencyConfiguration = useMemo(() => {
+    if (!preview || !dependencyBindingTypes.has(bindingType)) return null;
+    const variable = variables.find(({ id }) => id === dependencyVariableId);
+    const sourceField = dependencySourceFields.find(
+      ({ id }) => id === dependencySourceFieldId,
+    );
+    if (
+      !variable ||
+      !sourceField ||
+      variable.valueType !== variableTypeForField(sourceField.type)
+    ) {
+      return null;
+    }
+    if (bindingType === "NAVIGATE") {
+      return {
+        kind: "NAVIGATE",
+        variableId: variable.id,
+        sourceFieldId: sourceField.id,
+        targetPageId: preview.target.objectId,
+        transport: variable.transport,
+      } satisfies ConfigureBindingDependencyRequestDto;
+    }
+    const targetRead = dependencyTargetReads.find(
+      ({ id }) => id === dependencyTargetReadBindingId,
+    );
+    const targetField = dependencyTargetFields.find(
+      ({ id }) => id === dependencyTargetFieldId,
+    );
+    if (
+      !targetRead ||
+      !targetField ||
+      variable.valueType !== variableTypeForField(targetField.type)
+    ) {
+      return null;
+    }
+    return {
+      kind: "FILTER",
+      variableId: variable.id,
+      sourceFieldId: sourceField.id,
+      targetReadBindingId: targetRead.id,
+      targetFieldId: targetField.id,
+      operator: "EQ",
+    } satisfies ConfigureBindingDependencyRequestDto;
+  }, [
+    bindingType,
+    dependencySourceFieldId,
+    dependencySourceFields,
+    dependencyTargetFieldId,
+    dependencyTargetFields,
+    dependencyTargetReadBindingId,
+    dependencyTargetReads,
+    dependencyVariableId,
+    preview,
+    variables,
+  ]);
 
   useEffect(() => {
     if (!writeBindingTypes.has(bindingType) || mutationFields.length === 0) {
@@ -1104,6 +1296,41 @@ function RelationshipCanvasInner({
     }
   };
 
+  const createVariable = async () => {
+    if (
+      !graph ||
+      busy ||
+      variableKey.trim() === "" ||
+      variableName.trim() === ""
+    ) {
+      return;
+    }
+    setBusy(true);
+    setError(null);
+    try {
+      const result = await projectVariablesApi.create(projectId, {
+        key: variableKey.trim(),
+        name: variableName.trim(),
+        valueType: variableType,
+        scope: variableScope,
+        transport: variableTransport,
+        sensitive: false,
+        defaultValue: null,
+        expectedProjectRevision: graph.projectRevision,
+        idempotencyKey: idempotencyKey("variable-create"),
+      });
+      publishRevision(result.projectRevision);
+      setDependencyVariableId(result.variable.id);
+      setVariableDialogOpen(false);
+      await load();
+    } catch (requestError) {
+      setError(errorText(requestError));
+      await load();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const commit = async () => {
     if (
       !graph ||
@@ -1124,6 +1351,9 @@ function RelationshipCanvasInner({
           : {}),
         ...(writeBindingTypes.has(bindingType) && mutationConfiguration
           ? { mutation: mutationConfiguration }
+          : {}),
+        ...(dependencyBindingTypes.has(bindingType) && dependencyConfiguration
+          ? { dependency: dependencyConfiguration }
           : {}),
         expectedGraphRevision: preview.graphRevision,
         expectedProjectRevision: preview.projectRevision,
@@ -1346,6 +1576,15 @@ function RelationshipCanvasInner({
             type="button"
             variant="outline"
             disabled={busy}
+            onClick={() => setVariableDialogOpen(true)}
+          >
+            <Braces data-icon="inline-start" aria-hidden="true" />
+            변수
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            disabled={busy}
             onClick={() => void load()}
           >
             <RefreshCw data-icon="inline-start" aria-hidden="true" />
@@ -1539,6 +1778,10 @@ function RelationshipCanvasInner({
                 onChange={(event) => {
                   setBindingType(event.target.value as RelationshipBindingType);
                   setQueryPreview(null);
+                  setDependencyVariableId("");
+                  setDependencySourceFieldId("");
+                  setDependencyTargetReadBindingId("");
+                  setDependencyTargetFieldId("");
                 }}
               >
                 {preview?.allowedBindingTypes.map((type) => (
@@ -1890,6 +2133,117 @@ function RelationshipCanvasInner({
               )}
             </FieldGroup>
           )}
+          {preview && dependencyBindingTypes.has(bindingType) && (
+            <FieldGroup className="binding-dependency-fields">
+              <Field data-invalid={!dependencyVariableId || undefined}>
+                <FieldLabel htmlFor="binding-dependency-variable">
+                  변수
+                </FieldLabel>
+                <NativeSelect
+                  id="binding-dependency-variable"
+                  value={dependencyVariableId}
+                  disabled={busy}
+                  onChange={(event) => {
+                    setDependencyVariableId(event.target.value);
+                    setDependencyTargetFieldId("");
+                  }}
+                >
+                  <NativeSelectOption value="">변수 선택</NativeSelectOption>
+                  {variables.map((variable) => (
+                    <NativeSelectOption key={variable.id} value={variable.id}>
+                      {variable.name} · {variable.valueType}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </Field>
+              <Field data-invalid={!dependencySourceFieldId || undefined}>
+                <FieldLabel htmlFor="binding-dependency-source-field">
+                  선택 필드
+                </FieldLabel>
+                <NativeSelect
+                  id="binding-dependency-source-field"
+                  value={dependencySourceFieldId}
+                  disabled={busy}
+                  onChange={(event) =>
+                    setDependencySourceFieldId(event.target.value)
+                  }
+                >
+                  <NativeSelectOption value="">필드 선택</NativeSelectOption>
+                  {dependencySourceFields.map((field) => (
+                    <NativeSelectOption key={field.id} value={field.id}>
+                      {field.displayName}
+                    </NativeSelectOption>
+                  ))}
+                </NativeSelect>
+              </Field>
+              {bindingType === "FILTER" ? (
+                <>
+                  <Field
+                    data-invalid={!dependencyTargetReadBindingId || undefined}
+                  >
+                    <FieldLabel htmlFor="binding-dependency-target-read">
+                      대상 조회
+                    </FieldLabel>
+                    <NativeSelect
+                      id="binding-dependency-target-read"
+                      value={dependencyTargetReadBindingId}
+                      disabled={busy}
+                      onChange={(event) => {
+                        setDependencyTargetReadBindingId(event.target.value);
+                        setDependencyTargetFieldId("");
+                      }}
+                    >
+                      <NativeSelectOption value="">
+                        조회 선택
+                      </NativeSelectOption>
+                      {dependencyTargetReads.map((binding) => (
+                        <NativeSelectOption key={binding.id} value={binding.id}>
+                          {binding.id.slice(0, 8)}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </Field>
+                  <Field data-invalid={!dependencyTargetFieldId || undefined}>
+                    <FieldLabel htmlFor="binding-dependency-target-field">
+                      필터 필드
+                    </FieldLabel>
+                    <NativeSelect
+                      id="binding-dependency-target-field"
+                      value={dependencyTargetFieldId}
+                      disabled={busy}
+                      onChange={(event) =>
+                        setDependencyTargetFieldId(event.target.value)
+                      }
+                    >
+                      <NativeSelectOption value="">
+                        필드 선택
+                      </NativeSelectOption>
+                      {dependencyTargetFields.map((field) => (
+                        <NativeSelectOption key={field.id} value={field.id}>
+                          {field.displayName}
+                        </NativeSelectOption>
+                      ))}
+                    </NativeSelect>
+                  </Field>
+                </>
+              ) : (
+                <Field>
+                  <FieldLabel>대상 Page</FieldLabel>
+                  <Input
+                    readOnly
+                    value={
+                      graph.nodes.find(
+                        (node) => node.objectId === preview.target.objectId,
+                      )?.label ?? preview.target.objectId
+                    }
+                  />
+                </Field>
+              )}
+              {variables.length === 0 && (
+                <p role="alert">변수를 먼저 추가하세요.</p>
+              )}
+            </FieldGroup>
+          )}
           <DialogFooter className="relationship-dialog-actions">
             <Button
               type="button"
@@ -1908,7 +2262,9 @@ function RelationshipCanvasInner({
                 busy ||
                 (bindingType === "READ" && queryPreview === null) ||
                 (writeBindingTypes.has(bindingType) &&
-                  mutationConfiguration === null)
+                  mutationConfiguration === null) ||
+                (dependencyBindingTypes.has(bindingType) &&
+                  dependencyConfiguration === null)
               }
               onClick={() => void commit()}
             >
@@ -1918,6 +2274,123 @@ function RelationshipCanvasInner({
                 <Link2 data-icon="inline-start" aria-hidden="true" />
               )}
               연결
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={variableDialogOpen}
+        onOpenChange={(open) => {
+          if (!busy) setVariableDialogOpen(open);
+        }}
+      >
+        <DialogContent showCloseButton={!busy}>
+          <DialogHeader>
+            <DialogTitle>변수</DialogTitle>
+            <DialogDescription>선택값 전달</DialogDescription>
+          </DialogHeader>
+          {variables.length > 0 && (
+            <div className="relationship-variable-list" aria-label="변수 목록">
+              {variables.map((variable) => (
+                <div key={variable.id}>
+                  <strong>{variable.name}</strong>
+                  <span>
+                    {variable.key} · {variable.valueType} · {variable.transport}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+          <FieldGroup>
+            <Field>
+              <FieldLabel htmlFor="project-variable-name">이름</FieldLabel>
+              <Input
+                id="project-variable-name"
+                value={variableName}
+                disabled={busy}
+                onChange={(event) => setVariableName(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="project-variable-key">키</FieldLabel>
+              <Input
+                id="project-variable-key"
+                value={variableKey}
+                disabled={busy}
+                onChange={(event) => setVariableKey(event.target.value)}
+              />
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="project-variable-type">형식</FieldLabel>
+              <NativeSelect
+                id="project-variable-type"
+                value={variableType}
+                disabled={busy}
+                onChange={(event) =>
+                  setVariableType(event.target.value as ProjectVariableType)
+                }
+              >
+                {(
+                  ["string", "number", "boolean", "date", "datetime"] as const
+                ).map((value) => (
+                  <NativeSelectOption key={value} value={value}>
+                    {value}
+                  </NativeSelectOption>
+                ))}
+              </NativeSelect>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="project-variable-scope">범위</FieldLabel>
+              <NativeSelect
+                id="project-variable-scope"
+                value={variableScope}
+                disabled={busy}
+                onChange={(event) =>
+                  setVariableScope(event.target.value as ProjectVariableScope)
+                }
+              >
+                <NativeSelectOption value="project">project</NativeSelectOption>
+                <NativeSelectOption value="session">session</NativeSelectOption>
+                <NativeSelectOption value="page">page</NativeSelectOption>
+              </NativeSelect>
+            </Field>
+            <Field>
+              <FieldLabel htmlFor="project-variable-transport">전달</FieldLabel>
+              <NativeSelect
+                id="project-variable-transport"
+                value={variableTransport}
+                disabled={busy}
+                onChange={(event) =>
+                  setVariableTransport(
+                    event.target.value as ProjectVariableTransport,
+                  )
+                }
+              >
+                <NativeSelectOption value="URL_QUERY">URL</NativeSelectOption>
+                <NativeSelectOption value="SESSION_STATE">
+                  세션
+                </NativeSelectOption>
+              </NativeSelect>
+            </Field>
+          </FieldGroup>
+          <DialogFooter className="relationship-dialog-actions">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => setVariableDialogOpen(false)}
+            >
+              취소
+            </Button>
+            <Button
+              type="button"
+              disabled={
+                busy || variableName.trim() === "" || variableKey.trim() === ""
+              }
+              onClick={() => void createVariable()}
+            >
+              추가
             </Button>
           </DialogFooter>
         </DialogContent>

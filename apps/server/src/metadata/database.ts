@@ -6,7 +6,7 @@ import { PROJECT_LIFECYCLE_STATUSES } from "@webeditor/domain";
 import Database from "better-sqlite3";
 
 const METADATA_APPLICATION_ID = 0x57454245;
-export const LATEST_METADATA_SCHEMA_VERSION = 10;
+export const LATEST_METADATA_SCHEMA_VERSION = 11;
 
 const lifecycleSqlValues = PROJECT_LIFECYCLE_STATUSES.map(
   (status) => `'${status}'`,
@@ -1223,6 +1223,78 @@ export const SAFE_READ_BINDING_ENGINE_SCHEMA_CHECKSUM = createHash("sha256")
   .update(safeReadBindingEngineSchemaSql)
   .digest("hex");
 
+const projectVariableNavigationSchemaSql = `
+  CREATE TABLE project_variables (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    variable_key TEXT NOT NULL CHECK (
+      length(variable_key) BETWEEN 1 AND 64 AND
+      variable_key GLOB '[a-z]*' AND
+      variable_key NOT GLOB '*[^a-z0-9_]*'
+    ),
+    display_name TEXT NOT NULL CHECK (
+      length(trim(display_name)) BETWEEN 1 AND 120
+    ),
+    value_type TEXT NOT NULL CHECK (
+      value_type IN ('string', 'number', 'boolean', 'date', 'datetime')
+    ),
+    variable_scope TEXT NOT NULL CHECK (
+      variable_scope IN ('project', 'session', 'page')
+    ),
+    transport TEXT NOT NULL CHECK (
+      transport IN ('URL_QUERY', 'SESSION_STATE')
+    ),
+    sensitive INTEGER NOT NULL DEFAULT 0 CHECK (sensitive IN (0, 1)),
+    default_value_json TEXT NOT NULL CHECK (
+      json_valid(default_value_json) AND
+      json_type(default_value_json) IN ('null', 'text', 'integer', 'real', 'true', 'false')
+    ),
+    revision INTEGER NOT NULL DEFAULT 1 CHECK (
+      revision >= 1 AND typeof(revision) = 'integer'
+    ),
+    created_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    deleted_at TEXT,
+    UNIQUE(id, project_id),
+    CHECK (sensitive = 0 OR transport = 'SESSION_STATE')
+  );
+  CREATE UNIQUE INDEX project_variables_active_key_idx
+    ON project_variables(project_id, variable_key COLLATE NOCASE)
+    WHERE deleted_at IS NULL;
+  CREATE INDEX project_variables_project_active_idx
+    ON project_variables(project_id, deleted_at, created_at, id);
+
+  CREATE TABLE project_variable_commands (
+    id TEXT PRIMARY KEY NOT NULL,
+    project_id TEXT NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+    variable_id TEXT NOT NULL,
+    command_type TEXT NOT NULL CHECK (
+      command_type IN ('CREATE_VARIABLE', 'UPDATE_VARIABLE', 'DELETE_VARIABLE')
+    ),
+    idempotency_key TEXT NOT NULL CHECK (
+      length(idempotency_key) BETWEEN 1 AND 200
+    ),
+    request_hash TEXT NOT NULL CHECK (
+      length(request_hash) = 64 AND request_hash = lower(request_hash) AND
+      request_hash NOT GLOB '*[^0-9a-f]*'
+    ),
+    response_status INTEGER NOT NULL CHECK (
+      response_status BETWEEN 200 AND 499 AND typeof(response_status) = 'integer'
+    ),
+    response_json TEXT NOT NULL CHECK (json_valid(response_json)),
+    created_at TEXT NOT NULL,
+    UNIQUE(project_id, idempotency_key),
+    FOREIGN KEY (variable_id, project_id)
+      REFERENCES project_variables(id, project_id) ON DELETE CASCADE
+  );
+  CREATE INDEX project_variable_commands_project_created_idx
+    ON project_variable_commands(project_id, created_at, id);
+`;
+
+export const PROJECT_VARIABLE_NAVIGATION_SCHEMA_CHECKSUM = createHash("sha256")
+  .update(projectVariableNavigationSchemaSql)
+  .digest("hex");
+
 const metadataMigrations = [
   {
     checksum: INITIAL_METADATA_SCHEMA_CHECKSUM,
@@ -1283,6 +1355,12 @@ const metadataMigrations = [
     name: "safe-read-binding-engine",
     sql: safeReadBindingEngineSchemaSql,
     version: 10,
+  },
+  {
+    checksum: PROJECT_VARIABLE_NAVIGATION_SCHEMA_CHECKSUM,
+    name: "project-variable-navigation",
+    sql: projectVariableNavigationSchemaSql,
+    version: 11,
   },
 ] as const;
 
