@@ -570,9 +570,10 @@ describe("Phase 11 safe READ Binding Engine", () => {
       url: `/api/v1/runtime/${seeded.project.id}/query/${created.binding.id}`,
       payload: { parameters: {} },
     });
-    expect(runtimeResponse.statusCode, runtimeResponse.body).toBe(409);
+    expect(runtimeResponse.statusCode, runtimeResponse.body).toBe(200);
     expect(runtimeResponse.json()).toMatchObject({
-      error: { code: "RUNTIME_SCHEMA_NOT_APPLIED" },
+      environment: "production",
+      result: { rowCount: 0, renderState: "EMPTY" },
     });
     const resetResponse = await app.inject({
       method: "POST",

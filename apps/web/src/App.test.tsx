@@ -924,7 +924,7 @@ describe("WebEditor persistent project home", () => {
       /\.relationship-workspace\s*\{[^}]*display:\s*flex;[^}]*height:\s*100%;[^}]*flex-direction:\s*column;/s,
     );
     expect(stylesCss).toMatch(
-      /\.relationship-viewport\s*\{[^}]*flex:\s*1 1 auto;[^}]*min-height:\s*0;/s,
+      /\.relationship-stage\s*\{[^}]*min-height:\s*0;[^}]*flex:\s*1 1 auto;/s,
     );
   });
 

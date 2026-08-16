@@ -119,6 +119,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import {
   Tooltip,
   TooltipContent,
@@ -221,6 +222,43 @@ function nodePageLabel(node: RelationshipNodeDto | undefined) {
   if (!node || node.type !== "element") return "";
   const separator = node.subtitle.lastIndexOf(" · ");
   return separator < 0 ? "" : node.subtitle.slice(separator + 3);
+}
+
+export function relationshipScopeNodeIds(
+  graph: DataRelationshipGraphDto,
+  selectedPageNodeId: string,
+): ReadonlySet<string> {
+  if (selectedPageNodeId === "all") {
+    return new Set(graph.nodes.map(({ id }) => id));
+  }
+  const selectedPage = graph.nodes.find(
+    ({ id, type }) => id === selectedPageNodeId && type === "page",
+  );
+  if (!selectedPage) return new Set(graph.nodes.map(({ id }) => id));
+
+  const elementIds = new Set<string>();
+  for (const edge of graph.edges) {
+    if (edge.bindingType !== "CONTAINS") continue;
+    if (edge.source.nodeId === selectedPage.id) {
+      elementIds.add(edge.target.nodeId);
+    }
+    if (edge.target.nodeId === selectedPage.id) {
+      elementIds.add(edge.source.nodeId);
+    }
+  }
+  for (const node of graph.nodes) {
+    if (node.type === "element" && nodePageLabel(node) === selectedPage.label) {
+      elementIds.add(node.id);
+    }
+  }
+
+  const visible = new Set<string>([selectedPage.id, ...elementIds]);
+  for (const edge of graph.edges) {
+    if (edge.bindingType === "CONTAINS") continue;
+    if (elementIds.has(edge.source.nodeId)) visible.add(edge.target.nodeId);
+    if (elementIds.has(edge.target.nodeId)) visible.add(edge.source.nodeId);
+  }
+  return visible;
 }
 
 const aggregateLabels: Record<ReadAggregateFunction, string> = {
@@ -332,6 +370,35 @@ export function roundedOrthogonalPath(
   }
   const last = points.at(-1) as RelationshipRoutePointDto;
   return `${path} L ${last.x} ${last.y}`;
+}
+
+export function liveOrthogonalPoints(
+  points: readonly RelationshipRoutePointDto[],
+  source: Readonly<{ x: number; y: number }>,
+  target: Readonly<{ x: number; y: number }>,
+): readonly RelationshipRoutePointDto[] {
+  if (points.length < 2) return [source, target];
+  const next = points.map((point) => ({ ...point }));
+  const originalFirst = points[0] as RelationshipRoutePointDto;
+  const originalSecond = points[1] as RelationshipRoutePointDto;
+  const originalLast = points.at(-1) as RelationshipRoutePointDto;
+  const originalBeforeLast = points.at(-2) as RelationshipRoutePointDto;
+  next[0] = source;
+  next[next.length - 1] = target;
+
+  if (next.length > 2) {
+    if (originalFirst.y === originalSecond.y) {
+      next[1] = { ...originalSecond, y: source.y };
+    } else {
+      next[1] = { ...originalSecond, x: source.x };
+    }
+    if (originalBeforeLast.y === originalLast.y) {
+      next[next.length - 2] = { ...originalBeforeLast, y: target.y };
+    } else {
+      next[next.length - 2] = { ...originalBeforeLast, x: target.x };
+    }
+  }
+  return next;
 }
 
 function midpoint(points: readonly RelationshipRoutePointDto[]) {
@@ -481,10 +548,19 @@ function RelationshipFlowNodeView({ data }: NodeProps<RelationshipFlowNode>) {
 function OrthogonalRelationshipEdge({
   data,
   markerEnd,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
 }: EdgeProps<RelationshipFlowEdge>) {
   if (data === undefined) return null;
-  const path = roundedOrthogonalPath(data.route.points);
-  const label = midpoint(data.route.points);
+  const livePoints = liveOrthogonalPoints(
+    data.route.points,
+    { x: sourceX, y: sourceY },
+    { x: targetX, y: targetY },
+  );
+  const path = roundedOrthogonalPath(livePoints);
+  const label = midpoint(livePoints);
   return (
     <g
       className={`relationship-edge-visual ${data.selected ? "is-selected" : ""}`}
@@ -506,6 +582,11 @@ function OrthogonalRelationshipEdge({
         {...(markerEnd === undefined ? {} : { markerEnd })}
         interactionWidth={16}
         className="relationship-edge-line"
+      />
+      <BaseEdge
+        path={path}
+        interactionWidth={0}
+        className="relationship-edge-flow"
       />
       <EdgeLabelRenderer>
         <span
@@ -595,6 +676,7 @@ function RelationshipCanvasInner({
   const [selectedBindingId, setSelectedBindingId] = useState<string | null>(
     null,
   );
+  const [selectedPageNodeId, setSelectedPageNodeId] = useState<string>("all");
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -631,6 +713,79 @@ function RelationshipCanvasInner({
     revisionRef.current = Math.max(revisionRef.current, next);
     callbackRef.current(revisionRef.current);
   }, []);
+
+  const pageNodes = useMemo(
+    () => graph?.nodes.filter(({ type }) => type === "page") ?? [],
+    [graph],
+  );
+
+  const scopedNodeIds = useMemo(() => {
+    if (!graph) return new Set<string>();
+    return relationshipScopeNodeIds(graph, selectedPageNodeId);
+  }, [graph, selectedPageNodeId]);
+
+  const actionNodes = useMemo(
+    () =>
+      graph?.nodes.filter(
+        (node) =>
+          node.type === "element" &&
+          scopedNodeIds.has(node.id) &&
+          node.ports.some(
+            (port) =>
+              port.direction === "output" &&
+              port.allowedBindingTypes.some((type) =>
+                ["CREATE", "UPDATE", "DELETE", "FILTER", "NAVIGATE"].includes(
+                  type,
+                ),
+              ),
+          ),
+      ) ?? [],
+    [graph, scopedNodeIds],
+  );
+
+  const databaseNodes = useMemo(
+    () =>
+      graph?.nodes.filter(
+        (node) => node.type === "table" && scopedNodeIds.has(node.id),
+      ) ?? [],
+    [graph, scopedNodeIds],
+  );
+
+  useEffect(() => {
+    if (
+      selectedPageNodeId !== "all" &&
+      !pageNodes.some(({ id }) => id === selectedPageNodeId)
+    ) {
+      setSelectedPageNodeId("all");
+    }
+  }, [pageNodes, selectedPageNodeId]);
+
+  useEffect(() => {
+    setSourcePort(null);
+    setPreview(null);
+    let fitFrame = 0;
+    const reconcileFrame = requestAnimationFrame(() => {
+      fitFrame = requestAnimationFrame(() => {
+        void fitView({ padding: 0.18, duration: 180 });
+      });
+    });
+    return () => {
+      cancelAnimationFrame(reconcileFrame);
+      cancelAnimationFrame(fitFrame);
+    };
+  }, [fitView, selectedPageNodeId]);
+
+  useEffect(() => {
+    setSelectedBindingId((current) => {
+      if (current === null || graph === null) return current;
+      const binding = graph.edges.find(({ id }) => id === current);
+      return binding &&
+        scopedNodeIds.has(binding.source.nodeId) &&
+        scopedNodeIds.has(binding.target.nodeId)
+        ? current
+        : null;
+    });
+  }, [graph, scopedNodeIds]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -831,25 +986,35 @@ function RelationshipCanvasInner({
       return;
     }
     setFlowNodes(
-      graph.nodes.map((node) => ({
-        id: node.id,
-        type: "relationship",
-        position: { x: node.x, y: node.y },
-        data: {
-          value: node,
-          sourcePortId: sourcePort?.id ?? null,
-          busy,
-          onSource: beginSource,
-          onTarget: (port) => void targetPort(port),
-          onPin: togglePin,
-        },
-        draggable: !busy,
-        selectable: true,
-        width: node.width,
-        height: node.height,
-      })),
+      graph.nodes
+        .filter(({ id }) => scopedNodeIds.has(id))
+        .map((node) => ({
+          id: node.id,
+          type: "relationship",
+          position: { x: node.x, y: node.y },
+          data: {
+            value: node,
+            sourcePortId: sourcePort?.id ?? null,
+            busy,
+            onSource: beginSource,
+            onTarget: (port) => void targetPort(port),
+            onPin: togglePin,
+          },
+          draggable: !busy,
+          selectable: true,
+          width: node.width,
+          height: node.height,
+        })),
     );
-  }, [beginSource, busy, graph, sourcePort, targetPort, togglePin]);
+  }, [
+    beginSource,
+    busy,
+    graph,
+    scopedNodeIds,
+    sourcePort,
+    targetPort,
+    togglePin,
+  ]);
 
   const scheduleRoutes = useCallback(() => {
     if (routeFrameRef.current !== null) return;
@@ -867,7 +1032,21 @@ function RelationshipCanvasInner({
       routePreviewStartedAtRef.current = startedAt;
       routePreviewInFlightRef.current = true;
       const sequence = ++routeSequenceRef.current;
-      const positions = flowNodesRef.current.map(positionDto);
+      const livePositions = new Map(
+        flowNodesRef.current.map((node) => [node.id, positionDto(node)]),
+      );
+      const positions = current.nodes.map(
+        (node) =>
+          livePositions.get(node.id) ?? {
+            nodeId: node.id,
+            nodeType: node.type,
+            objectId: node.objectId,
+            x: node.x,
+            y: node.y,
+            pinned: node.pinned,
+            revision: node.positionRevision,
+          },
+      );
       void dataRelationshipApi
         .routePreview(projectId, {
           positions,
@@ -911,6 +1090,12 @@ function RelationshipCanvasInner({
       ]),
     );
     return graph.edges.flatMap((binding): RelationshipFlowEdge[] => {
+      if (
+        !scopedNodeIds.has(binding.source.nodeId) ||
+        !scopedNodeIds.has(binding.target.nodeId)
+      ) {
+        return [];
+      }
       const route = routeByBinding.get(binding.id);
       if (!route) return [];
       return [
@@ -933,7 +1118,7 @@ function RelationshipCanvasInner({
         },
       ];
     });
-  }, [graph, routePreviewRoutes, selectedBindingId]);
+  }, [graph, routePreviewRoutes, scopedNodeIds, selectedBindingId]);
 
   const finishNodeDrag = useCallback(
     (node: RelationshipFlowNode) => {
@@ -943,6 +1128,15 @@ function RelationshipCanvasInner({
       void saveNode(node);
     },
     [saveNode],
+  );
+
+  const focusNode = useCallback(
+    (node: RelationshipNodeDto) =>
+      void setCenter(node.x + node.width / 2, node.y + node.height / 2, {
+        zoom: Math.max(viewport.zoom, 0.8),
+        duration: 160,
+      }),
+    [setCenter, viewport.zoom],
   );
 
   const selectedBinding =
@@ -1565,97 +1759,98 @@ function RelationshipCanvasInner({
             {graph.graphRevision}
           </span>
         </div>
-        <div className="relationship-toolbar-actions">
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy}
-            onClick={() => setVariableDialogOpen(true)}
+        <div className="relationship-toolbar-groups">
+          <div className="relationship-toolbar-actions">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => setVariableDialogOpen(true)}
+            >
+              <Braces data-icon="inline-start" aria-hidden="true" />
+              변수
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => void load()}
+            >
+              <RefreshCw data-icon="inline-start" aria-hidden="true" />
+              새로고침
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy || history?.undo === null}
+              onClick={() => void mutateBindingHistory("undo")}
+            >
+              <Undo2 data-icon="inline-start" aria-hidden="true" />
+              연결 취소
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy || history?.redo === null}
+              onClick={() => void mutateBindingHistory("redo")}
+            >
+              <Redo2 data-icon="inline-start" aria-hidden="true" />
+              연결 다시
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={!sourcePort || busy}
+              onClick={() => setSourcePort(null)}
+            >
+              <X data-icon="inline-start" aria-hidden="true" />
+              선택 취소
+            </Button>
+          </div>
+          <div
+            className="relationship-layout-actions"
+            role="group"
+            aria-label="위치 도구"
           >
-            <Braces data-icon="inline-start" aria-hidden="true" />
-            변수
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy}
-            onClick={() => void load()}
-          >
-            <RefreshCw data-icon="inline-start" aria-hidden="true" />
-            새로고침
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy || history?.undo === null}
-            onClick={() => void mutateBindingHistory("undo")}
-          >
-            <Undo2 data-icon="inline-start" aria-hidden="true" />
-            연결 취소
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={busy || history?.redo === null}
-            onClick={() => void mutateBindingHistory("redo")}
-          >
-            <Redo2 data-icon="inline-start" aria-hidden="true" />
-            연결 다시
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            disabled={!sourcePort || busy}
-            onClick={() => setSourcePort(null)}
-          >
-            <X data-icon="inline-start" aria-hidden="true" />
-            선택 취소
-          </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => void applyAutoLayout()}
+            >
+              <Route data-icon="inline-start" aria-hidden="true" />
+              자동 배치
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy || layoutHistory?.undo === null}
+              onClick={() => void mutateLayoutHistory("undo")}
+            >
+              <Undo2 data-icon="inline-start" aria-hidden="true" />
+              위치 취소
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy || layoutHistory?.redo === null}
+              onClick={() => void mutateLayoutHistory("redo")}
+            >
+              <Redo2 data-icon="inline-start" aria-hidden="true" />
+              위치 다시
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={busy}
+              onClick={() => void fitView({ padding: 0.16, duration: 240 })}
+            >
+              <Maximize2 data-icon="inline-start" aria-hidden="true" />
+              맞춤
+            </Button>
+          </div>
         </div>
       </header>
-
-      <div
-        className="relationship-layout-actions"
-        role="group"
-        aria-label="위치 도구"
-      >
-        <Button
-          type="button"
-          variant="outline"
-          disabled={busy}
-          onClick={() => void applyAutoLayout()}
-        >
-          <Route data-icon="inline-start" aria-hidden="true" />
-          자동 배치
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={busy || layoutHistory?.undo === null}
-          onClick={() => void mutateLayoutHistory("undo")}
-        >
-          <Undo2 data-icon="inline-start" aria-hidden="true" />
-          위치 취소
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={busy || layoutHistory?.redo === null}
-          onClick={() => void mutateLayoutHistory("redo")}
-        >
-          <Redo2 data-icon="inline-start" aria-hidden="true" />
-          위치 다시
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={busy}
-          onClick={() => void fitView({ padding: 0.16, duration: 240 })}
-        >
-          <Maximize2 data-icon="inline-start" aria-hidden="true" />
-          맞춤
-        </Button>
-      </div>
 
       {error && (
         <Alert variant="destructive">
@@ -1672,73 +1867,149 @@ function RelationshipCanvasInner({
           </EmptyHeader>
         </Empty>
       ) : (
-        <div className="relationship-viewport">
-          <ReactFlow<RelationshipFlowNode, RelationshipFlowEdge>
-            nodes={flowNodes}
-            edges={flowEdges}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            viewport={viewport}
-            onViewportChange={setViewport}
-            onMoveEnd={(_event, next) => void saveViewport(next)}
-            onNodesChange={onNodesChange}
-            onNodeDrag={() => scheduleRoutes()}
-            onNodeDragStop={(_event, node) => finishNodeDrag(node)}
-            onConnect={connect}
-            onPaneClick={() => setSelectedBindingId(null)}
-            connectionLineType={ConnectionLineType.Straight}
-            minZoom={0.25}
-            maxZoom={2}
-            nodesDraggable={!busy}
-            nodesConnectable={!busy}
-            snapToGrid
-            snapGrid={RELATIONSHIP_SNAP_GRID}
-            panOnDrag={!busy}
-            deleteKeyCode={null}
-            proOptions={{ hideAttribution: true }}
-            aria-label="관계 그래프"
-          >
-            <Background color="var(--canvas-grid)" gap={24} />
-            <MiniMap
-              position="bottom-left"
-              pannable
-              zoomable
-              ariaLabel="관계 미니맵"
-              onClick={(_event, position) =>
-                void setCenter(position.x, position.y, {
-                  zoom: viewport.zoom,
-                  duration: 160,
-                })
-              }
-              onNodeClick={(_event, node) =>
-                void setCenter(
-                  node.position.x + (node.measured?.width ?? 0) / 2,
-                  node.position.y + (node.measured?.height ?? 0) / 2,
-                  { zoom: viewport.zoom, duration: 160 },
-                )
-              }
-              nodeColor="var(--primary)"
-              nodeStrokeColor="var(--ring)"
-              nodeStrokeWidth={2}
-              maskColor="color-mix(in srgb, var(--canvas) 68%, transparent)"
-              maskStrokeColor="var(--ring)"
-              maskStrokeWidth={4}
-              bgColor="var(--canvas)"
-            />
-            <Controls position="bottom-right" showInteractive={false} />
-          </ReactFlow>
-          <div className="relationship-edge-accessibility">
-            {graph.edges.map((binding) => (
-              <button
-                key={binding.id}
+        <div className="relationship-stage">
+          <aside className="relationship-page-scope" aria-label="Page 범위">
+            <strong>Page</strong>
+            <div className="relationship-scope-list">
+              <Button
                 type="button"
-                className="relationship-edge"
-                data-binding-id={binding.id}
-                aria-label={`${bindingLabels[binding.bindingType]} Binding`}
-                onClick={() => setSelectedBindingId(binding.id)}
+                variant={selectedPageNodeId === "all" ? "secondary" : "ghost"}
+                aria-pressed={selectedPageNodeId === "all"}
+                onClick={() => setSelectedPageNodeId("all")}
+              >
+                전체
+                <Badge variant="outline">{pageNodes.length}</Badge>
+              </Button>
+              {pageNodes.map((page) => (
+                <Button
+                  key={page.id}
+                  type="button"
+                  variant={
+                    selectedPageNodeId === page.id ? "secondary" : "ghost"
+                  }
+                  aria-pressed={selectedPageNodeId === page.id}
+                  onClick={() => setSelectedPageNodeId(page.id)}
+                >
+                  <DynamicLucideIcon iconName={page.iconName} />
+                  <span>{page.label}</span>
+                </Button>
+              ))}
+            </div>
+          </aside>
+          <div className="relationship-viewport">
+            <ReactFlow<RelationshipFlowNode, RelationshipFlowEdge>
+              nodes={flowNodes}
+              edges={flowEdges}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              viewport={viewport}
+              onViewportChange={setViewport}
+              onMoveEnd={(_event, next) => void saveViewport(next)}
+              onNodesChange={onNodesChange}
+              onNodeDrag={() => scheduleRoutes()}
+              onNodeDragStop={(_event, node) => finishNodeDrag(node)}
+              onConnect={connect}
+              onPaneClick={() => setSelectedBindingId(null)}
+              connectionLineType={ConnectionLineType.Straight}
+              minZoom={0.25}
+              maxZoom={2}
+              nodesDraggable={!busy}
+              nodesConnectable={!busy}
+              snapToGrid
+              snapGrid={RELATIONSHIP_SNAP_GRID}
+              panOnDrag={!busy}
+              deleteKeyCode={null}
+              proOptions={{ hideAttribution: true }}
+              aria-label="관계 그래프"
+            >
+              <Background color="var(--canvas-grid)" gap={24} />
+              <MiniMap
+                position="bottom-left"
+                pannable
+                zoomable
+                ariaLabel="관계 미니맵"
+                onClick={(_event, position) =>
+                  void setCenter(position.x, position.y, {
+                    zoom: viewport.zoom,
+                    duration: 160,
+                  })
+                }
+                onNodeClick={(_event, node) =>
+                  void setCenter(
+                    node.position.x + (node.measured?.width ?? 0) / 2,
+                    node.position.y + (node.measured?.height ?? 0) / 2,
+                    { zoom: viewport.zoom, duration: 160 },
+                  )
+                }
+                nodeColor="var(--primary)"
+                nodeStrokeColor="var(--ring)"
+                nodeStrokeWidth={2}
+                maskColor="color-mix(in srgb, var(--canvas) 68%, transparent)"
+                maskStrokeColor="var(--ring)"
+                maskStrokeWidth={4}
+                bgColor="var(--canvas)"
               />
-            ))}
+              <Controls position="bottom-right" showInteractive={false} />
+            </ReactFlow>
+            <div className="relationship-edge-accessibility">
+              {graph.edges
+                .filter(
+                  (binding) =>
+                    scopedNodeIds.has(binding.source.nodeId) &&
+                    scopedNodeIds.has(binding.target.nodeId),
+                )
+                .map((binding) => (
+                  <button
+                    key={binding.id}
+                    type="button"
+                    className="relationship-edge"
+                    data-binding-id={binding.id}
+                    aria-label={`${bindingLabels[binding.bindingType]} Binding`}
+                    onClick={() => setSelectedBindingId(binding.id)}
+                  />
+                ))}
+            </div>
           </div>
+          <aside className="relationship-node-inventory" aria-label="Node 목록">
+            <Tabs defaultValue="actions">
+              <TabsList>
+                <TabsTrigger value="actions">Action</TabsTrigger>
+                <TabsTrigger value="database">DB</TabsTrigger>
+              </TabsList>
+              <TabsContent value="actions">
+                <div className="relationship-inventory-list">
+                  {actionNodes.map((node) => (
+                    <Button
+                      key={node.id}
+                      type="button"
+                      variant="ghost"
+                      onClick={() => focusNode(node)}
+                    >
+                      <DynamicLucideIcon iconName={node.iconName} />
+                      <span>{node.label}</span>
+                    </Button>
+                  ))}
+                  {actionNodes.length === 0 && <span>Action 없음</span>}
+                </div>
+              </TabsContent>
+              <TabsContent value="database">
+                <div className="relationship-inventory-list">
+                  {databaseNodes.map((node) => (
+                    <Button
+                      key={node.id}
+                      type="button"
+                      variant="ghost"
+                      onClick={() => focusNode(node)}
+                    >
+                      <DynamicLucideIcon iconName={node.iconName} />
+                      <span>{node.label}</span>
+                    </Button>
+                  ))}
+                  {databaseNodes.length === 0 && <span>DB 없음</span>}
+                </div>
+              </TabsContent>
+            </Tabs>
+          </aside>
         </div>
       )}
 

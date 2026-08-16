@@ -69,7 +69,12 @@ describe("Feature Showcase executable workflows", () => {
         expect(schemaResponse.statusCode, schemaResponse.body).toBe(200);
         const schema = schemaResponse.json() as DataSchemaDto;
         expect(schema.runtime.test.appliedRevision).toBe(schema.schemaRevision);
-        expect(schema.runtime.production.appliedRevision).toBe(0);
+        expect(schema.runtime.production.appliedRevision).toBe(
+          schema.schemaRevision,
+        );
+        expect(schema.runtime.production.schemaChecksum).toBe(
+          schema.runtime.test.schemaChecksum,
+        );
         const table = schema.tables.find(
           ({ displayName }) => displayName === "Interactive Records",
         );
@@ -102,11 +107,62 @@ describe("Feature Showcase executable workflows", () => {
             edge.source.objectId === valueField?.id,
         );
         expect(readBinding).toBeDefined();
+        const mutationBindings = graph.edges.filter(({ bindingType }) =>
+          ["CREATE", "UPDATE", "DELETE"].includes(bindingType),
+        );
+        expect(mutationBindings).toHaveLength(3);
+        const createBinding = mutationBindings.find(
+          ({ bindingType }) => bindingType === "CREATE",
+        );
+        const valueInput = graph.nodes.find(
+          ({ label }) => label === "CRUD Value Input",
+        );
+        expect(createBinding).toBeDefined();
+        expect(valueInput).toBeDefined();
+
+        const publishedBeforeCreate = await app.inject({
+          method: "POST",
+          url: `/api/v1/runtime/${showcase.projectId}/query/${readBinding?.id}`,
+          payload: { parameters: {} },
+        });
         expect(
-          graph.edges.filter(({ bindingType }) =>
-            ["CREATE", "UPDATE", "DELETE"].includes(bindingType),
-          ),
-        ).toHaveLength(3);
+          publishedBeforeCreate.statusCode,
+          publishedBeforeCreate.body,
+        ).toBe(200);
+        expect(
+          (publishedBeforeCreate.json() as RuntimeBindingResultDto).result
+            .rowCount,
+        ).toBe(0);
+        const publishedCreate = await app.inject({
+          method: "POST",
+          url: `/api/v1/runtime/${showcase.projectId}/create/${createBinding?.id}`,
+          payload: {
+            values: { [valueInput?.objectId ?? ""]: 42.5 },
+            idempotencyKey: "feature-showcase-published-create-test",
+          },
+        });
+        expect(publishedCreate.statusCode, publishedCreate.body).toBe(200);
+        expect(publishedCreate.json()).toMatchObject({
+          environment: "production",
+          operation: "CREATE",
+          affectedRows: 1,
+          insertedPrimaryKey: 1,
+        });
+        const publishedAfterCreate = await app.inject({
+          method: "POST",
+          url: `/api/v1/runtime/${showcase.projectId}/query/${readBinding?.id}`,
+          payload: { parameters: {} },
+        });
+        expect(publishedAfterCreate.statusCode, publishedAfterCreate.body).toBe(
+          200,
+        );
+        const publishedQuery =
+          publishedAfterCreate.json() as RuntimeBindingResultDto;
+        expect(publishedQuery).toMatchObject({ environment: "production" });
+        expect(publishedQuery.result.rowCount).toBe(1);
+        expect(publishedQuery.result.rows[0]?.[valueField?.id ?? ""]).toBe(
+          42.5,
+        );
 
         const projectResponse = await app.inject({
           method: "GET",
@@ -132,6 +188,47 @@ describe("Feature Showcase executable workflows", () => {
         expect(query.result.rowCount).toBe(1);
         expect(query.result.rows[0]?.[valueField?.id ?? ""]).toBe(27.25);
 
+        const idInputBeforeRepair = graph.nodes.find(
+          ({ label }) => label === "CRUD ID Input",
+        );
+        expect(idInputBeforeRepair).toBeDefined();
+        const elementBeforeRepair = await app.inject({
+          method: "GET",
+          url: `/api/v1/elements/${idInputBeforeRepair?.objectId}`,
+        });
+        expect(elementBeforeRepair.statusCode, elementBeforeRepair.body).toBe(
+          200,
+        );
+        const entryBeforeRepair = elementBeforeRepair.json().entry as {
+          element: { id: string; pageId: string; revision: number };
+        };
+        const pageElementsBeforeRepair = await app.inject({
+          method: "GET",
+          url: `/api/v1/pages/${entryBeforeRepair.element.pageId}/elements`,
+        });
+        expect(
+          pageElementsBeforeRepair.statusCode,
+          pageElementsBeforeRepair.body,
+        ).toBe(200);
+        const layoutRevisionBeforeRepair = pageElementsBeforeRepair.json()
+          .layoutRevision as number;
+        const projectBeforeRepair = await app.inject({
+          method: "GET",
+          url: `/api/v1/projects/${showcase.projectId}`,
+        });
+        const deleteResponse = await app.inject({
+          method: "DELETE",
+          url: `/api/v1/elements/${entryBeforeRepair.element.id}`,
+          payload: {
+            expectedRevision: entryBeforeRepair.element.revision,
+            expectedLayoutRevision: layoutRevisionBeforeRepair,
+            expectedProjectRevision:
+              projectBeforeRepair.json().project.revision,
+            idempotencyKey: "feature-showcase-delete-id-input-for-repair",
+          },
+        });
+        expect(deleteResponse.statusCode, deleteResponse.body).toBe(200);
+
         const replay = await app.inject({
           method: "POST",
           url: "/api/v1/internal/sample-projects/feature-showcase",
@@ -142,8 +239,30 @@ describe("Feature Showcase executable workflows", () => {
           tableCount: 9,
           runtimeRowCount: 5_001,
           bindingCount: showcase.bindingCount,
-          publishedVersionId: showcase.publishedVersionId,
         });
+        expect(replay.json().project.publishedVersionId).not.toBe(
+          showcase.publishedVersionId,
+        );
+        const repairedGraphResponse = await app.inject({
+          method: "GET",
+          url: `/api/v1/projects/${showcase.projectId}/relationship-graph`,
+        });
+        expect(
+          repairedGraphResponse.statusCode,
+          repairedGraphResponse.body,
+        ).toBe(200);
+        const repairedGraph =
+          repairedGraphResponse.json() as DataRelationshipGraphDto;
+        const repairedIdInput = repairedGraph.nodes.find(
+          ({ label }) => label === "CRUD ID Input",
+        );
+        expect(repairedIdInput).toBeDefined();
+        expect(repairedIdInput?.objectId).not.toBe(
+          idInputBeforeRepair?.objectId,
+        );
+        expect(
+          new Set(repairedGraph.edges.map(({ bindingType }) => bindingType)),
+        ).toEqual(new Set(["CONTAINS", "READ", "CREATE", "UPDATE", "DELETE"]));
       } finally {
         await app.close();
       }

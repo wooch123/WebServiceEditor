@@ -36,6 +36,7 @@ import {
   type ProjectRow,
 } from "../projects/project-repository.js";
 import type { RuntimeDefinitionService } from "../runtime/runtime-definition-service.js";
+import type { SchemaService } from "../data-schema/schema-service.js";
 
 const UUID_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
@@ -54,6 +55,7 @@ const iconCategorySet = new Set<string>(iconCategories);
 export interface PageServiceOptions {
   readonly metadataDatabase: MetadataDatabase;
   readonly runtimeDefinitionService: RuntimeDefinitionService;
+  readonly schemaService: SchemaService;
   readonly clock?: () => Date;
 }
 
@@ -184,6 +186,7 @@ export class PageService {
   readonly elementRepository: ElementRepository;
   readonly projectRepository: ProjectRepository;
   readonly runtimeDefinitionService: RuntimeDefinitionService;
+  readonly schemaService: SchemaService;
   readonly #clock: () => Date;
 
   constructor(options: PageServiceOptions) {
@@ -191,6 +194,7 @@ export class PageService {
     this.elementRepository = new ElementRepository(options.metadataDatabase);
     this.projectRepository = new ProjectRepository(options.metadataDatabase);
     this.runtimeDefinitionService = options.runtimeDefinitionService;
+    this.schemaService = options.schemaService;
     this.#clock = options.clock ?? (() => new Date());
   }
 
@@ -792,6 +796,26 @@ export class PageService {
       readonly projectRevision: number;
     }>(projectId, idempotencyKey, hash);
     if (replay !== undefined) return replay;
+    const projectBeforeDeployment = this.#activeProject(projectId);
+    this.#assertProjectRevision(
+      projectBeforeDeployment,
+      expectedProjectRevision,
+    );
+    const pagesBeforeDeployment = this.repository
+      .listActive(projectId)
+      .map((page) => this.repository.toPublishedPage(page));
+    const validationBeforeDeployment = publishValidation(pagesBeforeDeployment);
+    assertApi(
+      validationBeforeDeployment.errors.length === 0,
+      422,
+      "PUBLISH_ALL_NAVIGATION_HIDDEN",
+      "Show at least one page in navigation",
+      validationBeforeDeployment,
+    );
+    this.schemaService.synchronizeProductionForPublish(
+      projectId,
+      expectedProjectRevision,
+    );
     const now = this.#now();
     return this.repository.metadataDatabase.transaction(() => {
       const project = this.#activeProject(projectId);

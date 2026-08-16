@@ -752,6 +752,12 @@ describe("PageManager behavior", () => {
       /\.page-manager-heading\s+\.page-manager-actions\s*\{[^}]*flex-direction:\s*row;/s,
     );
     expect(stylesCss).toMatch(
+      /\.page-manager-heading\s*\{[^}]*min-height:\s*max-content;[^}]*flex:\s*0\s+0\s+auto;/s,
+    );
+    expect(stylesCss).toMatch(
+      /\.page-manager-list\s*\{[^}]*min-height:\s*0;[^}]*flex:\s*1\s+1\s+auto;/s,
+    );
+    expect(stylesCss).toMatch(
       /\.page-manager-actions\s*>\s*\*\s*\{[^}]*min-width:\s*0;[^}]*flex:\s*1\s+1\s+0;/s,
     );
     expect(stylesCss).toMatch(
@@ -827,7 +833,7 @@ describe("PageManager behavior", () => {
       /\[data-slot="alert-dialog-footer"\] > button[\s\S]*height:\s*var\(--control-height\)[\s\S]*padding-inline:\s*var\(--control-padding-inline\)[\s\S]*border-radius:\s*var\(--control-radius\)/,
     );
     expect(stylesCss).toMatch(
-      /\.page-drag-overlay[\s\S]*transform:\s*rotate\(2deg\) scale\(1\.02\)[\s\S]*@media \(prefers-reduced-motion: reduce\)[\s\S]*\.page-drag-overlay[\s\S]*transform:\s*scale\(1\.02\)/,
+      /\.page-drag-overlay[\s\S]*transform:\s*rotate\(2deg\) scale\(1\.02\)[\s\S]*animation:\s*editor-dangle 0\.46s ease-in-out infinite[\s\S]*@media \(prefers-reduced-motion: reduce\)[\s\S]*\.page-drag-overlay[\s\S]*animation:\s*none/,
     );
   });
 });

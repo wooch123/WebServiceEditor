@@ -11,7 +11,8 @@ if (!root) {
   throw new Error("WebEditor root element was not found.");
 }
 
-root.dataset.buildPhase = "23";
+root.dataset.buildPhase = "24";
+root.dataset.buildVariant = "relationship-workspace";
 
 createRoot(root).render(
   <StrictMode>

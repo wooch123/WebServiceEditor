@@ -11,6 +11,51 @@ as passing release evidence.
 
 ## Current phase
 
+### PHASE 24 — Working Published Showcase
+
+State: `OPERATIONALLY VERIFIED`
+
+Scope:
+
+- Turn the comprehensive generated Project into a real public application with
+  isolated Draft/Test and Published/Production data paths.
+- Deploy the tested logical schema to Production as a guarded part of publish,
+  preserve compatible Production rows, and compensate interrupted swaps.
+- Keep the generated showcase repairable after normal Element deletion and
+  expose a responsive relationship workspace for direct inspection.
+
+Current verified slice:
+
+- Publishing requires the current schema to be applied to Test, creates a
+  verified Production backup and recovery journal, builds and checks a staging
+  database, swaps it atomically, and finalizes schema state before recording
+  the immutable Project version.
+- Production schema deployment copies no Test rows. A published CREATE wrote
+  value `42.5` to `production.sqlite`, Published READ returned that row, and
+  Draft Preview independently retained the Test fixture value `27.25`.
+- An injected post-swap interruption restores the prior Production file and
+  metadata state; retry completes with intact checksums and no partial rows.
+- The `기능 종합 샘플` remains a 22-Page, 55-Element-Type, 9-Table published
+  Project with executable CREATE, READ, UPDATE, and DELETE Bindings. Deleting
+  its ID input and invoking repair creates a new Element, replaces stale
+  mutation mappings, reruns the CRUD fixture, republishes, and verifies backup.
+- Page rows no longer overlap the Page action header. Page and Element drag
+  surfaces dangle only while moving and honor reduced-motion preferences.
+- Relationship edges stay attached to moving Nodes immediately, show a subtle
+  source-to-target flow, and retain server-owned orthogonal route refinement.
+- The Relationship workspace places Page scope on the left, the graph in the
+  center, and Action/DB tabs on the right. Selecting a Page limits the graph to
+  that Page, its Elements, and directly used DB Nodes. Layout controls sit
+  below the top-right Variable/Refresh group.
+- The public HTTPS Runtime and Ready endpoint return HTTP 200 with zero required
+  browser request failures for the verified flow.
+
+Phase 24 validation evidence:
+`artifacts/phase24/working-published-showcase-validation.json`.
+
+Phase 24 browser evidence:
+`artifacts/phase24/browser-working-published-showcase-validation.json`.
+
 ### PHASE 23 — Final Non-Windows Audit
 
 State: `EXHAUSTIVELY VERIFIED`
@@ -270,6 +315,7 @@ Current verified slice:
 | 21    | OPERATIONALLY VERIFIED | 100/100 operational scenarios and performance budgets passed  |
 | 22    | IMPLEMENTED            | Windows package complete; operational execution not run       |
 | 23    | EXHAUSTIVELY VERIFIED  | Non-Windows audit complete; canonical release remains HOLD    |
+| 24    | OPERATIONALLY VERIFIED | Working published showcase and Production CRUD passed         |
 
 ## Phase 0 evidence
 

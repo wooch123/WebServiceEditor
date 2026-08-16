@@ -11,10 +11,13 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import {
+  liveOrthogonalPoints,
+  relationshipScopeNodeIds,
   RelationshipCanvas,
   roundedOrthogonalPath,
 } from "./RelationshipCanvas";
 import relationshipCanvasSource from "./RelationshipCanvas.tsx?raw";
+import stylesSource from "../../styles.css?raw";
 
 const projectId = "00000000-0000-4000-8000-000000000901";
 const pageId = "00000000-0000-4000-8000-000000000902";
@@ -313,6 +316,57 @@ describe("RelationshipCanvas", () => {
     expect(path).not.toMatch(/\bC\b/u);
   });
 
+  it("keeps Edge endpoints attached to a moving Node and shows source-to-target flow", () => {
+    const live = liveOrthogonalPoints(
+      [
+        { x: 0, y: 20 },
+        { x: 32, y: 20 },
+        { x: 32, y: 80 },
+        { x: 96, y: 80 },
+      ],
+      { x: 24, y: 44 },
+      { x: 144, y: 116 },
+    );
+    expect(live).toEqual([
+      { x: 24, y: 44 },
+      { x: 32, y: 44 },
+      { x: 32, y: 116 },
+      { x: 144, y: 116 },
+    ]);
+    expect(roundedOrthogonalPath(live)).toContain("M 24 44");
+    expect(roundedOrthogonalPath(live)).toContain("L 144 116");
+    expect(relationshipCanvasSource).toContain("{ x: sourceX, y: sourceY }");
+    expect(stylesSource).toMatch(
+      /\.relationship-edge-flow\s*\{[\s\S]*stroke-dasharray:\s*2 13;[\s\S]*animation:\s*relationship-flow/u,
+    );
+  });
+
+  it("shows only the selected Page, its Elements, and directly used DB Nodes", () => {
+    const otherPageId = "00000000-0000-4000-8000-000000000921";
+    const otherElementId = "00000000-0000-4000-8000-000000000922";
+    const otherPage: RelationshipNodeDto = {
+      ...pageNode,
+      id: `page:${otherPageId}`,
+      objectId: otherPageId,
+      label: "상세",
+    };
+    const otherElement: RelationshipNodeDto = {
+      ...elementNode,
+      id: `element:${otherElementId}`,
+      objectId: otherElementId,
+      label: "상세 표",
+      subtitle: "Data Table · 상세",
+    };
+    const current = graph([binding()]);
+    const scoped = relationshipScopeNodeIds(
+      { ...current, nodes: [...current.nodes, otherPage, otherElement] },
+      pageNode.id,
+    );
+    expect([...scoped]).toEqual([pageNode.id, elementNode.id, tableNode.id]);
+    expect(scoped.has(otherPage.id)).toBe(false);
+    expect(scoped.has(otherElement.id)).toBe(false);
+  });
+
   it("renders Page, Element, and Table nodes with strict side/direction ports and equal sibling controls", async () => {
     const current = graph();
     vi.stubGlobal(
@@ -333,9 +387,10 @@ describe("RelationshipCanvas", () => {
         onProjectRevisionChange={vi.fn()}
       />,
     );
-    expect(await screen.findByText("분석")).toBeInTheDocument();
-    expect(screen.getByText("표")).toBeInTheDocument();
-    expect(screen.getByText("측정값")).toBeInTheDocument();
+    const canvas = await screen.findByLabelText("관계 그래프");
+    expect(within(canvas).getByText("분석")).toBeInTheDocument();
+    expect(within(canvas).getByText("표")).toBeInTheDocument();
+    expect(within(canvas).getByText("측정값")).toBeInTheDocument();
 
     const inputs = document.querySelectorAll(
       '[data-direction="input"][data-side="left"]',
@@ -360,6 +415,25 @@ describe("RelationshipCanvas", () => {
     expect(
       controls.every((control) => control.className === controls[0]?.className),
     ).toBe(true);
+    const pageScope = screen.getByLabelText("Page 범위");
+    expect(
+      within(pageScope).getByRole("button", { name: /전체/ }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(
+      within(pageScope).getByRole("button", { name: /분석$/u }),
+    ).toBeInTheDocument();
+    const inventory = screen.getByLabelText("Node 목록");
+    expect(
+      within(inventory).getByRole("tab", { name: "Action" }),
+    ).toBeVisible();
+    expect(within(inventory).getByRole("tab", { name: "DB" })).toBeVisible();
+    const layoutActions = screen.getByRole("group", { name: "위치 도구" });
+    expect(layoutActions.parentElement).toHaveClass(
+      "relationship-toolbar-groups",
+    );
+    expect(stylesSource).toMatch(
+      /\.relationship-stage[\s\S]*grid-template-columns:\s*minmax\(10rem, 13rem\) minmax\(0, 1fr\) minmax\(\s*12rem,\s*16rem\s*\)/u,
+    );
   });
 
   it("creates a typed Variable and sends only its canonical Data Table selection Navigation dependency", async () => {
@@ -941,7 +1015,11 @@ describe("RelationshipCanvas", () => {
         onProjectRevisionChange={vi.fn()}
       />,
     );
-    await screen.findByText("저장");
+    await waitFor(() =>
+      expect(
+        within(screen.getByLabelText("관계 그래프")).getByText("저장"),
+      ).toBeInTheDocument(),
+    );
     await user.click(screen.getByRole("button", { name: "Submit 출력" }));
     await user.click(screen.getByRole("button", { name: "Record 입력" }));
     const dialog = await screen.findByRole("dialog", { name: "연결" });

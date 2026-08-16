@@ -213,6 +213,15 @@ export class RelationshipRepository {
       bindings: this.listActive(projectId).map((row) => this.toDto(row)),
       nodePositions: this.layoutRepository
         .positions(projectId)
+        .filter(
+          (row) =>
+            this.endpointObjectState({
+              projectId,
+              nodeType: row.node_type,
+              nodeId: row.node_id,
+              objectId: row.object_id,
+            }) === "active",
+        )
         .map((row) => this.layoutRepository.positionDto(row)),
       ...(viewport === undefined
         ? {}

@@ -10,6 +10,7 @@ import {
   renameSync,
   rmSync,
   statSync,
+  writeFileSync,
 } from "node:fs";
 import { dirname, join, relative, sep } from "node:path";
 
@@ -65,7 +66,12 @@ export type SchemaFailurePoint =
   | "schema:after-backup"
   | "schema:before-runtime-swap"
   | "schema:after-runtime-swap"
-  | "schema:before-metadata-finalize";
+  | "schema:before-metadata-finalize"
+  | "production-schema:after-backup"
+  | "production-schema:before-runtime-swap"
+  | "production-schema:after-runtime-swap"
+  | "production-schema:before-metadata-finalize"
+  | "production-schema:after-metadata-finalize";
 
 export interface SchemaServiceOptions {
   readonly metadataDatabase: MetadataDatabase;
@@ -85,6 +91,28 @@ interface RuntimeTableShape {
   readonly physicalName: string;
   readonly columns: readonly string[];
   readonly rowCount: number;
+}
+
+interface ProductionSchemaDeploymentJournal {
+  readonly schemaVersion: 1;
+  readonly projectId: string;
+  readonly backupId: string;
+  readonly backupRelativePath: string;
+  readonly backupChecksum: string;
+  readonly previousRevision: number;
+  readonly previousChecksum: string | null;
+  readonly desiredRevision: number;
+  readonly desiredChecksum: string;
+  readonly createdAt: string;
+}
+
+export interface ProductionSchemaDeployment {
+  readonly schemaRevision: number;
+  readonly schemaChecksum: string;
+  readonly databaseChecksum: string;
+  readonly rowCountBefore: number;
+  readonly rowCountAfter: number;
+  readonly changed: boolean;
 }
 
 interface FieldInput {
@@ -292,6 +320,7 @@ export class SchemaService {
     this.#clock = options.clock ?? (() => new Date());
     this.#failureInjector = options.failureInjector;
     this.#recoverApplyingPlans();
+    this.#recoverProductionDeployments();
   }
 
   #now(): string {
@@ -1189,6 +1218,7 @@ export class SchemaService {
         stagingPath,
         snapshot,
         row.schema_checksum,
+        "test",
       );
       rowCountBefore = built.before;
       rowCountAfter = built.after;
@@ -1282,6 +1312,171 @@ export class SchemaService {
           failedAt,
           row.id,
         );
+      throw error;
+    }
+  }
+
+  synchronizeProductionForPublish(
+    projectId: string,
+    expectedProjectRevision: number,
+  ): ProductionSchemaDeployment {
+    const project = this.#activeProject(projectId);
+    const state = this.#state(projectId);
+    this.#assertRevisions(
+      project.revision,
+      state.draft_revision,
+      expectedProjectRevision,
+      state.draft_revision,
+    );
+    const snapshot = this.#snapshot(projectId, state.draft_revision);
+    const desiredChecksum = sha256(stableJson(snapshot));
+    if (snapshot.tables.length > 0 || snapshot.relations.length > 0) {
+      const test = this.#runtimeState(projectId, "test");
+      assertApi(
+        state.test_applied_revision === state.draft_revision &&
+          state.test_schema_checksum === desiredChecksum &&
+          test.revision === state.draft_revision &&
+          test.checksum === desiredChecksum,
+        409,
+        "SCHEMA_TEST_NOT_APPLIED",
+        "Apply the current schema to Test before publishing",
+        {
+          draftRevision: state.draft_revision,
+          testAppliedRevision: test.revision,
+        },
+      );
+    }
+    const current = this.#runtimeState(projectId, "production");
+    const runtimePath = this.#runtimePath(projectId, "production");
+    if (
+      state.production_applied_revision === state.draft_revision &&
+      state.production_schema_checksum === desiredChecksum &&
+      current.revision === state.draft_revision &&
+      current.checksum === desiredChecksum
+    ) {
+      return {
+        schemaRevision: state.draft_revision,
+        schemaChecksum: desiredChecksum,
+        databaseChecksum: sha256(readFileSync(runtimePath)),
+        rowCountBefore: this.#runtimeRowTotal(projectId, "production"),
+        rowCountAfter: this.#runtimeRowTotal(projectId, "production"),
+        changed: false,
+      };
+    }
+
+    const activeRoot = this.storage.activePath(projectId);
+    const backupId = randomUUID();
+    const backupRoot = join(
+      this.storage.backupsRoot,
+      projectId,
+      "schema",
+      backupId,
+    );
+    const backupPath = join(backupRoot, "production.sqlite");
+    const stagingPath = join(
+      activeRoot,
+      `.production-schema-${backupId}.sqlite`,
+    );
+    const journalPath = this.#productionJournalPath(projectId);
+    mkdirSync(backupRoot, { recursive: true });
+    this.#checkpoint(runtimePath);
+    copyFileSync(runtimePath, backupPath);
+    this.#fsyncFile(backupPath);
+    this.#fsyncDirectory(backupRoot);
+    const journal: ProductionSchemaDeploymentJournal = {
+      schemaVersion: 1,
+      projectId,
+      backupId,
+      backupRelativePath: relative(this.storage.root, backupPath).replaceAll(
+        sep,
+        "/",
+      ),
+      backupChecksum: sha256(readFileSync(backupPath)),
+      previousRevision: state.production_applied_revision,
+      previousChecksum: state.production_schema_checksum,
+      desiredRevision: state.draft_revision,
+      desiredChecksum,
+      createdAt: this.#now(),
+    };
+    this.#writeProductionJournal(journalPath, journal);
+    this.#failureInjector?.("production-schema:after-backup");
+
+    try {
+      rmSync(stagingPath, { force: true });
+      const built = this.#buildRuntimeDatabase(
+        runtimePath,
+        stagingPath,
+        snapshot,
+        desiredChecksum,
+        "production",
+      );
+      this.#failureInjector?.("production-schema:before-runtime-swap");
+      renameSync(stagingPath, runtimePath);
+      this.#fsyncDirectory(dirname(runtimePath));
+      this.#failureInjector?.("production-schema:after-runtime-swap");
+      const deployed = this.#runtimeState(projectId, "production");
+      assertApi(
+        deployed.revision === state.draft_revision &&
+          deployed.checksum === desiredChecksum,
+        500,
+        "PRODUCTION_SCHEMA_VERIFY_FAILED",
+        "Production schema did not match the publish definition",
+      );
+      this.#failureInjector?.("production-schema:before-metadata-finalize");
+      const completedAt = this.#now();
+      const databaseChecksum = sha256(readFileSync(runtimePath));
+      this.repository.metadataDatabase.transaction(() => {
+        const update = this.repository.connection
+          .prepare(
+            `UPDATE project_schema_states SET
+               production_applied_revision = ?, production_schema_checksum = ?,
+               updated_at = ? WHERE project_id = ? AND draft_revision = ?`,
+          )
+          .run(
+            state.draft_revision,
+            desiredChecksum,
+            completedAt,
+            projectId,
+            state.draft_revision,
+          );
+        assertApi(
+          update.changes === 1,
+          409,
+          "SCHEMA_REVISION_CONFLICT",
+          "Schema changed while Production was being prepared",
+        );
+        this.#audit(
+          projectId,
+          "PRODUCTION_SCHEMA_DEPLOYED",
+          backupId,
+          {
+            revision: journal.previousRevision,
+            checksum: journal.previousChecksum,
+          },
+          {
+            revision: state.draft_revision,
+            checksum: desiredChecksum,
+            databaseChecksum,
+            rowCountBefore: built.before,
+            rowCountAfter: built.after,
+          },
+          `production-schema:${backupId}`,
+          completedAt,
+        );
+      });
+      this.#failureInjector?.("production-schema:after-metadata-finalize");
+      this.#removeProductionJournal(journalPath);
+      return {
+        schemaRevision: state.draft_revision,
+        schemaChecksum: desiredChecksum,
+        databaseChecksum,
+        rowCountBefore: built.before,
+        rowCountAfter: built.after,
+        changed: true,
+      };
+    } catch (error) {
+      rmSync(stagingPath, { force: true });
+      this.#restoreProductionDeployment(journal, journalPath);
       throw error;
     }
   }
@@ -1782,11 +1977,22 @@ export class SchemaService {
     );
   }
 
+  #runtimeRowTotal(
+    projectId: string,
+    environment: "test" | "production",
+  ): number {
+    return [...this.#runtimeRowCounts(projectId, environment).values()].reduce(
+      (total, count) => total + count,
+      0,
+    );
+  }
+
   #buildRuntimeDatabase(
     sourcePath: string,
     stagingPath: string,
     snapshot: DesiredSchemaSnapshot,
     checksum: string,
+    environment: "test" | "production",
   ): { readonly before: number; readonly after: number } {
     const source = new Database(sourcePath, {
       readonly: true,
@@ -1812,24 +2018,54 @@ export class SchemaService {
           schema_checksum TEXT NOT NULL,
           applied_at TEXT NOT NULL
         );
+        CREATE TABLE webeditor_runtime_mutation_commands (
+          command_id TEXT PRIMARY KEY NOT NULL,
+          binding_id TEXT NOT NULL,
+          idempotency_key TEXT NOT NULL,
+          request_hash TEXT NOT NULL CHECK(length(request_hash) = 64),
+          response_json TEXT NOT NULL CHECK(json_valid(response_json)),
+          created_at TEXT NOT NULL,
+          UNIQUE(binding_id, idempotency_key)
+        );
       `);
       target
         .prepare(
-          "INSERT INTO webeditor_runtime_metadata (project_id, environment, sentinel) VALUES (?, 'test', ?)",
-        )
-        .run(snapshot.projectId, `${snapshot.projectId}:test:v1`);
-      target
-        .prepare(
-          "INSERT INTO webeditor_runtime_schema_state (project_id, environment, schema_revision, schema_checksum, applied_at) VALUES (?, 'test', ?, ?, ?)",
+          "INSERT INTO webeditor_runtime_metadata (project_id, environment, sentinel) VALUES (?, ?, ?)",
         )
         .run(
           snapshot.projectId,
+          environment,
+          `${snapshot.projectId}:${environment}:v1`,
+        );
+      target
+        .prepare(
+          "INSERT INTO webeditor_runtime_schema_state (project_id, environment, schema_revision, schema_checksum, applied_at) VALUES (?, ?, ?, ?, ?)",
+        )
+        .run(
+          snapshot.projectId,
+          environment,
           snapshot.schemaRevision,
           checksum,
           this.#now(),
         );
-      const sourceTables = this.#runtimeTables(snapshot.projectId, "test");
+      const sourceTables = this.#runtimeTables(snapshot.projectId, environment);
       target.prepare("ATTACH DATABASE ? AS source").run(sourcePath);
+      const mutationCommandsExist = source
+        .prepare(
+          "SELECT 1 AS present FROM sqlite_master WHERE type = 'table' AND name = 'webeditor_runtime_mutation_commands'",
+        )
+        .get() as { readonly present: 1 } | undefined;
+      if (mutationCommandsExist !== undefined) {
+        target.exec(`
+          INSERT INTO webeditor_runtime_mutation_commands (
+            command_id, binding_id, idempotency_key, request_hash,
+            response_json, created_at
+          )
+          SELECT command_id, binding_id, idempotency_key, request_hash,
+            response_json, created_at
+          FROM source.webeditor_runtime_mutation_commands
+        `);
+      }
       const tableById = new Map(
         snapshot.tables.map((table) => [table.id, table]),
       );
@@ -1958,6 +2194,149 @@ export class SchemaService {
     return { before, after };
   }
 
+  #productionJournalPath(projectId: string): string {
+    return join(
+      this.storage.activePath(projectId),
+      ".production-schema-deployment.json",
+    );
+  }
+
+  #writeProductionJournal(
+    journalPath: string,
+    journal: ProductionSchemaDeploymentJournal,
+  ): void {
+    const temporaryPath = join(
+      dirname(journalPath),
+      `.production-schema-journal-${randomUUID()}.tmp`,
+    );
+    writeFileSync(temporaryPath, `${stableJson(journal)}\n`, {
+      encoding: "utf8",
+      flag: "wx",
+    });
+    this.#fsyncFile(temporaryPath);
+    renameSync(temporaryPath, journalPath);
+    this.#fsyncDirectory(dirname(journalPath));
+  }
+
+  #removeProductionJournal(journalPath: string): void {
+    rmSync(journalPath, { force: true });
+    this.#fsyncDirectory(dirname(journalPath));
+  }
+
+  #readProductionJournal(
+    projectId: string,
+    journalPath: string,
+  ): ProductionSchemaDeploymentJournal {
+    let value: unknown;
+    try {
+      value = JSON.parse(readFileSync(journalPath, "utf8"));
+    } catch {
+      throw new ApiError(
+        503,
+        "PRODUCTION_SCHEMA_JOURNAL_INVALID",
+        "Production schema recovery journal is invalid",
+        { projectId },
+      );
+    }
+    assertApi(
+      value !== null && typeof value === "object" && !Array.isArray(value),
+      503,
+      "PRODUCTION_SCHEMA_JOURNAL_INVALID",
+      "Production schema recovery journal is invalid",
+      { projectId },
+    );
+    const journal = value as Partial<ProductionSchemaDeploymentJournal>;
+    const exactKeys = [
+      "schemaVersion",
+      "projectId",
+      "backupId",
+      "backupRelativePath",
+      "backupChecksum",
+      "previousRevision",
+      "previousChecksum",
+      "desiredRevision",
+      "desiredChecksum",
+      "createdAt",
+    ];
+    assertApi(
+      Object.keys(journal).sort().join("\u0000") ===
+        [...exactKeys].sort().join("\u0000") &&
+        journal.schemaVersion === 1 &&
+        journal.projectId === projectId &&
+        typeof journal.backupId === "string" &&
+        UUID_PATTERN.test(journal.backupId) &&
+        typeof journal.backupRelativePath === "string" &&
+        typeof journal.backupChecksum === "string" &&
+        /^[0-9a-f]{64}$/.test(journal.backupChecksum) &&
+        Number.isSafeInteger(journal.previousRevision) &&
+        (journal.previousRevision as number) >= 0 &&
+        (journal.previousChecksum === null ||
+          (typeof journal.previousChecksum === "string" &&
+            /^[0-9a-f]{64}$/.test(journal.previousChecksum))) &&
+        Number.isSafeInteger(journal.desiredRevision) &&
+        (journal.desiredRevision as number) >= 0 &&
+        typeof journal.desiredChecksum === "string" &&
+        /^[0-9a-f]{64}$/.test(journal.desiredChecksum) &&
+        typeof journal.createdAt === "string",
+      503,
+      "PRODUCTION_SCHEMA_JOURNAL_INVALID",
+      "Production schema recovery journal is invalid",
+      { projectId },
+    );
+    const expectedPath = relative(
+      this.storage.root,
+      join(
+        this.storage.backupsRoot,
+        projectId,
+        "schema",
+        journal.backupId,
+        "production.sqlite",
+      ),
+    ).replaceAll(sep, "/");
+    assertApi(
+      journal.backupRelativePath === expectedPath,
+      503,
+      "PRODUCTION_SCHEMA_JOURNAL_INVALID",
+      "Production schema recovery backup path is invalid",
+      { projectId },
+    );
+    return journal as ProductionSchemaDeploymentJournal;
+  }
+
+  #restoreProductionDeployment(
+    journal: ProductionSchemaDeploymentJournal,
+    journalPath: string,
+  ): void {
+    const backupPath = join(this.storage.root, journal.backupRelativePath);
+    assertApi(
+      existsSync(backupPath) &&
+        sha256(readFileSync(backupPath)) === journal.backupChecksum,
+      503,
+      "PRODUCTION_SCHEMA_RECOVERY_BACKUP_INVALID",
+      "Production schema recovery backup is invalid",
+      { projectId: journal.projectId },
+    );
+    const runtimePath = this.#runtimePath(journal.projectId, "production");
+    copyFileSync(backupPath, runtimePath);
+    this.#fsyncFile(runtimePath);
+    this.#fsyncDirectory(dirname(runtimePath));
+    this.repository.metadataDatabase.transaction(() => {
+      this.repository.connection
+        .prepare(
+          `UPDATE project_schema_states SET
+             production_applied_revision = ?, production_schema_checksum = ?,
+             updated_at = ? WHERE project_id = ?`,
+        )
+        .run(
+          journal.previousRevision,
+          journal.previousChecksum,
+          this.#now(),
+          journal.projectId,
+        );
+    });
+    this.#removeProductionJournal(journalPath);
+  }
+
   #checkpoint(path: string): void {
     const database = new Database(path);
     try {
@@ -2034,6 +2413,26 @@ export class SchemaService {
             plan.id,
           );
       });
+    }
+  }
+
+  #recoverProductionDeployments(): void {
+    for (const project of this.projectRepository.listActive()) {
+      const journalPath = this.#productionJournalPath(project.id);
+      if (!existsSync(journalPath)) continue;
+      const journal = this.#readProductionJournal(project.id, journalPath);
+      const state = this.#state(project.id);
+      const runtime = this.#runtimeState(project.id, "production");
+      if (
+        state.production_applied_revision === journal.desiredRevision &&
+        state.production_schema_checksum === journal.desiredChecksum &&
+        runtime.revision === journal.desiredRevision &&
+        runtime.checksum === journal.desiredChecksum
+      ) {
+        this.#removeProductionJournal(journalPath);
+        continue;
+      }
+      this.#restoreProductionDeployment(journal, journalPath);
     }
   }
 }

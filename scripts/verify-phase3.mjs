@@ -584,7 +584,9 @@ export function inspectDestructiveSafety(files) {
     const isScopedTransientCleanup =
       filesystemDeleteTargets.length > 0 &&
       filesystemDeleteTargets.every((target) =>
-        /^(?:stagingPath|backupPath|verificationMarkerPath)$/u.test(target),
+        /^(?:stagingPath|backupPath|verificationMarkerPath|journalPath|temporaryPath)$/u.test(
+          target,
+        ),
       ) &&
       /assertWithin|#runtimePath|same-directory staging/u.test(file.source);
     if (!isPurgeScoped && !isScopedTransientCleanup) {

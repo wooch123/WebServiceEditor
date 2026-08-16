@@ -316,6 +316,7 @@
       "status": "VERIFIED",
       "implementation": [
         "docs/adr/0011-orthogonal-routing-and-auto-layout.md",
+        "docs/adr/0023-production-schema-publish-and-working-showcase.md",
         "packages/domain/src/data-relationship.ts",
         "apps/server/src/metadata/database.ts",
         "apps/server/src/data-relationship/relationship-layout-repository.ts",
@@ -329,11 +330,14 @@
         "apps/server/test/unit/relationship-router.test.ts",
         "apps/server/test/integration/data-relationship-canvas.test.ts",
         "apps/web/src/features/data-relationship/RelationshipCanvas.test.tsx",
-        "scripts/verify-phase10.mjs"
+        "scripts/verify-phase10.mjs",
+        "scripts/verify-phase24.mjs"
       ],
       "evidence": [
         "artifacts/phase10/orthogonal-auto-layout-validation.json",
-        "artifacts/phase10/browser-orthogonal-auto-layout-validation.json"
+        "artifacts/phase10/browser-orthogonal-auto-layout-validation.json",
+        "artifacts/phase24/working-published-showcase-validation.json",
+        "artifacts/phase24/browser-working-published-showcase-validation.json"
       ]
     },
     {
@@ -345,6 +349,7 @@
         "docs/adr/0012-safe-read-binding-engine.md",
         "docs/adr/0014-transactional-crud-binding-runtime.md",
         "docs/adr/0015-project-variable-navigation.md",
+        "docs/adr/0023-production-schema-publish-and-working-showcase.md",
         "packages/domain/src/binding-query.ts",
         "packages/domain/src/project-variable.ts",
         "apps/server/src/data-relationship/binding-dependency-compiler.ts",
@@ -352,6 +357,8 @@
         "apps/server/src/data-relationship/binding-query-compiler.ts",
         "apps/server/src/data-relationship/sample-data-service.ts",
         "apps/server/src/data-relationship/relationship-service.ts",
+        "apps/server/src/data-schema/schema-service.ts",
+        "apps/server/src/pages/page-service.ts",
         "apps/server/src/routes/data-relationship.ts",
         "apps/server/src/routes/sample-data.ts",
         "apps/server/src/routes/project-variables.ts",
@@ -377,7 +384,8 @@
         "tests/validation/phase14-validation.test.mjs",
         "scripts/verify-phase11.mjs",
         "scripts/verify-phase13.mjs",
-        "scripts/verify-phase14.mjs"
+        "scripts/verify-phase14.mjs",
+        "scripts/verify-phase24.mjs"
       ],
       "evidence": [
         "artifacts/phase11/safe-read-binding-engine-validation.json",
@@ -386,7 +394,9 @@
         "artifacts/phase13/browser-crud-binding-validation.json",
         "artifacts/phase14/project-variable-navigation-validation.json",
         "artifacts/phase14/browser-project-variable-navigation-validation.json",
-        "artifacts/phase21/project-corpus-operational-validation.json"
+        "artifacts/phase21/project-corpus-operational-validation.json",
+        "artifacts/phase24/working-published-showcase-validation.json",
+        "artifacts/phase24/browser-working-published-showcase-validation.json"
       ]
     },
     {

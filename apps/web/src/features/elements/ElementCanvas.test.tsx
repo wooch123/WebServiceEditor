@@ -783,6 +783,18 @@ afterEach(async () => {
 });
 
 describe("ElementCanvas Phase 5 interaction", () => {
+  it("dangles only the visible Element contents while dragging without replacing the grid position transform", () => {
+    expect(stylesCss).toMatch(
+      /\.placed-element\.react-draggable-dragging > \.element-item-toolbar,\s*\.placed-element\.react-draggable-dragging > \.element-render-surface[\s\S]*animation:\s*editor-dangle 0\.46s ease-in-out infinite/u,
+    );
+    expect(stylesCss).not.toMatch(
+      /\.placed-element\.react-draggable-dragging\s*\{[^}]*animation:/u,
+    );
+    expect(stylesCss).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)[\s\S]*\.placed-element\.react-draggable-dragging > \.element-item-toolbar,[\s\S]*animation:\s*none/u,
+    );
+  });
+
   it("uses parent-relative scaled positioning without an absolute pointer origin", () => {
     const strategy = createEditorScaledPositionStrategy(1.5);
     expect(strategy.scale).toBe(1.5);

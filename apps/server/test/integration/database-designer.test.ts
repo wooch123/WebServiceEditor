@@ -688,4 +688,101 @@ describe("Phase 8 Database Designer", () => {
     ).toBe(0);
     metadata.close();
   });
+
+  it("deploys the tested schema to Production during publish and compensates an interrupted swap", async () => {
+    const current = fixture();
+    let failAfterSwap = false;
+    let app = server(current, (point) => {
+      if (point === "production-schema:after-runtime-swap" && failAfterSwap) {
+        throw new Error("injected production schema failure");
+      }
+    });
+    const project = await createProject(app);
+    let desired = await schema(app, project.id);
+    desired = await createTable(app, desired, "TIME_SERIES", "게시 측정값");
+    const migration = await plan(app, desired);
+    expect((await apply(app, desired, migration)).statusCode).toBe(200);
+    const pageResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${project.id}/pages`,
+      payload: {
+        name: "운영",
+        pageType: "dashboard",
+        expectedProjectRevision: desired.projectRevision,
+        idempotencyKey: `production-page-${randomUUID()}`,
+      },
+    });
+    expect(pageResponse.statusCode, pageResponse.body).toBe(201);
+    const projectRevision = (
+      pageResponse.json() as {
+        projectRevision: number;
+      }
+    ).projectRevision;
+    const productionPath = join(
+      current.storageRoot,
+      "active",
+      project.id,
+      "production.sqlite",
+    );
+    const productionBefore = sha256(productionPath);
+    const publishKey = `production-publish-${randomUUID()}`;
+
+    failAfterSwap = true;
+    const failed = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${project.id}/publish`,
+      payload: {
+        expectedProjectRevision: projectRevision,
+        idempotencyKey: publishKey,
+      },
+    });
+    expect(failed.statusCode, failed.body).toBe(500);
+    expect(sha256(productionPath)).toBe(productionBefore);
+    expect((await schema(app, project.id)).runtime.production).toMatchObject({
+      appliedRevision: 0,
+      schemaChecksum: null,
+      drift: true,
+    });
+
+    failAfterSwap = false;
+    const published = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${project.id}/publish`,
+      payload: {
+        expectedProjectRevision: projectRevision,
+        idempotencyKey: publishKey,
+      },
+    });
+    expect(published.statusCode, published.body).toBe(200);
+    const deployed = await schema(app, project.id);
+    expect(deployed.runtime.production).toMatchObject({
+      appliedRevision: deployed.schemaRevision,
+      schemaChecksum: deployed.runtime.test.schemaChecksum,
+      drift: false,
+    });
+    const production = new Database(productionPath, { readonly: true });
+    expect(
+      production
+        .prepare(
+          "SELECT schema_revision AS revision, environment FROM webeditor_runtime_schema_state",
+        )
+        .get(),
+    ).toEqual({ revision: deployed.schemaRevision, environment: "production" });
+    expect(
+      (
+        production
+          .prepare(
+            `SELECT COUNT(*) AS count FROM "${deployed.tables[0]?.physicalName}"`,
+          )
+          .get() as { count: number }
+      ).count,
+    ).toBe(0);
+    production.close();
+
+    await close(app);
+    app = server(current);
+    expect((await schema(app, project.id)).runtime.production.drift).toBe(
+      false,
+    );
+  });
 });

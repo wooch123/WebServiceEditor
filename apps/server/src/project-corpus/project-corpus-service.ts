@@ -492,20 +492,20 @@ export class ProjectCorpusService {
             previewId: preview.previewId,
             expectedGraphRevision: preview.graphRevision,
             expectedProjectRevision: preview.projectRevision,
-            idempotencyKey: "feature-showcase-v2-auto-layout",
+            idempotencyKey: `feature-showcase-v3-auto-layout-${preview.graphRevision}-${preview.projectRevision}`,
           },
         );
         const published = this.options.pageService.publish(existing.id, {
           expectedProjectRevision: layout.projectRevision,
-          idempotencyKey: "feature-showcase-v2-publish",
+          idempotencyKey: `feature-showcase-v3-publish-${layout.projectRevision}`,
         });
         const backup = this.options.backupService.create(existing.id, {
           expectedRevision: published.projectRevision,
-          idempotencyKey: "feature-showcase-v2-backup",
+          idempotencyKey: `feature-showcase-v3-backup-${published.projectRevision}`,
           label: "기능 종합 샘플 실행 연결 상태",
         });
         const drill = this.options.backupService.verify(backup.id, {
-          idempotencyKey: "feature-showcase-v2-backup-verify",
+          idempotencyKey: `feature-showcase-v3-backup-verify-${backup.id}`,
         });
         assertApi(
           drill.status === "PASS",
@@ -862,7 +862,7 @@ export class ProjectCorpusService {
         expectedLayoutRevision: listing.layoutRevision,
         expectedProjectRevision:
           this.options.projectService.getActive(projectId).revision,
-        idempotencyKey: `feature-showcase-v2-${key}-create`,
+        idempotencyKey: `feature-showcase-v3-${key}-create-${listing.layoutRevision}`,
       });
       const patched = this.options.elementService.patch(
         created.entry.element.id,
@@ -870,7 +870,7 @@ export class ProjectCorpusService {
           expectedRevision: created.entry.element.revision,
           expectedLayoutRevision: created.layoutRevision,
           expectedProjectRevision: created.projectRevision,
-          idempotencyKey: `feature-showcase-v2-${key}-properties`,
+          idempotencyKey: `feature-showcase-v3-${key}-properties-${created.entry.element.id}`,
           change: {
             kind: "PROPERTIES",
             values: { "general.displayName": name, ...values },
@@ -943,7 +943,53 @@ export class ProjectCorpusService {
           edge.source.objectId === sourceElementId &&
           edge.target.objectId === table.id,
       );
-      if (existing !== undefined) return existing;
+      const expectedMappings = [...fieldMappings]
+        .map(({ fieldId, inputElementId }) => `${fieldId}:${inputElementId}`)
+        .sort();
+      const mappingKey = createHash("sha256")
+        .update(JSON.stringify(expectedMappings))
+        .digest("hex")
+        .slice(0, 12);
+      const storedMappings =
+        existing !== undefined && Array.isArray(existing.mapping.fields)
+          ? existing.mapping.fields
+              .flatMap((candidate) => {
+                if (
+                  typeof candidate !== "object" ||
+                  candidate === null ||
+                  !("fieldId" in candidate) ||
+                  !("inputElementId" in candidate) ||
+                  typeof candidate.fieldId !== "string" ||
+                  typeof candidate.inputElementId !== "string"
+                ) {
+                  return [];
+                }
+                return [`${candidate.fieldId}:${candidate.inputElementId}`];
+              })
+              .sort()
+          : [];
+      if (
+        existing !== undefined &&
+        JSON.stringify(storedMappings) === JSON.stringify(expectedMappings)
+      ) {
+        return existing;
+      }
+      if (existing !== undefined) {
+        const removed = this.options.relationshipService.delete(existing.id, {
+          expectedRevision: existing.revision,
+          expectedGraphRevision: graph.graphRevision,
+          expectedProjectRevision: graph.projectRevision,
+          idempotencyKey: `feature-showcase-v3-replace-binding-${existing.id}`,
+        });
+        changed = true;
+        graph = this.options.relationshipService.graph(projectId);
+        assertApi(
+          graph.graphRevision === removed.graphRevision,
+          500,
+          "FEATURE_SHOWCASE_BINDING_REPAIR_FAILED",
+          `Feature Showcase ${bindingType} Binding was not removed cleanly`,
+        );
+      }
       const source = graph.nodes
         .find(({ objectId }) => objectId === sourceElementId)
         ?.ports.find(
@@ -977,7 +1023,7 @@ export class ProjectCorpusService {
         mutation: { fieldMappings },
         expectedGraphRevision: preview.graphRevision,
         expectedProjectRevision: preview.projectRevision,
-        idempotencyKey: `feature-showcase-v2-${bindingType.toLowerCase()}-binding`,
+        idempotencyKey: `feature-showcase-v3-${bindingType.toLowerCase()}-binding-${sourceElementId}-${mappingKey}`,
       });
       changed = true;
       graph = this.options.relationshipService.graph(projectId);
@@ -1078,6 +1124,25 @@ export class ProjectCorpusService {
         projectId,
         projectRevision,
       );
+      const existingRows =
+        this.options.relationshipService.executeDraftRuntimeBinding(
+          preview.previewId,
+          readBinding.id,
+          {},
+        );
+      for (const row of existingRows.result.rows) {
+        const primaryKey = row[idField.id];
+        if (typeof primaryKey !== "number") continue;
+        this.options.relationshipService.executeDraftRuntimeMutation(
+          preview.previewId,
+          deleteBinding.id,
+          "DELETE",
+          {
+            values: { [idInput.element.id]: primaryKey },
+            idempotencyKey: `feature-showcase-v3-test-reset-${preview.previewId}-${primaryKey}`,
+          },
+        );
+      }
       const first =
         this.options.relationshipService.executeDraftRuntimeMutation(
           preview.previewId,
@@ -1085,7 +1150,7 @@ export class ProjectCorpusService {
           "CREATE",
           {
             values: { [valueInput.element.id]: 12.5 },
-            idempotencyKey: "feature-showcase-v2-test-create-1",
+            idempotencyKey: `feature-showcase-v3-test-create-1-${preview.previewId}`,
           },
         );
       assertApi(
@@ -1103,7 +1168,7 @@ export class ProjectCorpusService {
             [idInput.element.id]: first.insertedPrimaryKey,
             [valueInput.element.id]: 27.25,
           },
-          idempotencyKey: "feature-showcase-v2-test-update",
+          idempotencyKey: `feature-showcase-v3-test-update-${preview.previewId}`,
         },
       );
       const disposable =
@@ -1113,7 +1178,7 @@ export class ProjectCorpusService {
           "CREATE",
           {
             values: { [valueInput.element.id]: 99.5 },
-            idempotencyKey: "feature-showcase-v2-test-create-2",
+            idempotencyKey: `feature-showcase-v3-test-create-2-${preview.previewId}`,
           },
         );
       assertApi(
@@ -1128,7 +1193,7 @@ export class ProjectCorpusService {
         "DELETE",
         {
           values: { [idInput.element.id]: disposable.insertedPrimaryKey },
-          idempotencyKey: "feature-showcase-v2-test-delete",
+          idempotencyKey: `feature-showcase-v3-test-delete-${preview.previewId}`,
         },
       );
       const read = this.options.relationshipService.executeDraftRuntimeBinding(

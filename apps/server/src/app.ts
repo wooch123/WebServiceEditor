@@ -115,9 +115,18 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
     projectService.storage,
     options.clock ?? (() => new Date()),
   );
+  const schemaService = new SchemaService({
+    metadataDatabase,
+    projectStorage: projectService.storage,
+    ...(options.schemaFailureInjector === undefined
+      ? {}
+      : { failureInjector: options.schemaFailureInjector }),
+    ...(options.clock === undefined ? {} : { clock: options.clock }),
+  });
   const pageService = new PageService({
     metadataDatabase,
     runtimeDefinitionService,
+    schemaService,
     ...(options.clock === undefined ? {} : { clock: options.clock }),
   });
   const elementService = new ElementService({
@@ -132,14 +141,6 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
     ...(options.layoutPresetFailureInjector === undefined
       ? {}
       : { failureInjector: options.layoutPresetFailureInjector }),
-    ...(options.clock === undefined ? {} : { clock: options.clock }),
-  });
-  const schemaService = new SchemaService({
-    metadataDatabase,
-    projectStorage: projectService.storage,
-    ...(options.schemaFailureInjector === undefined
-      ? {}
-      : { failureInjector: options.schemaFailureInjector }),
     ...(options.clock === undefined ? {} : { clock: options.clock }),
   });
   const relationshipService = new RelationshipService({
