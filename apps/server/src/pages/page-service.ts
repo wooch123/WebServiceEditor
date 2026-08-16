@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 
 import {
   LUCIDE_ICON_CATALOG_VERSION,
+  PAGE_TYPES,
   PUBLISH_VALIDATION_CODES,
   type CreatePageRequest,
   type DeletePageImpact,
@@ -222,10 +223,10 @@ export class PageService {
   } {
     assertUuid(projectId, "INVALID_PROJECT_ID", "Project ID");
     assertApi(
-      request.pageType === "blank",
+      PAGE_TYPES.includes(request.pageType),
       400,
       "INVALID_PAGE_TYPE",
-      "Only blank pages are available",
+      "Page type is invalid",
     );
     const expectedProjectRevision = validateExpectedRevision(
       request.expectedProjectRevision,
@@ -254,7 +255,7 @@ export class PageService {
         projectId,
         name,
         route,
-        pageType: "blank",
+        pageType: request.pageType,
         iconName: "File",
         sortOrder: pages.length,
         now,

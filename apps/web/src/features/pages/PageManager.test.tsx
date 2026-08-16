@@ -8,12 +8,13 @@ import {
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { PAGE_TYPES, type PageType } from "@webeditor/domain";
 
 import stylesCss from "@/styles.css?raw";
 import type { ProjectDto } from "@/services/projects-api";
 import type { PageDto } from "@/services/pages-api";
 import { DynamicLucideIcon, iconNameToDynamicName } from "./DynamicLucideIcon";
-import { PageManager } from "./PageManager";
+import { PAGE_TYPE_LABELS, PageManager } from "./PageManager";
 
 const project: ProjectDto = {
   id: "project-pages",
@@ -110,6 +111,20 @@ function installPageApi(options: { largeIconCatalog?: boolean } = {}) {
           projectRevision: revision,
           publishedVersionId: "v1",
         });
+      if (path.endsWith("/pages") && method === "POST") {
+        revision += 1;
+        const pageType = body.pageType as PageType;
+        const created = {
+          ...page(
+            `created-${pages.length + 1}`,
+            `Page ${pages.length + 1}`,
+            pages.length,
+          ),
+          pageType,
+        };
+        pages = [...pages, created];
+        return response({ page: created, projectRevision: revision }, 201);
+      }
       if (/\/api\/v1\/pages\/[^/]+$/.test(path) && method === "PATCH") {
         const id = path.split("/").at(-1)!;
         revision += 1;
@@ -314,6 +329,33 @@ afterEach(() => {
 });
 
 describe("PageManager behavior", () => {
+  it("shows all twelve Page Types and creates the selected server-owned type", async () => {
+    const { calls } = installPageApi();
+    const user = userEvent.setup();
+    render(<Harness />);
+    await screen.findByText("첫 페이지", { selector: "strong" });
+
+    await user.click(screen.getByRole("button", { name: "페이지 추가" }));
+    const items = await screen.findAllByRole("menuitem");
+    expect(items.map((item) => item.textContent)).toEqual(
+      PAGE_TYPES.map((pageType) => PAGE_TYPE_LABELS[pageType]),
+    );
+    await user.click(
+      screen.getByRole("menuitem", {
+        name: PAGE_TYPE_LABELS.dashboard,
+      }),
+    );
+
+    await screen.findByText(PAGE_TYPE_LABELS.dashboard, {
+      selector: '[data-slot="badge"]',
+    });
+    expect(
+      calls.find(
+        ({ path, method }) => path.endsWith("/pages") && method === "POST",
+      )?.body,
+    ).toMatchObject({ pageType: "dashboard", expectedProjectRevision: 5 });
+  });
+
   it("creates a server-owned Draft Preview and opens its isolated route", async () => {
     const { calls } = installPageApi();
     const onOpenDraftPreview = vi.fn();
@@ -692,18 +734,18 @@ describe("PageManager behavior", () => {
     render(<Harness />);
 
     const publish = await screen.findByRole("button", { name: "게시" });
-    const blank = screen.getByRole("button", { name: "빈 페이지" });
+    const add = screen.getByRole("button", { name: "페이지 추가" });
     const preview = screen.getByRole("button", { name: "미리보기" });
-    expect(publish).toHaveAttribute("data-size", blank.dataset.size);
-    expect(preview).toHaveAttribute("data-size", blank.dataset.size);
+    expect(publish).toHaveAttribute("data-size", add.dataset.size);
+    expect(preview).toHaveAttribute("data-size", add.dataset.size);
     const actionGroup = publish.closest<HTMLElement>(".page-manager-actions")!;
-    expect(actionGroup).toContainElement(blank);
+    expect(actionGroup).toContainElement(add);
     expect(actionGroup).toContainElement(preview);
     expect(stylesCss).toMatch(
       /\.page-manager-actions\s*\{[^}]*width:\s*100%;[^}]*grid-template-columns:\s*repeat\(3,\s*minmax\(0,\s*1fr\)\);/s,
     );
     expect(stylesCss).toMatch(
-      /\.page-manager-actions\s*>\s*\[data-slot="button"\]\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/s,
+      /\.page-manager-actions\s*>\s*\[data-slot="dropdown-menu-trigger"\]\s*\{[^}]*width:\s*100%;[^}]*min-width:\s*0;/s,
     );
     const actionWidth = 4.5 * 16;
     const actionHeight = 2.5 * 16;
@@ -721,17 +763,17 @@ describe("PageManager behavior", () => {
       }) as DOMRect;
     vi.spyOn(preview, "getBoundingClientRect").mockReturnValue(actionRect(0));
     vi.spyOn(publish, "getBoundingClientRect").mockReturnValue(actionRect(0));
-    vi.spyOn(blank, "getBoundingClientRect").mockReturnValue(actionRect(0));
+    vi.spyOn(add, "getBoundingClientRect").mockReturnValue(actionRect(0));
     const previewRect = preview.getBoundingClientRect();
     const publishRect = publish.getBoundingClientRect();
-    const blankRect = blank.getBoundingClientRect();
+    const addRect = add.getBoundingClientRect();
     expect({ width: previewRect.width, height: previewRect.height }).toEqual({
-      width: blankRect.width,
-      height: blankRect.height,
+      width: addRect.width,
+      height: addRect.height,
     });
     expect({ width: publishRect.width, height: publishRect.height }).toEqual({
-      width: blankRect.width,
-      height: blankRect.height,
+      width: addRect.width,
+      height: addRect.height,
     });
     expect(publishRect.width).toBeGreaterThan(0);
 
@@ -763,7 +805,7 @@ describe("PageManager behavior", () => {
     expect(cancel).toHaveAttribute("data-size", confirm.dataset.size);
 
     expect(stylesCss).toMatch(
-      /\.page-manager-actions > \[data-slot="button"\][\s\S]*height:\s*var\(--control-height\)[\s\S]*padding-inline:\s*var\(--control-padding-inline\)[\s\S]*border-radius:\s*var\(--control-radius\)/,
+      /\.page-manager-actions > \[data-slot="dropdown-menu-trigger"\][\s\S]*height:\s*var\(--control-height\)[\s\S]*padding-inline:\s*var\(--control-padding-inline\)[\s\S]*border-radius:\s*var\(--control-radius\)/,
     );
     expect(stylesCss).toMatch(
       /\.page-drag-handle,\s*\.page-icon-trigger,\s*\.page-trash-button[\s\S]*width:\s*var\(--control-height\)[\s\S]*height:\s*var\(--control-height\)/,

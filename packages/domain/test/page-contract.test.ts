@@ -13,7 +13,20 @@ import {
 
 describe("page contracts", () => {
   it("exposes only the real Phase 4 page type and pinned icon catalog", () => {
-    expect(PAGE_TYPES).toEqual(["blank"]);
+    expect(PAGE_TYPES).toEqual([
+      "analysis",
+      "blank",
+      "board",
+      "chat",
+      "dashboard",
+      "data-viewer",
+      "experiment-comparison",
+      "form",
+      "report",
+      "search-result",
+      "settings",
+      "spc-dashboard",
+    ]);
     expect(PAGE_SCHEMA_VERSION).toBe(1);
     expect(LUCIDE_ICON_CATALOG_VERSION).toBe("1.31.0");
     expect(PUBLISH_VALIDATION_CODES).toEqual(["ALL_NAVIGATION_HIDDEN"]);

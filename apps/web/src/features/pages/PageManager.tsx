@@ -17,6 +17,7 @@ import {
   verticalListSortingStrategy,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
+import { PAGE_TYPES, type PageType } from "@webeditor/domain";
 import {
   AlertTriangle,
   Eye,
@@ -48,6 +49,12 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
   Empty,
   EmptyContent,
   EmptyDescription,
@@ -60,7 +67,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { ProjectDto } from "@/services/projects-api";
 import {
-  createBlankPage,
+  createPage,
   createDraftPreview,
   deletePage,
   listPages,
@@ -78,6 +85,21 @@ import {
 } from "@/services/pages-api";
 import { DynamicLucideIcon } from "./DynamicLucideIcon";
 import { IconPicker } from "./IconPicker";
+
+export const PAGE_TYPE_LABELS: Record<PageType, string> = {
+  analysis: "분석",
+  blank: "빈 페이지",
+  board: "보드",
+  chat: "채팅",
+  dashboard: "대시보드",
+  "data-viewer": "데이터 보기",
+  "experiment-comparison": "실험 비교",
+  form: "폼",
+  report: "보고서",
+  "search-result": "검색 결과",
+  settings: "설정",
+  "spc-dashboard": "SPC 대시보드",
+};
 
 interface PageManagerProps {
   project: ProjectDto;
@@ -177,7 +199,7 @@ function SortablePageRow(props: SortablePageRowProps) {
           <small>{props.page.route}</small>
         </button>
       )}
-      <Badge variant="secondary">초안</Badge>
+      <Badge variant="secondary">{PAGE_TYPE_LABELS[props.page.pageType]}</Badge>
       <Button
         className="page-trash-button"
         variant="destructive"
@@ -303,9 +325,9 @@ export function PageManager({
     }
   }
 
-  async function createPage() {
+  async function createPageOfType(pageType: PageType) {
     await mutate(async () => {
-      const payload = await createBlankPage(project.id, projectRevision);
+      const payload = await createPage(project.id, projectRevision, pageType);
       updateProjectRevision(payload.projectRevision);
       const next = [...pages, payload.page];
       syncPages(next);
@@ -490,14 +512,33 @@ export function PageManager({
             <Send data-icon="inline-start" />
             게시
           </Button>
-          <Button
-            size="sm"
-            type="button"
-            disabled={busy || loading}
-            onClick={() => void createPage()}
-          >
-            <FilePlus2 data-icon="inline-start" />빈 페이지
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="sm"
+                type="button"
+                disabled={busy || loading}
+                aria-label="페이지 추가"
+              >
+                <FilePlus2 data-icon="inline-start" />
+                페이지
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              className="page-type-menu"
+              align="end"
+              aria-label="페이지 유형"
+            >
+              {PAGE_TYPES.map((pageType) => (
+                <DropdownMenuItem
+                  key={pageType}
+                  onSelect={() => void createPageOfType(pageType)}
+                >
+                  {PAGE_TYPE_LABELS[pageType]}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
 
@@ -530,7 +571,10 @@ export function PageManager({
             <EmptyDescription>빈 페이지를 추가하세요.</EmptyDescription>
           </EmptyHeader>
           <EmptyContent>
-            <Button type="button" onClick={() => void createPage()}>
+            <Button
+              type="button"
+              onClick={() => void createPageOfType("blank")}
+            >
               <FilePlus2 data-icon="inline-start" />빈 페이지
             </Button>
           </EmptyContent>

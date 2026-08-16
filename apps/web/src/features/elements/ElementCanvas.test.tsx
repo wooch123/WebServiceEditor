@@ -1926,6 +1926,7 @@ describe("ElementCanvas Phase 5 interaction", () => {
     for (const handle of ELEMENT_RESIZE_HANDLES) {
       const control = await screen.findByTestId(`resize-handle-${handle}`);
       expect(control).toHaveAttribute("data-resize-handle", handle);
+      expect(control).not.toHaveAttribute("style");
     }
     expect(ELEMENT_RESIZE_HANDLES).toEqual([
       "n",
@@ -1938,6 +1939,9 @@ describe("ElementCanvas Phase 5 interaction", () => {
       "sw",
     ]);
     expect(stylesCss).toContain(".element-resize-tooltip");
+    expect(stylesCss).toMatch(
+      /\.element-resize-handle::after\s*\{[^}]*border:\s*0;[^}]*transform:\s*translate\(-50%,\s*-50%\);/s,
+    );
     expect(stylesCss).toContain(
       '.element-renderer[data-render-mode="compact"]',
     );

@@ -72,9 +72,16 @@ export type ProjectVersionSnapshot =
   LegacyProjectVersionSnapshot | ProjectDefinitionSnapshotDto;
 
 const pageColumns = `
-  id, project_id, schema_version, revision, name, route, page_type,
-  icon_name, icon_catalog_version, navigation_visible, navigation_group,
-  sort_order, created_at, updated_at, deleted_at
+  pages.id, pages.project_id, pages.schema_version, pages.revision, pages.name,
+  pages.route,
+  COALESCE(
+    (SELECT assignment.page_type FROM page_type_assignments AS assignment
+     WHERE assignment.page_id = pages.id),
+    pages.page_type
+  ) AS page_type,
+  pages.icon_name, pages.icon_catalog_version, pages.navigation_visible,
+  pages.navigation_group, pages.sort_order, pages.created_at, pages.updated_at,
+  pages.deleted_at
 `;
 
 export class PageRepository {
@@ -166,7 +173,7 @@ export class PageRepository {
     readonly projectId: string;
     readonly name: string;
     readonly route: string;
-    readonly pageType: "blank";
+    readonly pageType: PageType;
     readonly iconName: string;
     readonly sortOrder: number;
     readonly now: string;
@@ -177,19 +184,24 @@ export class PageRepository {
           id, project_id, schema_version, revision, name, route, page_type,
           icon_name, icon_catalog_version, navigation_visible,
           navigation_group, sort_order, created_at, updated_at
-        ) VALUES (?, ?, 1, 1, ?, ?, ?, ?, '1.31.0', 1, NULL, ?, ?, ?)`,
+        ) VALUES (?, ?, 1, 1, ?, ?, 'blank', ?, '1.31.0', 1, NULL, ?, ?, ?)`,
       )
       .run(
         page.id,
         page.projectId,
         page.name,
         page.route,
-        page.pageType,
         page.iconName,
         page.sortOrder,
         page.now,
         page.now,
       );
+    this.connection
+      .prepare(
+        `UPDATE page_type_assignments SET page_type = ?
+         WHERE page_id = ? AND project_id = ?`,
+      )
+      .run(page.pageType, page.id, page.projectId);
     return this.getRequired(page.id);
   }
 
@@ -219,6 +231,12 @@ export class PageRepository {
         now,
         now,
       );
+    this.connection
+      .prepare(
+        `UPDATE page_type_assignments SET page_type = ?
+         WHERE page_id = ? AND project_id = ?`,
+      )
+      .run(page.pageType, pageId, projectId);
     return this.getRequired(pageId);
   }
 
@@ -368,7 +386,7 @@ export class PageRepository {
       .run(command.project_id);
     const restored = this.connection
       .prepare(
-        `UPDATE pages SET name = ?, route = ?, page_type = ?, icon_name = ?,
+        `UPDATE pages SET name = ?, route = ?, page_type = 'blank', icon_name = ?,
            icon_catalog_version = ?, navigation_visible = ?,
            navigation_group = ?, sort_order = ?, deleted_at = NULL,
            revision = revision + 1, updated_at = ?
@@ -377,7 +395,6 @@ export class PageRepository {
       .run(
         snapshot.name,
         snapshot.route,
-        snapshot.pageType,
         snapshot.iconName,
         snapshot.iconCatalogVersion,
         snapshot.navigationVisible ? 1 : 0,
@@ -390,6 +407,12 @@ export class PageRepository {
     if (restored.changes !== 1) {
       throw new Error("Deleted page could not be restored");
     }
+    this.connection
+      .prepare(
+        `UPDATE page_type_assignments SET page_type = ?
+         WHERE page_id = ? AND project_id = ?`,
+      )
+      .run(snapshot.pageType, command.page_id, command.project_id);
     this.connection
       .prepare(
         "UPDATE page_commands SET undone_at = ? WHERE id = ? AND undone_at IS NULL",

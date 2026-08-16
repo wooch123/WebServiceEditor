@@ -2,6 +2,7 @@ import { createHash, randomUUID } from "node:crypto";
 
 import {
   LUCIDE_ICON_CATALOG_VERSION,
+  PAGE_TYPES,
   PUBLISH_VALIDATION_CODES,
   type ElementEntryDto,
   type DataSchemaExportDto,
@@ -70,6 +71,7 @@ const PURGE_PLAN_TTL_MILLISECONDS = 5 * 60 * 1000;
 const lucideIconNames = new Set(
   LUCIDE_ICON_CATALOG.map((icon) => icon.name as string),
 );
+const pageTypes = new Set<string>(PAGE_TYPES);
 
 export interface ProjectServiceOptions {
   readonly metadataDatabase: MetadataDatabase;
@@ -397,7 +399,8 @@ function parseImportPages(
       page.schemaVersion === 1 &&
         Number.isInteger(page.revision) &&
         (page.revision as number) >= 1 &&
-        page.pageType === "blank" &&
+        typeof page.pageType === "string" &&
+        pageTypes.has(page.pageType) &&
         typeof page.iconName === "string" &&
         lucideIconNames.has(page.iconName) &&
         page.iconCatalogVersion === LUCIDE_ICON_CATALOG_VERSION &&
@@ -427,7 +430,7 @@ function parseImportPages(
       revision: page.revision as number,
       name: page.name.trim(),
       route: page.route,
-      pageType: "blank",
+      pageType: page.pageType as PageDto["pageType"],
       iconName: page.iconName,
       iconCatalogVersion: LUCIDE_ICON_CATALOG_VERSION,
       navigationVisible: page.navigationVisible,

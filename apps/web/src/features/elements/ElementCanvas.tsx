@@ -131,6 +131,7 @@ function CustomResizeHandle({
     <span
       {...dragHandleProps}
       ref={handleRef as Ref<HTMLSpanElement>}
+      style={undefined}
       className={`react-resizable-handle react-resizable-handle-${axis} element-resize-handle`}
       role="button"
       tabIndex={-1}

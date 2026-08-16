@@ -3111,6 +3111,7 @@ svg {
   margin-left: 0;
 }
 .page-manager-actions > [data-slot="button"],
+.page-manager-actions > [data-slot="dropdown-menu-trigger"],
 .page-manager-error [data-slot="button"],
 .page-manager-footer [data-slot="button"] {
   height: var(--control-height);
@@ -3118,11 +3119,16 @@ svg {
   padding-inline: var(--control-padding-inline);
   border-radius: var(--control-radius);
 }
-.page-manager-actions > [data-slot="button"] {
+.page-manager-actions > [data-slot="button"],
+.page-manager-actions > [data-slot="dropdown-menu-trigger"] {
   width: 100%;
   min-width: 0;
   gap: 0.3rem;
   padding-inline: 0.45rem;
+}
+
+.page-type-menu {
+  width: 13rem;
 }
 .page-manager-list {
   display: flex;
@@ -3944,6 +3950,7 @@ svg {
 
 .element-resize-handle {
   position: absolute;
+  z-index: 6;
   display: block;
   padding: 0;
   border: 0;
@@ -3957,6 +3964,9 @@ svg {
 .element-resize-handle::after {
   position: absolute;
   display: block;
+  box-sizing: border-box;
+  border: 0;
+  transform: translate(-50%, -50%);
   content: "";
 }
 
@@ -3970,84 +3980,84 @@ svg {
 }
 
 .element-resize-handle.react-resizable-handle-n {
-  top: -0.7rem;
+  top: -0.55rem;
   left: 50%;
-  width: 2.5rem;
-  height: 0.8rem;
-  margin-left: -1.25rem;
+  width: 2.75rem;
+  height: 1.1rem;
+  margin-left: -1.375rem;
   cursor: ns-resize;
 }
 .element-resize-handle.react-resizable-handle-s {
-  bottom: -0.7rem;
+  bottom: -0.55rem;
   left: 50%;
-  width: 2.5rem;
-  height: 0.8rem;
-  margin-left: -1.25rem;
+  width: 2.75rem;
+  height: 1.1rem;
+  margin-left: -1.375rem;
   cursor: ns-resize;
 }
 .element-resize-handle.react-resizable-handle-e {
   top: 50%;
-  right: -0.7rem;
-  width: 0.8rem;
-  height: 2.5rem;
-  margin-top: -1.25rem;
+  right: -0.55rem;
+  width: 1.1rem;
+  height: 2.75rem;
+  margin-top: -1.375rem;
   cursor: ew-resize;
 }
 .element-resize-handle.react-resizable-handle-w {
   top: 50%;
-  left: -0.7rem;
-  width: 0.8rem;
-  height: 2.5rem;
-  margin-top: -1.25rem;
+  left: -0.55rem;
+  width: 1.1rem;
+  height: 2.75rem;
+  margin-top: -1.375rem;
   cursor: ew-resize;
 }
 
 .element-resize-handle.react-resizable-handle-n::after,
 .element-resize-handle.react-resizable-handle-s::after {
-  top: 0.35rem;
-  left: 0.45rem;
-  width: 1.6rem;
-  height: 2px;
+  top: 50%;
+  left: 50%;
+  width: 1.65rem;
+  height: 3px;
   border-radius: 999px;
   background: var(--selection);
 }
 
 .element-resize-handle.react-resizable-handle-e::after,
 .element-resize-handle.react-resizable-handle-w::after {
-  top: 0.45rem;
-  left: 0.35rem;
-  width: 2px;
-  height: 1.6rem;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 1.65rem;
   border-radius: 999px;
   background: var(--selection);
 }
 
 .element-resize-handle.react-resizable-handle-ne {
-  top: -0.7rem;
-  right: -0.7rem;
-  width: 0.9rem;
-  height: 0.9rem;
+  top: -0.6rem;
+  right: -0.6rem;
+  width: 1.2rem;
+  height: 1.2rem;
   cursor: nesw-resize;
 }
 .element-resize-handle.react-resizable-handle-nw {
-  top: -0.7rem;
-  left: -0.7rem;
-  width: 0.9rem;
-  height: 0.9rem;
+  top: -0.6rem;
+  left: -0.6rem;
+  width: 1.2rem;
+  height: 1.2rem;
   cursor: nwse-resize;
 }
 .element-resize-handle.react-resizable-handle-se {
-  right: -0.7rem;
-  bottom: -0.7rem;
-  width: 0.9rem;
-  height: 0.9rem;
+  right: -0.6rem;
+  bottom: -0.6rem;
+  width: 1.2rem;
+  height: 1.2rem;
   cursor: nwse-resize;
 }
 .element-resize-handle.react-resizable-handle-sw {
-  bottom: -0.7rem;
-  left: -0.7rem;
-  width: 0.9rem;
-  height: 0.9rem;
+  bottom: -0.6rem;
+  left: -0.6rem;
+  width: 1.2rem;
+  height: 1.2rem;
   cursor: nesw-resize;
 }
 
@@ -4055,43 +4065,13 @@ svg {
 .element-resize-handle.react-resizable-handle-nw::after,
 .element-resize-handle.react-resizable-handle-se::after,
 .element-resize-handle.react-resizable-handle-sw::after {
-  width: 0.5rem;
-  height: 0.5rem;
-  border-color: var(--selection);
-  border-style: solid;
-  border-width: 0;
-}
-
-.element-resize-handle.react-resizable-handle-ne::after {
-  top: 0.2rem;
-  right: 0.2rem;
-  border-top-width: 2px;
-  border-right-width: 2px;
-  border-radius: 0 0.25rem 0 0;
-}
-
-.element-resize-handle.react-resizable-handle-nw::after {
-  top: 0.2rem;
-  left: 0.2rem;
-  border-top-width: 2px;
-  border-left-width: 2px;
-  border-radius: 0.25rem 0 0;
-}
-
-.element-resize-handle.react-resizable-handle-se::after {
-  right: 0.2rem;
-  bottom: 0.2rem;
-  border-right-width: 2px;
-  border-bottom-width: 2px;
-  border-radius: 0 0 0.25rem;
-}
-
-.element-resize-handle.react-resizable-handle-sw::after {
-  bottom: 0.2rem;
-  left: 0.2rem;
-  border-bottom-width: 2px;
-  border-left-width: 2px;
-  border-radius: 0 0 0 0.25rem;
+  top: 50%;
+  left: 50%;
+  width: 0.55rem;
+  height: 0.55rem;
+  border: 2px solid var(--selection);
+  border-radius: 50%;
+  background: var(--card);
 }
 
 .element-resize-tooltip,

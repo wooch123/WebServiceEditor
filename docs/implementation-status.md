@@ -43,6 +43,13 @@ Current verified slice:
 - Actual-domain empty-area drag returned in 18 ms, persisted after reload, and
   produced zero browser console errors at
   `https://webeditor.dove9999.com/`.
+- Element selection no longer inherits the Grid library's absolute drag
+  coordinates, so pointer jitter does not move the Element at 150% zoom.
+- Resize controls ignore injected rotation/size styles and use consistent edge
+  bars plus compact circular corner handles without covering the Element body.
+- The exact 12 Page Type inventory now creates, lists, restarts, exports,
+  imports, clones, deletes, and restores through the authoritative assignment
+  table while preserving the legacy Page row constraint.
 
 ## Phase ledger
 

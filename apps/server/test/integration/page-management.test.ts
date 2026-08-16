@@ -3,7 +3,7 @@ import { mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import type { PageDto } from "@webeditor/domain";
+import { PAGE_TYPES, type PageDto, type PageType } from "@webeditor/domain";
 import Database from "better-sqlite3";
 import type { FastifyInstance } from "fastify";
 import { afterEach, describe, expect, it } from "vitest";
@@ -84,13 +84,14 @@ async function createPage(
   expectedProjectRevision: number,
   name: string,
   idempotencyKey = `page-create-${randomUUID()}`,
+  pageType: PageType = "blank",
 ): Promise<PageMutationResponse> {
   const response = await app.inject({
     method: "POST",
     url: `/api/v1/projects/${projectId}/pages`,
     payload: {
       name,
-      pageType: "blank",
+      pageType,
       expectedProjectRevision,
       idempotencyKey,
     },
@@ -113,6 +114,67 @@ async function listPages(app: FastifyInstance, projectId: string) {
 }
 
 describe("page management and published navigation", () => {
+  it("creates, lists, and restarts with the exact twelve Page Type inventory", async () => {
+    const current = fixture();
+    let app = server(current);
+    const project = await createProject(app, "Page Type Project");
+    let projectRevision = project.revision;
+
+    for (const [index, pageType] of PAGE_TYPES.entries()) {
+      const created = await createPage(
+        app,
+        project.id,
+        projectRevision,
+        `Type ${index + 1}`,
+        `page-type-${pageType}-${randomUUID()}`,
+        pageType,
+      );
+      expect(created.page.pageType).toBe(pageType);
+      projectRevision = created.projectRevision;
+    }
+
+    const invalid = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${project.id}/pages`,
+      payload: {
+        pageType: "unknown",
+        expectedProjectRevision: projectRevision,
+        idempotencyKey: `invalid-page-type-${randomUUID()}`,
+      },
+    });
+    expect(invalid.statusCode).toBe(400);
+    expect(invalid.json()).toMatchObject({
+      error: { code: "INVALID_PAGE_TYPE" },
+    });
+
+    expect(
+      (await listPages(app, project.id)).pages.map(({ pageType }) => pageType),
+    ).toEqual(PAGE_TYPES);
+    await close(app);
+    app = server(current);
+    expect(
+      (await listPages(app, project.id)).pages.map(({ pageType }) => pageType),
+    ).toEqual(PAGE_TYPES);
+
+    const database = new Database(current.databasePath, { readonly: true });
+    try {
+      expect(
+        database
+          .prepare(
+            `SELECT assignment.page_type
+             FROM page_type_assignments AS assignment
+             JOIN pages ON pages.id = assignment.page_id
+             WHERE assignment.project_id = ?
+             ORDER BY pages.sort_order`,
+          )
+          .all(project.id)
+          .map((row) => (row as { page_type: PageType }).page_type),
+      ).toEqual(PAGE_TYPES);
+    } finally {
+      database.close();
+    }
+  });
+
   it("validates page metadata, persists optimistic edits and exposes the complete icon catalog", async () => {
     const current = fixture();
     let app = server(current);
@@ -495,6 +557,8 @@ describe("page management and published navigation", () => {
       project.id,
       first.projectRevision,
       "Second",
+      `delete-dashboard-${randomUUID()}`,
+      "dashboard",
     );
     const third = await createPage(
       app,
@@ -654,6 +718,7 @@ describe("page management and published navigation", () => {
     const undoneBody = undone.json() as PageMutationResponse;
     expect(undoneBody.page).toMatchObject({
       id: second.page.id,
+      pageType: "dashboard",
       iconName: "Activity",
       sortOrder: 1,
       deletedAt: null,
@@ -1014,12 +1079,21 @@ describe("page management and published navigation", () => {
       "Lifecycle Pages",
       "lifecycle-pages",
     );
-    const first = await createPage(app, project.id, 1, "One");
+    const first = await createPage(
+      app,
+      project.id,
+      1,
+      "One",
+      `lifecycle-analysis-${randomUUID()}`,
+      "analysis",
+    );
     const second = await createPage(
       app,
       project.id,
       first.projectRevision,
       "Two",
+      `lifecycle-dashboard-${randomUUID()}`,
+      "dashboard",
     );
     const published = await app.inject({
       method: "POST",
@@ -1047,6 +1121,9 @@ describe("page management and published navigation", () => {
       first.page.id,
       second.page.id,
     ]);
+    expect(
+      exportBody.export.manifest.pages.map((page) => page.pageType),
+    ).toEqual(["analysis", "dashboard"]);
 
     const cloned = await app.inject({
       method: "POST",
@@ -1077,6 +1154,10 @@ describe("page management and published navigation", () => {
         }),
       ),
     );
+    expect(clonePages.pages.map((page) => page.pageType)).toEqual([
+      "analysis",
+      "dashboard",
+    ]);
     const cloneRuntime = await app.inject({
       method: "GET",
       url: `/api/v1/runtime/${cloneProject.id}/navigation`,
@@ -1103,6 +1184,10 @@ describe("page management and published navigation", () => {
       .project;
     const importedPages = await listPages(app, importedProject.id);
     expect(importedPages.pages).toHaveLength(2);
+    expect(importedPages.pages.map((page) => page.pageType)).toEqual([
+      "analysis",
+      "dashboard",
+    ]);
     expect(new Set(importedPages.pages.map((page) => page.id))).not.toEqual(
       new Set([first.page.id, second.page.id]),
     );

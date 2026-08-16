@@ -1,6 +1,19 @@
 export const PAGE_SCHEMA_VERSION = 1 as const;
 export const LUCIDE_ICON_CATALOG_VERSION = "1.31.0" as const;
-export const PAGE_TYPES = ["blank"] as const;
+export const PAGE_TYPES = [
+  "analysis",
+  "blank",
+  "board",
+  "chat",
+  "dashboard",
+  "data-viewer",
+  "experiment-comparison",
+  "form",
+  "report",
+  "search-result",
+  "settings",
+  "spc-dashboard",
+] as const;
 export const PUBLISH_VALIDATION_CODES = ["ALL_NAVIGATION_HIDDEN"] as const;
 
 export type PageType = (typeof PAGE_TYPES)[number];
@@ -24,7 +37,7 @@ export interface PageDto {
 
 export interface CreatePageRequest {
   readonly name?: string;
-  readonly pageType: "blank";
+  readonly pageType: PageType;
   readonly expectedProjectRevision: number;
   readonly idempotencyKey: string;
 }

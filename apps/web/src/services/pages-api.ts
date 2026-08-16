@@ -1,4 +1,4 @@
-import type { ProjectVariableDto } from "@webeditor/domain";
+import type { PageType, ProjectVariableDto } from "@webeditor/domain";
 
 import { apiFetch } from "./api-fetch";
 
@@ -11,7 +11,7 @@ export interface PageDto {
   revision: number;
   name: string;
   route: string;
-  pageType: "blank";
+  pageType: PageType;
   iconName: string;
   iconCatalogVersion: typeof LUCIDE_CATALOG_VERSION;
   navigationVisible: boolean;
@@ -147,13 +147,17 @@ export function listPages(projectId: string) {
   }>(`/api/v1/projects/${encodeURIComponent(projectId)}/pages`);
 }
 
-export function createBlankPage(projectId: string, projectRevision: number) {
+export function createPage(
+  projectId: string,
+  projectRevision: number,
+  pageType: PageType,
+) {
   return request<{ page: PageDto; projectRevision: number }>(
     `/api/v1/projects/${encodeURIComponent(projectId)}/pages`,
     {
       method: "POST",
       body: JSON.stringify({
-        pageType: "blank",
+        pageType,
         expectedProjectRevision: projectRevision,
         idempotencyKey: idempotencyKey(`page-create:${projectId}`),
       }),
