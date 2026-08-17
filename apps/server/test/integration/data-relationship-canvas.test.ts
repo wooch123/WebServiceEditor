@@ -946,4 +946,112 @@ describe("Phase 9 Data Relationship Canvas", () => {
       })),
     ).toEqual(beforeAuto);
   });
+
+  it("applies a compact Page scope without writing positions outside that Page", async () => {
+    const current = fixture();
+    const app = server(current);
+    const seeded = await seed(app);
+    const initial = await graph(app, seeded.project.id);
+    const page = initial.nodes.find(({ type }) => type === "page");
+    const element = initial.nodes.find(({ type }) => type === "element");
+    const table = initial.nodes.find(({ type }) => type === "table");
+    expect(page).toBeDefined();
+    expect(element).toBeDefined();
+    expect(table).toBeDefined();
+    const scopeNodeIds = [page?.id, element?.id] as string[];
+
+    const invalidScope = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${seeded.project.id}/auto-layout`,
+      payload: {
+        action: "PREVIEW",
+        scopeNodeIds: [page?.id, page?.id],
+        expectedGraphRevision: initial.graphRevision,
+        expectedProjectRevision: initial.projectRevision,
+      },
+    });
+    expect(invalidScope.statusCode, invalidScope.body).toBe(400);
+    expect((await graph(app, seeded.project.id)).projectRevision).toBe(
+      initial.projectRevision,
+    );
+
+    const previewResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${seeded.project.id}/auto-layout`,
+      payload: {
+        action: "PREVIEW",
+        scopeNodeIds,
+        expectedGraphRevision: initial.graphRevision,
+        expectedProjectRevision: initial.projectRevision,
+      },
+    });
+    expect(previewResponse.statusCode, previewResponse.body).toBe(200);
+    const preview = previewResponse.json() as RelationshipAutoLayoutPreviewDto;
+    expect(preview.scopeNodeIds).toEqual([...scopeNodeIds].sort());
+    expect(preview.positions).toHaveLength(initial.nodes.length);
+    expect(
+      preview.positions.find(({ nodeId }) => nodeId === table?.id),
+    ).toMatchObject({
+      x: table?.x,
+      y: table?.y,
+      revision: table?.positionRevision,
+    });
+
+    const applyResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${seeded.project.id}/auto-layout`,
+      payload: {
+        action: "APPLY",
+        previewId: preview.previewId,
+        expectedGraphRevision: preview.graphRevision,
+        expectedProjectRevision: preview.projectRevision,
+        idempotencyKey: `page-layout-${randomUUID()}`,
+      },
+    });
+    expect(applyResponse.statusCode, applyResponse.body).toBe(200);
+    const applied = applyResponse.json() as RelationshipAutoLayoutApplyDto;
+    expect(applied.positions.map(({ nodeId }) => nodeId).sort()).toEqual(
+      [...scopeNodeIds].sort(),
+    );
+    const after = await graph(app, seeded.project.id);
+    expect(after.nodes.find(({ id }) => id === table?.id)).toMatchObject({
+      x: table?.x,
+      y: table?.y,
+      positionRevision: table?.positionRevision,
+    });
+    expect(
+      after.nodes
+        .filter(({ id }) => scopeNodeIds.includes(id))
+        .every(
+          ({ x, y, positionRevision }) =>
+            x % 24 === 0 && y % 24 === 0 && positionRevision > 0,
+        ),
+    ).toBe(true);
+
+    const historyResponse = await app.inject({
+      method: "GET",
+      url: `/api/v1/projects/${seeded.project.id}/relationship-layout-history`,
+    });
+    const layoutHistory =
+      historyResponse.json() as RelationshipLayoutHistoryDto;
+    expect(layoutHistory.undo).toMatchObject({ commandType: "AUTO_LAYOUT" });
+    const undoResponse = await app.inject({
+      method: "POST",
+      url: `/api/v1/projects/${seeded.project.id}/relationship-layout-history/undo`,
+      payload: {
+        expectedCommandId: layoutHistory.undo?.id,
+        expectedGraphRevision: layoutHistory.graphRevision,
+        expectedProjectRevision: layoutHistory.projectRevision,
+        idempotencyKey: `page-layout-undo-${randomUUID()}`,
+      },
+    });
+    expect(undoResponse.statusCode, undoResponse.body).toBe(200);
+    const restored = await graph(app, seeded.project.id);
+    expect(restored.nodes.map(({ id, x, y }) => ({ id, x, y }))).toEqual(
+      initial.nodes.map(({ id, x, y }) => ({ id, x, y })),
+    );
+    expect(restored.nodes.find(({ id }) => id === table?.id)).toMatchObject({
+      positionRevision: table?.positionRevision,
+    });
+  });
 });

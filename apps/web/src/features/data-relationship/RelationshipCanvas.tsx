@@ -566,6 +566,7 @@ function OrthogonalRelationshipEdge({
       className={`relationship-edge-visual ${data.selected ? "is-selected" : ""}`}
       data-binding-id={data.binding.id}
       data-bend-count={data.route.bendCount}
+      data-flow-direction="source-to-target"
       role="button"
       tabIndex={0}
       aria-label={`${bindingLabels[data.binding.bindingType]} Binding`}
@@ -588,6 +589,21 @@ function OrthogonalRelationshipEdge({
         interactionWidth={0}
         className="relationship-edge-flow"
       />
+      <circle className="relationship-edge-particle" r="3.5" aria-hidden="true">
+        <animateMotion path={path} dur="1.15s" repeatCount="indefinite" />
+      </circle>
+      <circle
+        className="relationship-edge-particle is-delayed"
+        r="2.5"
+        aria-hidden="true"
+      >
+        <animateMotion
+          path={path}
+          begin="-0.575s"
+          dur="1.15s"
+          repeatCount="indefinite"
+        />
+      </circle>
       <EdgeLabelRenderer>
         <span
           className="relationship-edge-label nodrag nopan"
@@ -1106,7 +1122,10 @@ function RelationshipCanvasInner({
           sourceHandle: binding.source.portId,
           targetHandle: binding.target.portId,
           type: "orthogonal",
-          markerEnd: { type: MarkerType.ArrowClosed, color: "var(--edge)" },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: "var(--edge-selected)",
+          },
           data: {
             binding,
             route,
@@ -1633,6 +1652,7 @@ function RelationshipCanvasInner({
     try {
       const preview = await dataRelationshipApi.previewAutoLayout(projectId, {
         action: "PREVIEW",
+        scopeNodeIds: [...scopedNodeIds].sort(),
         expectedGraphRevision: graph.graphRevision,
         expectedProjectRevision: graph.projectRevision,
       });

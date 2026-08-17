@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -19,6 +19,54 @@ afterEach(async () => {
 });
 
 describe("system routes", () => {
+  it("serves assets created by a web rebuild after the server starts", async () => {
+    const directory = await mkdtemp(join(tmpdir(), "webeditor-static-"));
+    temporaryDirectories.push(directory);
+    const staticRoot = join(directory, "web");
+    const assetsRoot = join(staticRoot, "assets");
+    await mkdir(assetsRoot, { recursive: true });
+    await writeFile(
+      join(staticRoot, "index.html"),
+      '<!doctype html><div id="root"></div>',
+      "utf8",
+    );
+
+    const app = buildServer({
+      metadataDatabasePath: join(directory, "metadata", "webeditor.sqlite"),
+      storageRoot: join(directory, "projects"),
+      staticRoot,
+    });
+
+    try {
+      await app.ready();
+      await writeFile(
+        join(assetsRoot, "rebuilt-entry.js"),
+        'document.querySelector("#root").textContent = "ready";',
+        "utf8",
+      );
+
+      const assetResponse = await app.inject({
+        method: "GET",
+        url: "/assets/rebuilt-entry.js",
+      });
+      const spaResponse = await app.inject({
+        method: "GET",
+        url: "/projects/example/editor",
+        headers: { accept: "text/html" },
+      });
+
+      expect(assetResponse.statusCode).toBe(200);
+      expect(assetResponse.headers["content-type"]).toContain(
+        "application/javascript",
+      );
+      expect(assetResponse.body).toContain('textContent = "ready"');
+      expect(spaResponse.statusCode).toBe(200);
+      expect(spaResponse.body).toContain('<div id="root"></div>');
+    } finally {
+      await app.close();
+    }
+  });
+
   it("initializes a durable metadata database and exposes health/readiness", async () => {
     const directory = await mkdtemp(join(tmpdir(), "webeditor-server-"));
     temporaryDirectories.push(directory);

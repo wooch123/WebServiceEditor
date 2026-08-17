@@ -337,7 +337,14 @@ describe("RelationshipCanvas", () => {
     expect(roundedOrthogonalPath(live)).toContain("L 144 116");
     expect(relationshipCanvasSource).toContain("{ x: sourceX, y: sourceY }");
     expect(stylesSource).toMatch(
-      /\.relationship-edge-flow\s*\{[\s\S]*stroke-dasharray:\s*2 13;[\s\S]*animation:\s*relationship-flow/u,
+      /\.relationship-edge-flow\s*\{[\s\S]*stroke-dasharray:\s*2 13;[\s\S]*animation:\s*relationship-flow 0\.9s linear infinite/u,
+    );
+    expect(relationshipCanvasSource).toContain(
+      'data-flow-direction="source-to-target"',
+    );
+    expect(relationshipCanvasSource.match(/<animateMotion/gu)).toHaveLength(2);
+    expect(stylesSource).toMatch(
+      /@keyframes relationship-flow\s*\{[\s\S]*stroke-dashoffset:\s*-13/u,
     );
   });
 
@@ -1132,6 +1139,25 @@ describe("RelationshipCanvas", () => {
   });
 
   it("applies one server-owned Auto Layout snapshot directly, then exposes one durable Undo command", async () => {
+    const otherPageId = "00000000-0000-4000-8000-000000000931";
+    const otherElementId = "00000000-0000-4000-8000-000000000932";
+    const otherPage: RelationshipNodeDto = {
+      ...pageNode,
+      id: `page:${otherPageId}`,
+      objectId: otherPageId,
+      label: "상세",
+      x: 40,
+      y: 320,
+    };
+    const otherElement: RelationshipNodeDto = {
+      ...elementNode,
+      id: `element:${otherElementId}`,
+      objectId: otherElementId,
+      label: "상세 표",
+      subtitle: "Data Table · 상세",
+      x: 380,
+      y: 320,
+    };
     const previewPositions = [
       { ...pageNode, x: 40, y: 40, pinned: true, positionRevision: 1 },
       { ...elementNode, x: 420, y: 40, positionRevision: 1 },
@@ -1145,7 +1171,10 @@ describe("RelationshipCanvas", () => {
       pinned: node.pinned,
       revision: node.positionRevision,
     }));
-    let current: DataRelationshipGraphDto = graph([binding()]);
+    let current: DataRelationshipGraphDto = {
+      ...graph([binding()]),
+      nodes: [pageNode, elementNode, tableNode, otherPage, otherElement],
+    };
     let currentLayoutHistory = layoutHistory(current);
     const calls: Array<{ url: string; method: string; body: unknown }> = [];
     vi.stubGlobal(
@@ -1167,6 +1196,7 @@ describe("RelationshipCanvas", () => {
               action: "PREVIEW",
               previewId,
               projectId,
+              scopeNodeIds: [pageNode.id, elementNode.id, tableNode.id].sort(),
               positions: previewPositions,
               routes: current.routes,
               crossingCountBefore: 1,
@@ -1255,6 +1285,17 @@ describe("RelationshipCanvas", () => {
     ).toBe(true);
 
     await user.click(
+      within(screen.getByLabelText("Page 범위")).getByRole("button", {
+        name: /분석$/u,
+      }),
+    );
+    await waitFor(() =>
+      expect(
+        within(screen.getByLabelText("관계 그래프")).queryByText("상세 표"),
+      ).toBeNull(),
+    );
+
+    await user.click(
       within(layoutToolbar).getByRole("button", { name: "자동 배치" }),
     );
     await waitFor(() =>
@@ -1271,6 +1312,9 @@ describe("RelationshipCanvas", () => {
     expect(
       autoLayoutCalls.map(({ body }) => (body as { action: string }).action),
     ).toEqual(["PREVIEW", "APPLY"]);
+    expect(autoLayoutCalls[0]?.body).toMatchObject({
+      scopeNodeIds: [elementNode.id, pageNode.id, tableNode.id].sort(),
+    });
     const applyCall = calls.find(
       ({ url, body }) =>
         url.endsWith("/auto-layout") &&

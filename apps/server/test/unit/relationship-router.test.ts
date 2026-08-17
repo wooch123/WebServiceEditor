@@ -9,6 +9,7 @@ import {
   alignComponentToRowsAndColumns,
   alignGraphByNodeTypeColumns,
   layoutRelationshipGraph,
+  layoutRelationshipGraphScope,
   relationshipNodeOverlapCount,
 } from "../../src/data-relationship/relationship-auto-layout.js";
 import { routeRelationshipEdges } from "../../src/data-relationship/relationship-router.js";
@@ -342,6 +343,59 @@ describe("relationship orthogonal router", () => {
     const maxY = Math.max(...first.nodes.map(({ y, height }) => y + height));
     expect(maxX - minX).toBeGreaterThan(400);
     expect(maxY - minY).toBeGreaterThan(400);
+  });
+
+  it("compacts only the selected Page scope and leaves every outside Node unchanged", async () => {
+    const page = {
+      ...node("page:selected", 720, 720, "output"),
+      type: "page" as const,
+      width: 240,
+    };
+    const element = node("element:selected", 1_320, 1_080, "input");
+    const table = {
+      ...node("table:selected", 1_920, 1_440, "output"),
+      width: 300,
+    };
+    const outsidePage = {
+      ...node("page:outside", 48, 48, "output"),
+      type: "page" as const,
+      width: 240,
+      positionRevision: 7,
+    };
+    const outsideElement = {
+      ...node("element:outside", 336, 48, "input"),
+      positionRevision: 9,
+    };
+    const bindings = [
+      { ...binding(page, element), id: "binding:contains" },
+      { ...binding(table, element), id: "binding:read" },
+    ];
+    const nodes = [outsideElement, table, page, outsidePage, element];
+    const scopeNodeIds = [page.id, element.id, table.id];
+    const result = await layoutRelationshipGraphScope(
+      nodes,
+      bindings,
+      scopeNodeIds,
+    );
+    const byId = new Map(result.nodes.map((value) => [value.id, value]));
+
+    expect(byId.get(outsidePage.id)).toEqual(outsidePage);
+    expect(byId.get(outsideElement.id)).toEqual(outsideElement);
+    expect(result.positions).toHaveLength(nodes.length);
+    expect(relationshipNodeOverlapCount(result.nodes)).toBe(0);
+    expect(result.routes).toHaveLength(bindings.length);
+    const scoped = scopeNodeIds.map(
+      (id) => byId.get(id) as RelationshipNodeDto,
+    );
+    const width =
+      Math.max(...scoped.map(({ x, width }) => x + width)) -
+      Math.min(...scoped.map(({ x }) => x));
+    const height =
+      Math.max(...scoped.map(({ y, height }) => y + height)) -
+      Math.min(...scoped.map(({ y }) => y));
+    expect(width).toBeLessThan(1_200);
+    expect(height).toBeLessThan(800);
+    expect(scoped.every(({ x, y }) => x % 24 === 0 && y % 24 === 0)).toBe(true);
   });
 
   it("aligns variable-width Nodes by their top-left layer origin", async () => {

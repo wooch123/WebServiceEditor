@@ -115,11 +115,12 @@ export async function registerDataRelationshipRoutes(
       const source = exactBody(request.body, [
         "action",
         "previewId",
+        "scopeNodeIds",
         ...graphRevisions,
         "idempotencyKey",
       ]);
       if (source.action === "PREVIEW") {
-        exactBody(request.body, ["action", ...graphRevisions]);
+        exactBody(request.body, ["action", "scopeNodeIds", ...graphRevisions]);
         return service.previewAutoLayout(
           request.params.projectId,
           source as unknown as PreviewRelationshipAutoLayoutRequest,

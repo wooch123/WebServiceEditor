@@ -5515,8 +5515,24 @@ svg {
   stroke-linecap: round;
   stroke-dasharray: 2 13;
   opacity: 0.72;
+  filter: drop-shadow(0 0 2px var(--edge-selected));
+  vector-effect: non-scaling-stroke;
   pointer-events: none;
   animation: relationship-flow 0.9s linear infinite;
+}
+
+.relationship-edge-particle {
+  fill: var(--edge-selected);
+  stroke: var(--canvas);
+  stroke-width: 1.5;
+  opacity: 0.96;
+  filter: drop-shadow(0 0 3px var(--edge-selected));
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+}
+
+.relationship-edge-particle.is-delayed {
+  opacity: 0.68;
 }
 
 .relationship-edge-label {
@@ -5946,6 +5962,10 @@ svg {
   .relationship-edge-visual.is-selected .relationship-edge-line,
   .relationship-edge-flow {
     animation: none;
+  }
+
+  .relationship-edge-particle {
+    display: none;
   }
 }
 /* Authentication boundary */

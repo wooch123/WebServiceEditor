@@ -163,6 +163,7 @@ export interface RelationshipRoutePreviewDto {
 
 export interface PreviewRelationshipAutoLayoutRequest {
   readonly action: "PREVIEW";
+  readonly scopeNodeIds?: readonly string[];
   readonly expectedGraphRevision: number;
   readonly expectedProjectRevision: number;
 }
@@ -179,6 +180,7 @@ export interface RelationshipAutoLayoutPreviewDto {
   readonly action: "PREVIEW";
   readonly previewId: string;
   readonly projectId: string;
+  readonly scopeNodeIds: readonly string[];
   readonly positions: readonly RelationshipNodePositionDto[];
   readonly routes: readonly RelationshipEdgeRouteDto[];
   readonly crossingCountBefore: number;

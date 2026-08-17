@@ -326,7 +326,6 @@ export function buildServer(options: BuildServerOptions = {}): FastifyInstance {
   if (staticRoot !== undefined && existsSync(staticRoot)) {
     void app.register(fastifyStatic, {
       root: staticRoot,
-      wildcard: false,
       index: ["index.html"],
     });
     app.setNotFoundHandler(async (request, reply) => {

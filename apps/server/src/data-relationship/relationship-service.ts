@@ -61,6 +61,7 @@ import {
 } from "./relationship-repository.js";
 import {
   layoutRelationshipGraph,
+  layoutRelationshipGraphScope,
   relationshipNodeOverlapCount,
 } from "./relationship-auto-layout.js";
 import type { RelationshipLayoutCommandRow } from "./relationship-layout-repository.js";
@@ -1444,20 +1445,35 @@ export class RelationshipService {
     const context = this.#context(projectId);
     this.#assertRevisions(context, request);
     const graph = this.graph(projectId);
-    const pinnedNodes = graph.nodes.filter(({ pinned }) => pinned);
+    const scopeNodeIds = this.#autoLayoutScopeNodeIds(
+      graph.nodes,
+      request.scopeNodeIds,
+    );
+    const scope = new Set(scopeNodeIds);
+    const pinnedNodes = graph.nodes.filter(
+      ({ id, pinned }) => pinned && scope.has(id),
+    );
     assertApi(
       relationshipNodeOverlapCount(pinnedNodes) === 0,
       409,
       "PINNED_NODE_OVERLAP",
       "Pinned Nodes overlap and cannot be arranged",
     );
-    const result = await layoutRelationshipGraph(graph.nodes, graph.edges);
+    const result =
+      scopeNodeIds.length === graph.nodes.length
+        ? await layoutRelationshipGraph(graph.nodes, graph.edges)
+        : await layoutRelationshipGraphScope(
+            graph.nodes,
+            graph.edges,
+            scopeNodeIds,
+          );
     const now = this.#clock();
     this.#purgeExpiredAutoLayouts(now.getTime());
     const preview: StoredAutoLayoutPreview = {
       action: "PREVIEW",
       previewId: randomUUID(),
       projectId,
+      scopeNodeIds,
       positions: result.positions,
       routes: result.routes,
       crossingCountBefore: result.crossingCountBefore,
@@ -1515,11 +1531,17 @@ export class RelationshipService {
     );
     const graph = this.graph(projectId);
     this.#validatedRoutePositions(graph.nodes, preview.positions);
-    const before = graph.nodes.map((node) => this.#position(node));
+    const scope = new Set(preview.scopeNodeIds);
+    const before = graph.nodes
+      .filter(({ id }) => scope.has(id))
+      .map((node) => this.#position(node));
+    const scopedPreviewPositions = preview.positions.filter(({ nodeId }) =>
+      scope.has(nodeId),
+    );
     const now = this.#now();
     const commandId = randomUUID();
     return this.repository.metadataDatabase.transaction(() => {
-      const positions = preview.positions.map((position) => {
+      const positions = scopedPreviewPositions.map((position) => {
         const row = this.repository.layoutRepository.applyPosition(
           projectId,
           {
@@ -1705,6 +1727,33 @@ export class RelationshipService {
       pinned: node.pinned,
       revision: node.positionRevision,
     };
+  }
+
+  #autoLayoutScopeNodeIds(
+    nodes: readonly RelationshipNodeDto[],
+    input: unknown,
+  ): readonly string[] {
+    if (input === undefined) return nodes.map(({ id }) => id).sort();
+    assertApi(
+      Array.isArray(input) && input.length > 0 && input.length <= nodes.length,
+      400,
+      "INVALID_AUTO_LAYOUT_SCOPE",
+      "Auto Layout scope must contain one or more current Nodes",
+    );
+    const available = new Set(nodes.map(({ id }) => id));
+    const seen = new Set<string>();
+    for (const nodeId of input) {
+      assertApi(
+        typeof nodeId === "string" &&
+          available.has(nodeId) &&
+          !seen.has(nodeId),
+        400,
+        "INVALID_AUTO_LAYOUT_SCOPE_NODE",
+        "Auto Layout scope contains an unknown or duplicate Node",
+      );
+      seen.add(nodeId);
+    }
+    return [...seen].sort();
   }
 
   #validatedRoutePositions(

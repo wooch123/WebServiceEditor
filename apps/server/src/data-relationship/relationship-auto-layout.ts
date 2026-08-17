@@ -35,6 +35,15 @@ function overlaps(
   );
 }
 
+function nodeGroupsOverlap(
+  left: readonly RelationshipNodeDto[],
+  right: readonly RelationshipNodeDto[],
+): boolean {
+  return left.some((leftNode) =>
+    right.some((rightNode) => overlaps(leftNode, rightNode)),
+  );
+}
+
 export function relationshipNodeOverlapCount(
   nodes: readonly RelationshipNodeDto[],
 ): number {
@@ -647,5 +656,116 @@ export async function layoutRelationshipGraph(
     routes: minimized.routes,
     crossingCountBefore: relationshipEdgeCrossingCount(previousRoutes),
     crossingCountAfter: relationshipEdgeCrossingCount(minimized.routes),
+  };
+}
+
+/**
+ * Lays out one visible editor scope while retaining a complete graph snapshot.
+ * Nodes outside the scope are immutable blockers, so a Page-focused layout can
+ * stay compact without corrupting the full-graph view or its routed Edges.
+ */
+export async function layoutRelationshipGraphScope(
+  nodes: readonly RelationshipNodeDto[],
+  bindings: readonly RelationshipBindingDto[],
+  scopeNodeIds: readonly string[],
+): Promise<RelationshipAutoLayoutResult> {
+  const scope = new Set(scopeNodeIds);
+  if (scope.size === nodes.length) {
+    return layoutRelationshipGraph(nodes, bindings);
+  }
+
+  const scopedNodes = nodes.filter(({ id }) => scope.has(id));
+  const scopedBindings = bindings.filter(
+    ({ source, target }) =>
+      scope.has(source.nodeId) && scope.has(target.nodeId),
+  );
+  const scoped = await layoutRelationshipGraph(scopedNodes, scopedBindings);
+  const outsideNodes = nodes.filter(({ id }) => !scope.has(id));
+  const scopedHasPinnedNode = scoped.nodes.some(({ pinned }) => pinned);
+
+  let positionedScope = [...scoped.nodes];
+  if (!scopedHasPinnedNode && positionedScope.length > 0) {
+    const scopedMinX = Math.min(...positionedScope.map(({ x }) => x));
+    const scopedMinY = Math.min(...positionedScope.map(({ y }) => y));
+    const currentScope = nodes.filter(({ id }) => scope.has(id));
+    const currentMinX = Math.min(...currentScope.map(({ x }) => x));
+    const currentMinY = Math.min(...currentScope.map(({ y }) => y));
+    const outsideRight = Math.max(
+      ...outsideNodes.map(({ x, width }) => x + width),
+      0,
+    );
+    const outsideBottom = Math.max(
+      ...outsideNodes.map(({ y, height }) => y + height),
+      0,
+    );
+    const offsets = [
+      {
+        x: snap(currentMinX - scopedMinX),
+        y: snap(currentMinY - scopedMinY),
+      },
+      { x: snap(outsideRight + NODE_GAP - scopedMinX), y: 0 },
+      { x: 0, y: snap(outsideBottom + NODE_GAP - scopedMinY) },
+    ].sort(
+      (left, right) =>
+        Math.abs(left.x) +
+          Math.abs(left.y) -
+          (Math.abs(right.x) + Math.abs(right.y)) ||
+        left.x - right.x ||
+        left.y - right.y,
+    );
+    const translated = offsets
+      .map((offset) =>
+        positionedScope.map((node) => ({
+          ...node,
+          x: snap(node.x + offset.x),
+          y: snap(node.y + offset.y),
+        })),
+      )
+      .find((candidate) => !nodeGroupsOverlap(outsideNodes, candidate));
+    if (translated !== undefined) positionedScope = translated;
+  }
+
+  if (nodeGroupsOverlap(outsideNodes, positionedScope)) {
+    const blockers = outsideNodes.map((node) => ({ ...node, pinned: true }));
+    const resolved = resolveUnpinnedOverlaps([...blockers, ...positionedScope]);
+    const scopedById = new Map(
+      resolved
+        .filter(({ id }) => scope.has(id))
+        .map((node) => [node.id, node] as const),
+    );
+    positionedScope = positionedScope.map((node) => ({
+      ...(scopedById.get(node.id) ?? node),
+      pinned: node.pinned,
+    }));
+  }
+
+  const scopedById = new Map(
+    positionedScope.map((node) => [node.id, node] as const),
+  );
+  const arranged = nodes
+    .map((node) => scopedById.get(node.id) ?? node)
+    .sort((left, right) => left.id.localeCompare(right.id));
+  if (
+    relationshipNodeOverlapCount(positionedScope) !== 0 ||
+    nodeGroupsOverlap(outsideNodes, positionedScope)
+  ) {
+    throw new Error("Scoped graph still overlaps after layout");
+  }
+  const previousRoutes = routeRelationshipEdges(nodes, bindings);
+  const routes = routeRelationshipEdges(arranged, bindings);
+  return {
+    nodes: arranged,
+    positions: arranged.map((node) => ({
+      nodeId: node.id,
+      nodeType: node.type,
+      objectId: node.objectId,
+      x: node.x,
+      y: node.y,
+      pinned: node.pinned,
+      revision: node.positionRevision,
+    })),
+    routes,
+    crossingCountBefore: relationshipEdgeCrossingCount(previousRoutes),
+    crossingCountAfter: relationshipEdgeCrossingCount(routes),
   };
 }
